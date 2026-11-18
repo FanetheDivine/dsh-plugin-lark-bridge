@@ -1,24 +1,15 @@
 <!--
 Sync Impact Report
-- Version change: 1.9.0 → 2.0.0
-- Modified principles:
-  - I. 宿主契约 → I. 宿主依赖版本：只保留依赖版本规则，以同版本 `@deepseek-ai/dsh` 为准
-  - IV. 测试同步 → II. 测试同步
-  - V. 文档结构 → III. 文档结构
-  - VI. 质量门禁 → IV. 质量门禁
-  - VIII. 公开引用 → V. 公开引用
-- Removed principles:
-  - II. 依赖归属：归属规则移入 `docs/how-it-works.md`，`minimumReleaseAgeExclude` 规则并入原则 I
-  - III. 严格配置：移入 `docs/how-it-works.md`
-  - VII. 模板定位：移入 `docs/template-conversion.md`
-  - IX. 国际化：移入 `docs/i18n.md`
+- Version change: 2.0.0 → 2.1.0
+- Modified principles: 无，原则内容不变
+- Project identity: 项目名改为 `dsh-plugin-lark-bridge`
 - Added sections: 无
 - Removed sections: 无
 - Templates requiring updates: 无，plan、spec、tasks 模板在运行时读取本文件
 - Follow-up TODOs: 无
 -->
 
-# dsh-plugin-template Constitution
+# dsh-plugin-lark-bridge Constitution
 
 ## Core Principles
 
@@ -131,4 +122,4 @@ Sync Impact Report
   - PATCH：措辞澄清。
 - `/speckit-plan` 的 Constitution Check 与 `/speckit-analyze` MUST 逐条核对本宪章。
 
-**Version**: 2.0.0 | **Ratified**: 2026-11-17 | **Last Amended**: 2026-11-18
+**Version**: 2.1.0 | **Ratified**: 2026-11-17 | **Last Amended**: 2026-11-18

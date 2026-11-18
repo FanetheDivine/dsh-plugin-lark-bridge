@@ -18,26 +18,55 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 插件运行时使用宿主提供的 cordis、dsh-tools 与 zod。
 
 - 这些包被打进 bundle 时会产生第二份实例，类型判断和服务注入随之失效。
-- 保持 external 的规则见 [how-it-works.md](./how-it-works.md#依赖复用)。
+- 保持 external 的规则见 [how-it-works.md](./how-it-works.md#依赖)。
 
-## 前端产物
+## lark-cli 二进制
 
-前端产物使用宿主约定的闭包工厂格式。
+`@larksuite/cli` 的 postinstall 下载约 50 MB 平台二进制。
 
-- 格式变化时插件加载失败，表现为示例行不出现。
-- `PLATFORM_MODULES` 是宿主冻结模块表的副本；宿主升级后需要核对，缺失的模块在运行时请求失败。
-- 客户端依赖版本与宿主不一致时，槽位或 locale 服务可能不可用。
-- 前端没有独立页面入口，直接执行 `dist/client.js` 不会渲染。
-- 前端服务可选：缺失服务对应的功能静默跳过，不报错也不提示。`slots` 缺失时插件启用但没有可见效果。
-- `ctx.inject` 回调在服务变化时重跑；回调内未经 `ctx.effect` 登记的资源不会清理，会重复注册。
-- 示例行依赖 `conversation.composer.dock` 槽位；宿主调整 UI 后槽位名或位置可能变化。
+- pnpm 默认忽略依赖的构建脚本时，`bin/lark-cli` 不存在；首次调用会执行 `scripts/run.js` 按需下载。
+- 下载需要访问 npm 镜像或 GitHub Releases，网络受限时鉴权停在 `cli-missing`。
+- 二进制随版本升级可能移动到新路径；解析顺序见 `src/cli.ts`。
+
+## 独立档案
+
+插件使用自己的 lark-cli 档案，不读取用户已有登录。
+
+- 用户必须重新填写 App ID/Secret 并授权一次。
+- 档案名变化后旧档案保留在 lark-cli 中；插件只删除自己当前配置的档案。
+- `profile remove` 会清除该档案的凭据，插件只在重新绑定同一档案时执行。
+
+## 飞书开放平台
+
+插件无法代替用户配置应用。
+
+- 未订阅 `im.message.receive_v1` 时，`event consume` 可能启动但收不到消息。
+- 缺少 `im:message:send_as_bot` 时，通知工具返回权限错误。
+- 缺少 `im:message.p2p_msg:readonly` 时，事件订阅校验失败。
+- 事件订阅与权限变更需要重新发布应用版本后生效。
+
+## 事件流
+
+`event consume` 依赖本地事件总线守护进程。
+
+- 守护进程异常退出时，子进程关闭，插件按退避重启。
+- 同一应用配置多个消费者时，每个消费者都会收到事件；本插件按消息标识去重，避免同一实例重复注入。
+- 多个 DSH 实例加载本插件时，每个实例都会创建自己的桥接会话并各自注入。
+
+## 浏览器路由
+
+鉴权界面通过同源 JSON 路由读取状态。
+
+- 路由只在 `ctx.webServer` 存在时注册；宿主未加载 HTTP 服务时配置页的鉴权面板显示请求失败。
+- 非回环来源与非同源 `Origin` 被拒绝；远程访问模式需要通过宿主自身的认证。
+- 桌面版是否经 HTTP 服务渲染界面由宿主决定；路由不可达时弹窗与面板静默降级，不影响消息桥。
 
 ## 配置面板
 
 - 只有标记 `.volatile()` 的字段出现在“插件”面板的配置页。
 - 配置被更高层覆盖时，宿主拒绝保存，表单保留草稿并提示未接受。
-- 表单命名空间是插件行在 profile 里的 id；`plugins.row.config` 的键是 `<包名>#<行 id>`。行 id 与包名不同时两处都要改。
-- 配置页依赖 `dsh-client-ui-plugin-manager` 与 `dsh-client-ui-settings` 的客户端包；宿主未加载这两个包时配置页不出现。
+- 表单命名空间是插件行在 profile 里的 id；`plugins.row.config` 的键是 `<包名>#<行 id>`。
+- 配置页依赖 `dsh-client-ui-plugin-manager` 与 `dsh-client-ui-settings`；弹窗依赖 `dsh-client-ui-layout` 的 `shell.overlay`。
 
 ## 严格配置
 
@@ -48,9 +77,8 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 
 ## 国际化
 
-- 宿主在注册时捕获的文案（如命令描述）保持注册时的语言，切换语言后仍显示旧语言；槽位渲染的文案随切换更新。
-- locale 服务只负责选择、持久化、语言匹配、键回退与 `<html lang>`，复数规则与双向布局由语言包自理。
-- 元数据或字典缺当前语言时按回退链取值；缺 `meta.title` 与 `meta.description` 时回落 `package.json` 的字段，可能显示英文包名。
+- 宿主在注册时捕获的文案保持注册时的语言；槽位渲染的文案随切换更新。
+- 元数据或字典缺当前语言时按回退链取值。
 - 规范见 [i18n.md](./i18n.md)。
 
 ## Windows 长路径

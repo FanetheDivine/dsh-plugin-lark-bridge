@@ -1,4 +1,18 @@
-# 用于 dsh plugin add：插件安装后作为组合层插入的 preset 行（id = 插件名）
+# 用于 dsh plugin add：插件安装后作为组合层插入的 preset 行（id = 包名）。
+# 本地可在 profile 的 cordis.patch.yml 里按 id 覆盖 config。
 - insert:
-    - id: dsh-plugin-template
-      name: dsh-plugin-template
+    - id: dsh-plugin-lark-bridge
+      name: dsh-plugin-lark-bridge
+      config:
+        # 飞书消息注入的目标工作区；必须是已存在的绝对路径。
+        workspaceRoot: ''
+        # 桥接会话标题。
+        sessionTitle: '飞书'
+        # 插件专用 lark-cli 配置档案；不影响已有登录。
+        profile: dsh-lark-bridge
+        # 可执行文件覆盖；留空使用 @larksuite/cli 依赖。
+        larkCli: ''
+        # 已知用户 open_id；留空使用授权结果。
+        ownerOpenId: ''
+        # 每次加载检测鉴权；失败时显示弹窗。
+        authCheckOnStartup: true

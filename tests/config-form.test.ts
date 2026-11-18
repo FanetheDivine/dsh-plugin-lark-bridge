@@ -1,4 +1,4 @@
-// 配置页草稿模型测试：草稿、校验、保存写操作、恢复默认、放弃与卸载。
+// 配置页草稿模型测试：字段校验、保存写操作、恢复默认、放弃与卸载。
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -10,21 +10,28 @@ import {
 } from '../src/client/config-form.ts';
 import { makeConfigFormScope } from './helpers.ts';
 
-/** 构造表单与它读取的状态。 */
-function setup(initial: { demoEnabled?: boolean; prefix?: string; user?: unknown } = {}) {
-  const fake = makeConfigFormScope<ConfigFields>({
-    value: { demoEnabled: initial.demoEnabled ?? true, prefix: initial.prefix ?? 'demo' },
-    base: { demoEnabled: true, prefix: 'demo' },
-    user: initial.user,
-  });
+/** 默认配置值。 */
+const DEFAULTS: ConfigFields = {
+  workspaceRoot: 'D:/work',
+  sessionTitle: '飞书',
+  profile: 'dsh-lark-bridge',
+  larkCli: '',
+  ownerOpenId: '',
+  authCheckOnStartup: true,
+};
+
+/** 构造表单与状态读取器。 */
+function setup(overrides: Partial<ConfigFields> = {}, user?: unknown) {
+  const value = { ...DEFAULTS, ...overrides };
+  const fake = makeConfigFormScope<ConfigFields>({ value, base: DEFAULTS, user });
   const form = new PluginConfigForm(fake.scope);
   return { fake, form, state: () => form.inject().hooks.configForm.getSnapshot() };
 }
 
 describe('配置页常量', () => {
   it('行键与命名空间与宿主配置一致', () => {
-    expect(ROW_KEY).toBe('dsh-plugin-template#dsh-plugin-template');
-    expect(ROW_ID).toBe('dsh-plugin-template');
+    expect(ROW_KEY).toBe('dsh-plugin-lark-bridge#dsh-plugin-lark-bridge');
+    expect(ROW_ID).toBe('dsh-plugin-lark-bridge');
   });
 });
 
@@ -32,11 +39,12 @@ describe('配置页草稿', () => {
   it('草稿来自宿主值，起初不脏也没有非法值', () => {
     const { state } = setup();
     const current = state();
-    expect(current.prefix.text).toBe('demo');
-    expect(current.demoEnabled.text).toBe('true');
+    expect(current.workspaceRoot.text).toBe('D:/work');
+    expect(current.sessionTitle.text).toBe('飞书');
+    expect(current.profile.text).toBe('dsh-lark-bridge');
+    expect(current.authCheckOnStartup.text).toBe('true');
     expect(current.dirty).toBe(false);
     expect(current.invalid).toBe(false);
-    expect(current.available).toBe(true);
   });
 
   it('命名空间未下发时不渲染控件', () => {
@@ -46,69 +54,71 @@ describe('配置页草稿', () => {
     expect(current.available).toBe(false);
   });
 
-  it('空白前缀非法，保存被拒绝', async () => {
-    const { fake, form, state } = setup();
-    form.inject().edit('prefix', '   ');
-    expect(state().prefix.invalid).toBe(true);
-    expect(state().dirty).toBe(true);
+  it('相对工作区、空白标题与非法档案名被拒绝', () => {
+    const { form, state } = setup();
+    const actions = form.inject();
+    actions.edit('workspaceRoot', 'relative/path');
+    actions.edit('sessionTitle', '   ');
+    actions.edit('profile', 'bad profile');
+    expect(state().workspaceRoot.invalid).toBe(true);
+    expect(state().sessionTitle.invalid).toBe(true);
+    expect(state().profile.invalid).toBe(true);
+    expect(state().invalid).toBe(true);
+  });
 
-    await form.inject().save();
-    expect(fake.writes).toEqual([]);
-    expect(state().prefix.text).toBe('   ');
+  it('非法 open_id 被拒绝', () => {
+    const { form, state } = setup();
+    form.inject().edit('ownerOpenId', 'abc');
+    expect(state().ownerOpenId.invalid).toBe(true);
+    form.inject().edit('ownerOpenId', '');
+    expect(state().ownerOpenId.invalid).toBe(false);
   });
 });
 
 describe('配置页保存', () => {
-  it('保存两个字段，一次写入去空白后的前缀', async () => {
-    const { fake, form, state } = setup();
+  it('一次写入多个字段并去掉首尾空白', async () => {
+    const { fake, form } = setup();
     const actions = form.inject();
-    actions.edit('demoEnabled', 'false');
-    actions.edit('prefix', '  acme  ');
-
+    actions.edit('workspaceRoot', '  D:/other  ');
+    actions.edit('sessionTitle', '  桥  ');
+    actions.edit('profile', 'other');
+    actions.edit('authCheckOnStartup', 'false');
     await actions.save();
     expect(fake.writes).toEqual([
       [
-        { op: 'set', path: ['demoEnabled'], value: false },
-        { op: 'set', path: ['prefix'], value: 'acme' },
+        { op: 'set', path: ['workspaceRoot'], value: 'D:/other' },
+        { op: 'set', path: ['sessionTitle'], value: '桥' },
+        { op: 'set', path: ['profile'], value: 'other' },
+        { op: 'set', path: ['authCheckOnStartup'], value: false },
       ],
     ]);
-    expect(state().dirty).toBe(false);
-    expect(state().failed).toBe(false);
   });
 
   it('恢复默认提交清除操作', async () => {
-    const { fake, form, state } = setup({ user: { prefix: 'acme' } });
+    const { fake, form, state } = setup({}, { profile: 'other' });
     const actions = form.inject();
-    expect(state().prefix.overridden).toBe(true);
-
-    actions.resetField('prefix');
-    expect(state().prefix.text).toBe('demo');
-    expect(state().prefix.overridden).toBe(false);
-
+    expect(state().profile.overridden).toBe(true);
+    actions.resetField('profile');
+    expect(state().profile.text).toBe('dsh-lark-bridge');
     await actions.save();
-    expect(fake.writes).toEqual([[{ op: 'unset', path: ['prefix'] }]]);
+    expect(fake.writes).toEqual([[{ op: 'unset', path: ['profile'] }]]);
   });
 
   it('放弃草稿回到宿主值', () => {
     const { form, state } = setup();
     const actions = form.inject();
-    actions.edit('prefix', 'acme');
+    actions.edit('sessionTitle', '临时');
     expect(state().dirty).toBe(true);
-
     actions.discard();
     expect(state().dirty).toBe(false);
-    expect(state().prefix.text).toBe('demo');
+    expect(state().sessionTitle.text).toBe('飞书');
   });
 
   it('只读部署不写入', async () => {
-    const fake = makeConfigFormScope<ConfigFields>({
-      value: { demoEnabled: true, prefix: 'demo' },
-      writable: false,
-    });
+    const fake = makeConfigFormScope<ConfigFields>({ value: DEFAULTS, writable: false });
     const form = new PluginConfigForm(fake.scope);
     const actions = form.inject();
-    actions.edit('prefix', 'acme');
-
+    actions.edit('sessionTitle', '临时');
     await actions.save();
     expect(fake.writes).toEqual([]);
   });
@@ -119,8 +129,7 @@ describe('配置页卸载', () => {
     const { fake, form, state } = setup();
     const before = state();
     form.dispose();
-
-    fake.publish({ value: { demoEnabled: false, prefix: 'gone' } });
+    fake.publish({ value: { ...DEFAULTS, sessionTitle: 'gone' } });
     expect(state()).toBe(before);
   });
 });

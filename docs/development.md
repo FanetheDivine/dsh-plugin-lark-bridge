@@ -7,7 +7,7 @@
 
 ```yaml
 - insert:
-    - id: dsh-plugin-template-dev
+    - id: dsh-plugin-lark-bridge-dev
       name: file:///<repo>/dist/index.mjs
 ```
 
@@ -72,20 +72,27 @@
 | Job | 触发 | 内容 |
 | --- | --- | --- |
 | `check` | PR、打 tag | Node 24 上运行 `pnpm run full-check` |
-| `publish` | 默认禁用 | 打 tag 时发布 npm，用 OIDC 换取发布令牌 |
+| `publish` | 打 tag | 发布 npm，用 OIDC 换取发布令牌 |
 
 - `full-check` 依次运行 `check` 与 `build`：`check` 不读取 `dist`，产物测试在 `build` 末尾执行。
-- `publish` 由 `if: false` 禁用，原触发条件以注释保留；`pnpm run release` 推送的 tag 不会在 npm 产生新版本。
-- 模板转化时解禁，步骤见 [template-conversion.md](./template-conversion.md)。
+- `pnpm run release` 推送 tag 后触发 `publish`。
+- npm 的 Trusted Publisher 需要绑定到本仓库与 `.github/workflows/ci.yml`。
 
 ## 测试
 
 | 文件 | 覆盖内容 |
 | --- | --- |
-| `tests/plugin.test.ts` | 配置校验、热重载、demo 工具、`apply` 接线 |
-| `tests/config-form.test.ts` | 配置页草稿、空白前缀拒绝、保存、恢复默认与放弃 |
+| `tests/plugin.test.ts` | 配置校验、热重载、工具与路由接线 |
+| `tests/cli.test.ts` | 可执行文件解析、JSON 解包与退出码 |
+| `tests/auth.test.ts` | 四阶段检测、应用绑定、设备码授权与取消 |
+| `tests/bridge.test.ts` | 事件过滤、去重、提醒格式化与注入 |
+| `tests/sessions.test.ts` | 工作区校验、创建/复用、标题、置顶与持久化 |
+| `tests/tools.test.ts` | 参数校验、分段发送与失败返回 |
+| `tests/routes.test.ts` | 同源校验、状态投影与动作路由 |
+| `tests/state.test.ts` | 状态读写、去重窗口与损坏恢复 |
+| `tests/config-form.test.ts` | 配置页草稿、字段校验、保存、恢复默认与放弃 |
 | `tests/release-archive.test.mjs` | CHANGELOG 归档计划 |
-| `tests/client.test.ts` | 前端服务声明、字典与槽位注册、示例行与配置页渲染 |
+| `tests/client.test.ts` | 前端服务声明、字典与槽位注册、弹窗与配置页渲染 |
 | `tests/client-bundle.test.ts` | `dist/client.js` 的注册契约与导出（产物测试） |
 | `tests/package-pack.test.ts` | npm 包只含发布所需文件，含前端产物与元数据资源（产物测试） |
 | `tests/metadata.test.ts` | 插件元数据的结构、键集、禁用字符与清单声明 |
@@ -141,15 +148,23 @@ src/
 ├── index.ts                # 打包入口，导出 name、inject、apply、Config
 ├── config.ts               # Config schema、默认值、严格校验与热重载读取
 ├── constants.ts            # 共享常量
-├── demo-tool.ts            # demo_echo 工具
-├── events.ts               # agent 事件监听示例
+├── cli.ts                  # lark-cli 定位与子进程调用
+├── auth.ts                 # 鉴权状态机与设备码授权
+├── bridge.ts               # 事件消费、过滤、去重与注入
+├── sessions.ts             # 工作区会话创建、恢复、标题与置顶
+├── state.ts                # 会话标识与去重窗口持久化
+├── tools.ts                # lark_notify 工具
+├── routes.ts               # 同源 JSON 路由
+├── errors.ts               # 可诊断错误
 ├── types.ts                # 宿主类型再导出
 ├── utils.ts                # 零依赖工具函数
 └── client/
-    ├── index.ts            # 浏览器入口：注册字典、示例行与配置页
+    ├── index.ts            # 浏览器入口：字典、弹窗与配置页
+    ├── api.ts              # 路由调用与状态类型
+    ├── auth-overlay.tsx    # shell.overlay 鉴权弹窗
+    ├── auth-panel.tsx      # 配置页鉴权面板
     ├── config-form.ts      # 配置页草稿模型与行键常量
     ├── config-page.tsx     # 配置页的 summary 与 page 视图
-    ├── demo-dock.tsx       # 前端示例行组件
     └── locales.ts          # 中英文字典与命名空间
 dist/
 ├── index.mjs               # 宿主产物
@@ -159,7 +174,6 @@ dist/
 scripts/release-archive.mjs # 发布时归档 CHANGELOG
 locale/                     # 插件元数据资源，规范见 i18n.md
 tests/                      # vitest 单元测试
-changelogs/                 # 各版本的 CHANGELOG 归档
 docs/                       # 开发者文档
 specs/<NNN>-<name>/         # 每个需求的 spec、plan、tasks
 .dsh/skills/
@@ -170,5 +184,5 @@ specs/<NNN>-<name>/         # 每个需求的 spec、plan、tasks
 ├── scripts/bash/           # Spec Kit 脚本
 ├── extensions.yml          # 扩展钩子
 └── extensions/worktree/    # 本地 worktree 扩展
-.github/workflows/ci.yml    # CI：check（Node 24）与默认禁用的 publish
+.github/workflows/ci.yml    # CI：check（Node 24）与 tag 发布
 ```

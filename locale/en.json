@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Plugin template",
-    "description": "Demonstrates DSH plugin host tools and front-end wiring: a demo_echo tool, agent event logs, a configuration page in the Plugins panel, and a demo row above the composer."
+    "title": "Lark bot bridge",
+    "description": "Receives Lark direct messages as the lark-cli bot, injects them into a DSH session as system reminders, and provides a tool to notify the user. Includes a dedicated lark-cli profile and in-plugin authentication."
   }
 }
