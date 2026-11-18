@@ -6,7 +6,7 @@
 #                           [--type TYPE] --short-name NAME
 #
 # Output (--json): BRANCH_NAME, FEATURE_NUM, FEATURE_NAME, FEATURE_DIRECTORY,
-# WORKTREE_PATH, MAIN_WORKTREE, BASE_REF, CREATED, IN_WORKTREE.
+# WORKTREE_PATH, MAIN_WORKTREE, BASE_REF, CREATED, IN_WORKTREE, CLAIMED.
 set -euo pipefail
 
 JSON=false
@@ -93,7 +93,7 @@ if [[ "$CURRENT_ROOT" != "$MAIN_WORKTREE" ]]; then
   [[ "$FEATURE_NAME" =~ ^([0-9]{3,})- ]] && FEATURE_NUM="${BASH_REMATCH[1]}"
   emit BRANCH_NAME "$BRANCH_NAME" FEATURE_NUM "$FEATURE_NUM" FEATURE_NAME "$FEATURE_NAME" \
     FEATURE_DIRECTORY "specs/$FEATURE_NAME" WORKTREE_PATH "$CURRENT_ROOT" \
-    MAIN_WORKTREE "$MAIN_WORKTREE" BASE_REF "" CREATED false IN_WORKTREE true
+    MAIN_WORKTREE "$MAIN_WORKTREE" BASE_REF "" CREATED false IN_WORKTREE true CLAIMED false
   exit 0
 fi
 
@@ -106,6 +106,7 @@ SLUG="$(printf '%s' "$SHORT_NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z
 
 # Resolve the base ref: flag > config > origin/main.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/spec-number-lib.sh"
 CONFIG_FILE="$SCRIPT_DIR/../../worktree-config.yml"
 if [[ -z "$BASE_REF" && -f "$CONFIG_FILE" ]]; then
   BASE_REF="$(sed -nE 's/^base_ref:[[:space:]]*"?([^"#[:space:]]+)"?.*$/\1/p' "$CONFIG_FILE" | head -n 1)"
@@ -150,13 +151,37 @@ WORKTREE_PATH="$MAIN_WORKTREE/worktrees/$FEATURE_NAME"
 git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" && die "branch '$BRANCH_NAME' already exists"
 [[ -e "$WORKTREE_PATH" ]] && die "path '$WORKTREE_PATH' already exists"
 
+# release_claim BRANCH: drop a claim the flow is not going to keep.
+release_claim() {
+  git -C "$MAIN_WORKTREE" push --quiet origin --delete "$1" >/dev/null 2>&1 || true
+  git -C "$MAIN_WORKTREE" branch -D "$1" >/dev/null 2>&1 || true
+}
+
+# Claim the number on the remote before the worktree exists. A push failure
+# leaves no local state.
+CLAIMED=false
+if ! $DRY_RUN; then
+  git -C "$MAIN_WORKTREE" branch --no-track "$BRANCH_NAME" "$BASE_REF" >&2 ||
+    die "failed to create branch '$BRANCH_NAME'"
+  if ! git -C "$MAIN_WORKTREE" push --quiet origin "$BRANCH_NAME" >&2; then
+    git -C "$MAIN_WORKTREE" branch -D "$BRANCH_NAME" >/dev/null 2>&1
+    die "failed to push claim branch '$BRANCH_NAME' to origin"
+  fi
+  CLAIMED=true
+fi
+
 CREATED=false
 if ! $DRY_RUN; then
   mkdir -p "$MAIN_WORKTREE/worktrees"
-  git -C "$MAIN_WORKTREE" worktree add --quiet --no-track -b "$BRANCH_NAME" "$WORKTREE_PATH" "$BASE_REF" >&2
+  if ! git -C "$MAIN_WORKTREE" worktree add --quiet "$WORKTREE_PATH" "$BRANCH_NAME" >&2; then
+    git -C "$MAIN_WORKTREE" worktree remove --force "$WORKTREE_PATH" >/dev/null 2>&1 || true
+    release_claim "$BRANCH_NAME"
+    die "failed to create worktree at '$WORKTREE_PATH'"
+  fi
   CREATED=true
 fi
 
 emit BRANCH_NAME "$BRANCH_NAME" FEATURE_NUM "$FEATURE_NUM" FEATURE_NAME "$FEATURE_NAME" \
   FEATURE_DIRECTORY "specs/$FEATURE_NAME" WORKTREE_PATH "$WORKTREE_PATH" \
-  MAIN_WORKTREE "$MAIN_WORKTREE" BASE_REF "$BASE_REF" CREATED "$CREATED" IN_WORKTREE false
+  MAIN_WORKTREE "$MAIN_WORKTREE" BASE_REF "$BASE_REF" CREATED "$CREATED" IN_WORKTREE false \
+  CLAIMED "$CLAIMED"
