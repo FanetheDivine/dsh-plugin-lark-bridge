@@ -35,7 +35,7 @@
 - [x] T018 [P] 更新 `docs/known-risks.md`：删除「独立档案」，新增「默认配置」风险（授权令牌范围、旧档案不清理）
 - [x] T019 更新 `CHANGELOG.md`（Unreleased：Changed、Removed、Fixed）与 `specs/017-lark-bot-bridge` 中被取代条款的指向说明
 - [ ] T020 在 worktree 执行 `pnpm install`（如缺依赖）、`pnpm full-check`；按 `real-device-test` skill 做实机验证，对照 [quickstart.md](./quickstart.md)
-- [ ] T021 运行 `pnpm format && pnpm check` 并提交
+- [x] T021 运行 `pnpm format && pnpm check` 并提交
 
 ## Dependencies
 
