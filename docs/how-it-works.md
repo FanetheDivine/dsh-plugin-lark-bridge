@@ -30,58 +30,50 @@
 
 ## 配置
 
-`readConfig` 展开 `.volatile()` 引用后交给 `resolveConfig` 严格校验：未知键、非法档案名、非法 open_id 直接抛错。
+`readConfig` 展开 `.volatile()` 引用后交给 `resolveConfig` 严格校验：未知键直接抛错。旧版本的 `profile` 与 `ownerOpenId` 被接受并丢弃。
 
 保存 volatile 字段时宿主发出 `loader/volatile-update`。插件重新读取配置，按新的 `larkCli` 重建 CLI 适配，再执行一次鉴权检查。工作区与标题在下一次消息或注入时生效。
 
 ## 鉴权
+
+所有 lark-cli 调用不带 `--profile`，使用 lark-cli 当前生效的配置。插件不创建、修改或删除配置档案，也不接触 App ID 与 App Secret。
 
 鉴权分四个阶段，按依赖顺序推进：
 
 | 阶段 | 判定 |
 | --- | --- |
 | `cli-missing` | `lark-cli --version` 无法启动 |
-| `app-missing` | 专用档案不在 `profile list` 中 |
-| `bot-unavailable` | `auth status` 的 `identities.bot.status` 不是 `ready` |
-| `user-missing` | bot 就绪，但配置与授权结果都没有 open_id |
+| `bot-unavailable` | `auth status --json` 失败，或 `identities.bot.status` 不是 `ready` |
+| `user-missing` | bot 就绪，但 `identities.user.openId` 缺失 |
 | `ready` | bot 就绪且 open_id 可用 |
 
-`ready` 的 open_id 来自 `ownerOpenId` 配置或 `identities.user.openId`。用户 token 处于 `needs_refresh` 时 open_id 仍可用，因此不阻断桥接。
+`bot-unavailable` 的失败原因写入 `detail`，界面提示用户在终端运行 `lark-cli config init`。
 
-### 应用绑定
-
-配置页把 App ID 与 App Secret 提交到 `POST /lark-bridge/app`。宿主执行：
-
-```sh
-lark-cli profile add --name <profile> --app-id <id> --app-secret-stdin --brand feishu
-```
-
-Secret 只写入子进程 stdin。档案已存在时，先 `profile remove` 再添加；删除范围仅限插件专用档案。
+`ready` 的 open_id 来自 `identities.user.openId`。用户 token 处于 `needs_refresh` 时 open_id 仍可用，因此不阻断桥接。
 
 ### 设备码授权
 
 `POST /lark-bridge/auth/start` 执行：
 
 ```sh
-lark-cli --profile <profile> auth login --no-wait --json --scope auth:user.id:read
+lark-cli auth login --no-wait --json --scope auth:user.id:read
 ```
 
 响应中的 `verification_url` 返回给浏览器。宿主随即在后台执行 `auth login --device-code <code> --json`，完成后重新检测。取消授权只丢弃后台结果，不改动已保存的凭据。
 
 ### 浏览器通信
 
-宿主注册六条同源 JSON 路由：
+宿主注册五条同源 JSON 路由：
 
 | 方法 | 路径 | 作用 |
 | --- | --- | --- |
 | GET | `/lark-bridge/status` | 鉴权阶段、用户、工作区、会话与待授权链接 |
 | POST | `/lark-bridge/check` | 重新检测 |
-| POST | `/lark-bridge/app` | 绑定应用 |
 | POST | `/lark-bridge/auth/start` | 开始授权 |
 | POST | `/lark-bridge/auth/cancel` | 取消授权 |
 | POST | `/lark-bridge/session/reset` | 清除会话记录 |
 
-路由只接受回环来源，`Origin` 必须与 `ctx.webServer.getOrigin()` 一致；存在 `ctx.connection` 时再调用 `requestRejection` 做宿主校验。请求体上限 64 KiB。
+路由只接受回环来源，`Origin` 必须与 `ctx.webServer.getOrigin()` 一致；存在 `ctx.connection` 时再调用 `requestRejection` 做宿主校验。
 
 浏览器入口每 3 到 5 秒读取一次状态。鉴权未就绪时，`shell.overlay` 弹窗显示阶段与入口；配置页的鉴权面板执行同样的读取与动作。
 
@@ -90,14 +82,14 @@ lark-cli --profile <profile> auth login --no-wait --json --scope auth:user.id:re
 事件监听以子进程运行：
 
 ```sh
-lark-cli --profile <profile> event consume im.message.receive_v1 --as bot --quiet --timeout 0
+lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 ```
 
 stdout 是 NDJSON。插件逐行解析并过滤：
 
 - `chat_type` 必须是 `p2p`。
 - `sender_type` 必须是 `user`。
-- `sender_id` 必须等于已绑定 open_id。
+- `sender_id` 必须等于授权用户的 open_id。
 - `message_id` 必须未出现在去重窗口。
 
 消息正文优先使用事件的 `content`；为空时用 `[<message_type> 消息]` 占位。注入文本包含发送者、时间、消息 ID 与正文。
@@ -119,7 +111,7 @@ stdout 是 NDJSON。插件逐行解析并过滤：
 `lark_notify` 读取当前用户 open_id，按 15 000 字符分段，逐段执行：
 
 ```sh
-lark-cli --profile <profile> im +messages-send --as bot --user-id <open_id> --text <part> --idempotency-key <key>
+lark-cli im +messages-send --as bot --user-id <open_id> --text <part> --idempotency-key <key>
 ```
 
 任一段失败时返回 `{ ok: false, error }`，不抛异常。
