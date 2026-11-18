@@ -50,5 +50,13 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm build
+      # 0.1.0 由维护者手工引导发布，tag 触发的发布检测到同版本后跳过
+      - name: Check published version
+        id: published
+        run: node scripts/publish-guard.mjs >> "$GITHUB_OUTPUT"
+      - name: Skip publish (version already on npm)
+        if: steps.published.outputs.exists == 'true'
+        run: echo "目标版本已在 npm，跳过发布"
       - name: Publish to npm
+        if: steps.published.outputs.exists != 'true'
         run: npm publish

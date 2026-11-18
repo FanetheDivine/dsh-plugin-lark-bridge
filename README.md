@@ -29,6 +29,8 @@ DSH 插件：通过 lark-cli 的 bot 身份接收飞书私聊消息，注入指�
 dsh plugin add dsh-plugin-lark-bridge
 ```
 
+npm 包：[dsh-plugin-lark-bridge](https://www.npmjs.com/package/dsh-plugin-lark-bridge)。
+
 安装后插件依赖 `@larksuite/cli`。首次使用会确保 CLI 二进制可用，网络受限时需要能访问 npm 或 GitHub Releases。
 
 ## 配置

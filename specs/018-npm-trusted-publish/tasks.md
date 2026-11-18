@@ -16,11 +16,11 @@
 
 ## Phase 2: CI 守卫与文档
 
-- [ ] T006 `.github/workflows/ci.yml`：`publish` job 增加 `publish-guard` 步骤，发布步骤用 `exists` 输出守卫
-- [ ] T007 `docs/development.md`：更新 CI 表，写绑定参数、引导发布与 tag 步骤
-- [ ] T008 `README.md`：安装节补 npm 包链接
-- [ ] T009 `CHANGELOG.md`：记录本次变更
-- [ ] T010 运行 `pnpm format && pnpm check && pnpm build`，提交阶段二
+- [x] T006 `.github/workflows/ci.yml`：`publish` job 增加 `publish-guard` 步骤，发布步骤用 `exists` 输出守卫
+- [x] T007 `docs/development.md`：更新 CI 表，写绑定参数、引导发布与 tag 步骤
+- [x] T008 `README.md`：安装节补 npm 包链接
+- [x] T009 `CHANGELOG.md`：记录本次变更
+- [x] T010 运行 `pnpm format && pnpm check && pnpm build`，提交阶段二
 
 ## Phase 3: 发布与绑定
 
