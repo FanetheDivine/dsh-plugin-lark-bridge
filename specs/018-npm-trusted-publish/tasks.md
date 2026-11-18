@@ -24,12 +24,12 @@
 
 ## Phase 3: 发布与绑定
 
-- [ ] T011 用户执行 `npm login --auth-type=web`，`npm whoami` 确认账号
-- [ ] T012 在主工作区检出该分支，`pnpm build` 后执行 `npm publish` 发布 `0.1.0`
-- [ ] T013 `npm trust github dsh-plugin-lark-bridge --repo FanetheDivine/dsh-plugin-lark-bridge --file ci.yml --allow-publish -y`，必要时提供 OTP
-- [ ] T014 `npm trust list dsh-plugin-lark-bridge` 核对 1 条 GitHub Actions 绑定
+- [x] T011 用户执行 `npm login --auth-type=web`，`npm whoami` 确认账号
+- [x] T012 在主工作区检出该分支，`pnpm build` 后执行 `npm publish` 发布 `0.1.0`
+- [x] T013 `npm trust github dsh-plugin-lark-bridge --repo FanetheDivine/dsh-plugin-lark-bridge --file ci.yml --allow-publish -y`，必要时提供 OTP
+- [x] T014 `npm trust list dsh-plugin-lark-bridge` 核对 1 条 GitHub Actions 绑定
 - [ ] T015 合并分支后在 `main` 打 `v0.1.0` tag 并推送，确认 `publish` job 跳过发布且成功
-- [ ] T016 `npm view dsh-plugin-lark-bridge version` 返回 `0.1.0`
+- [x] T016 `npm view dsh-plugin-lark-bridge version` 返回 `0.1.0`
 
 ## Dependencies
 
