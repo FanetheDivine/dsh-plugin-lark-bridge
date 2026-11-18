@@ -8,11 +8,7 @@
         workspaceRoot: ''
         # 桥接会话标题。
         sessionTitle: '飞书'
-        # 插件专用 lark-cli 配置档案；不影响已有登录。
-        profile: dsh-lark-bridge
         # 可执行文件覆盖；留空使用 @larksuite/cli 依赖。
         larkCli: ''
-        # 已知用户 open_id；留空使用授权结果。
-        ownerOpenId: ''
         # 每次加载检测鉴权；失败时显示弹窗。
         authCheckOnStartup: true

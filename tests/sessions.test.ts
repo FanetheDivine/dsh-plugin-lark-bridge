@@ -11,9 +11,7 @@ import { StateStore } from '../src/state.ts';
 const CONFIG: PluginConfig = {
   workspaceRoot: '/tmp/work',
   sessionTitle: '飞书',
-  profile: 'dsh-lark-bridge',
   larkCli: '',
-  ownerOpenId: '',
   authCheckOnStartup: true,
 };
 

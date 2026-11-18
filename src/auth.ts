@@ -1,25 +1,18 @@
 /**
- * lark-cli 鉴权状态机：探测 CLI、专用档案、bot 身份与用户授权。
+ * lark-cli 鉴权状态机：探测 CLI、bot 身份与用户授权。
  * 导出 AuthStage、AuthSnapshot、AuthManager 与 LoginFlow。
  */
 import { CliError, type LarkCli } from './cli.ts';
-import type { PluginConfig } from './config.ts';
 import { DEFAULT_LOGIN_SCOPE } from './constants.ts';
 import { describeError } from './utils.ts';
 
 /** 鉴权阶段，按依赖顺序排列。 */
-export type AuthStage =
-  | 'cli-missing'
-  | 'app-missing'
-  | 'bot-unavailable'
-  | 'user-missing'
-  | 'ready';
+export type AuthStage = 'cli-missing' | 'bot-unavailable' | 'user-missing' | 'ready';
 
 /** 一次鉴权检测的结果。 */
 export interface AuthSnapshot {
   readonly stage: AuthStage;
   readonly ready: boolean;
-  readonly profile: string;
   readonly appId: string | undefined;
   readonly botStatus: string | undefined;
   readonly userName: string | undefined;
@@ -43,8 +36,6 @@ export interface AuthLogger {
 
 /** AuthManager 的依赖。 */
 export interface AuthDeps {
-  /** 读取当前配置。 */
-  readonly getConfig: () => Readonly<PluginConfig>;
   /** 受配置控制的 CLI 实例；配置热重载时可替换。 */
   getCli: () => LarkCli;
   readonly logger: AuthLogger;
@@ -57,16 +48,6 @@ export interface AuthDeps {
 /** 把未知值收窄为对象。 */
 function recordOf(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-}
-
-/** 从 profile list 输出中找出目标档案。 */
-function findProfile(value: unknown, name: string): Record<string, unknown> | undefined {
-  const list = Array.isArray(value)
-    ? value
-    : Array.isArray(recordOf(value)['profiles'])
-      ? (recordOf(value)['profiles'] as unknown[])
-      : [];
-  return list.map(recordOf).find((item) => item['name'] === name);
 }
 
 /** 读取设备码输出。 */
@@ -134,7 +115,6 @@ export class AuthManager {
     this.snapshot = {
       stage: 'cli-missing',
       ready: false,
-      profile: deps.getConfig().profile,
       appId: undefined,
       botStatus: undefined,
       userName: undefined,
@@ -164,12 +144,10 @@ export class AuthManager {
   }
 
   private async runCheck(options: { verify?: boolean }): Promise<AuthSnapshot> {
-    const config = this.deps.getConfig();
     const cli = this.deps.getCli();
     const base: AuthSnapshot = {
       stage: 'cli-missing',
       ready: false,
-      profile: config.profile,
       appId: undefined,
       botStatus: undefined,
       userName: undefined,
@@ -181,58 +159,36 @@ export class AuthManager {
     if (!(await probeCli(cli))) {
       next = base;
     } else {
-      let profiles: unknown;
       try {
-        profiles = await cli.json(['profile', 'list'], { timeoutMs: 30_000 });
-      } catch (error) {
-        next = { ...base, detail: describeError(error) };
-        this.publish(next);
-        return next;
-      }
-      if (findProfile(profiles, config.profile) === undefined) {
-        next = { ...base, stage: 'app-missing' };
-      } else {
-        try {
-          const status = await cli.json(
-            [
-              '--profile',
-              config.profile,
-              'auth',
-              'status',
-              '--json',
-              ...(options.verify === true ? ['--verify'] : []),
-            ],
-            { timeoutMs: 60_000 },
-          );
-          const identities = statusIdentities(status);
-          const owner = config.ownerOpenId !== '' ? config.ownerOpenId : identities.user?.openId;
-          if (identities.bot !== 'ready') {
-            next = { ...base, stage: 'bot-unavailable', appId: identities.appId };
-          } else if (owner === undefined || owner === '') {
-            next = {
-              ...base,
-              stage: 'user-missing',
-              appId: identities.appId,
-              botStatus: identities.bot,
-              userName: identities.user?.name,
-              detail: undefined,
-            };
-          } else {
-            next = {
-              stage: 'ready',
-              ready: true,
-              profile: config.profile,
-              appId: identities.appId,
-              botStatus: identities.bot,
-              userName: identities.user?.name,
-              ownerOpenId: owner,
-              checkedAt: Date.now(),
-              detail: undefined,
-            };
-          }
-        } catch (error) {
-          next = { ...base, stage: 'bot-unavailable', detail: describeError(error) };
+        const status = await cli.json(
+          ['auth', 'status', '--json', ...(options.verify === true ? ['--verify'] : [])],
+          { timeoutMs: 60_000 },
+        );
+        const identities = statusIdentities(status);
+        const owner = identities.user.openId;
+        if (identities.bot !== 'ready') {
+          next = { ...base, stage: 'bot-unavailable', appId: identities.appId };
+        } else if (owner === undefined || owner === '') {
+          next = {
+            ...base,
+            stage: 'user-missing',
+            appId: identities.appId,
+            botStatus: identities.bot,
+            userName: identities.user.name,
+          };
+        } else {
+          next = {
+            ...base,
+            stage: 'ready',
+            ready: true,
+            appId: identities.appId,
+            botStatus: identities.bot,
+            userName: identities.user.name,
+            ownerOpenId: owner,
+          };
         }
+      } catch (error) {
+        next = { ...base, stage: 'bot-unavailable', detail: describeError(error) };
       }
     }
     this.publish(next);
@@ -240,54 +196,15 @@ export class AuthManager {
   }
 
   /**
-   * 用 App ID 与 App Secret 创建或更新专用档案。
-   * Secret 只写入子进程 stdin，不进入日志或配置。
-   */
-  async bindApp(appId: string, appSecret: string): Promise<AuthSnapshot> {
-    const config = this.deps.getConfig();
-    const cli = this.deps.getCli();
-    const id = appId.trim();
-    const secret = appSecret.trim();
-    if (!/^cli_[A-Za-z0-9]+$/.test(id)) {
-      throw new CliError('invalid-app-id', 'App ID 应以 cli_ 开头');
-    }
-    if (secret === '') throw new CliError('invalid-app-secret', 'App Secret 不能为空');
-    const input = `${secret}\n`;
-    const add = [
-      'profile',
-      'add',
-      '--name',
-      config.profile,
-      '--app-id',
-      id,
-      '--app-secret-stdin',
-      '--brand',
-      'feishu',
-    ];
-    try {
-      await cli.run(add, { input, timeoutMs: 120_000 });
-    } catch (error) {
-      const text = describeError(error);
-      if (!/exist|duplicate|already/i.test(text)) throw error;
-      this.deps.logger.warn(`lark-bridge: replacing existing profile "${config.profile}"`);
-      await cli.run(['profile', 'remove', config.profile], { timeoutMs: 30_000 });
-      await cli.run(add, { input, timeoutMs: 120_000 });
-    }
-    return this.check({ verify: true });
-  }
-
-  /**
    * 启动设备码授权。
    * @returns 授权链接与设备码；完成后台轮询。
    */
   async startLogin(): Promise<LoginFlow> {
-    const config = this.deps.getConfig();
     const cli = this.deps.getCli();
     const scope = this.deps.loginScope ?? DEFAULT_LOGIN_SCOPE;
-    const value = await cli.json(
-      ['--profile', config.profile, 'auth', 'login', '--no-wait', '--json', '--scope', scope],
-      { timeoutMs: 60_000 },
-    );
+    const value = await cli.json(['auth', 'login', '--no-wait', '--json', '--scope', scope], {
+      timeoutMs: 60_000,
+    });
     const flow = parseLoginFlow(value);
     this.flow = flow;
     this.cancelled += 1;
@@ -304,18 +221,9 @@ export class AuthManager {
     const cli = this.deps.getCli();
     const remaining = Math.max(30_000, flow.expiresAt - Date.now() + 15_000);
     try {
-      await cli.run(
-        [
-          '--profile',
-          this.deps.getConfig().profile,
-          'auth',
-          'login',
-          '--device-code',
-          flow.deviceCode,
-          '--json',
-        ],
-        { timeoutMs: remaining },
-      );
+      await cli.run(['auth', 'login', '--device-code', flow.deviceCode, '--json'], {
+        timeoutMs: remaining,
+      });
       if (generation !== this.cancelled) return this.snapshot;
       this.flow = undefined;
       return await this.check({ verify: true });

@@ -1,5 +1,5 @@
 /**
- * 配置页鉴权面板：展示阶段、绑定应用、启动设备码授权与重新检测。
+ * 配置页鉴权面板：展示阶段、启动设备码授权与重新检测。
  * 导出 AuthPanel。
  */
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
@@ -8,7 +8,6 @@ import { type CSSProperties, useCallback, useEffect, useRef, useState } from 're
 import {
   type ApiResult,
   type BridgeStatus,
-  bindApp,
   cancelLogin,
   checkAuth,
   fetchStatus,
@@ -30,9 +29,7 @@ function messageOf(result: ApiResult<unknown>, fallback: string): string {
 export function AuthPanel({ t }: AuthPanelProps) {
   const [status, setStatus] = useState<BridgeStatus | undefined>(undefined);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState<'bind' | 'login' | 'check' | 'cancel' | undefined>(undefined);
-  const [appId, setAppId] = useState('');
-  const [appSecret, setAppSecret] = useState('');
+  const [busy, setBusy] = useState<'login' | 'check' | 'cancel' | undefined>(undefined);
   const mounted = useRef(true);
 
   const refresh = useCallback(async () => {
@@ -65,22 +62,6 @@ export function AuthPanel({ t }: AuthPanelProps) {
       setError('');
     } else {
       setError(messageOf(result, fallback));
-    }
-  };
-
-  const onBind = async (): Promise<void> => {
-    setBusy('bind');
-    try {
-      const result = await bindApp(appId, appSecret);
-      if (result.ok) {
-        setStatus(result.data);
-        setError('');
-        setAppSecret('');
-      } else {
-        setError(t('auth.bindError', { message: result.error.message }));
-      }
-    } finally {
-      if (mounted.current) setBusy(undefined);
     }
   };
 
@@ -124,7 +105,6 @@ export function AuthPanel({ t }: AuthPanelProps) {
 
   const stage = status?.stage ?? 'cli-missing';
   const ready = status?.ready === true;
-  const needsApp = stage === 'app-missing' || stage === 'bot-unavailable';
 
   return (
     <section data-dsh-lark-auth-panel style={sectionStyle}>
@@ -144,47 +124,13 @@ export function AuthPanel({ t }: AuthPanelProps) {
       {status?.userName !== undefined && ready ? (
         <p style={metaStyle}>{t('auth.readyAccount', { name: status.userName })}</p>
       ) : null}
-      {status?.profile !== undefined ? (
-        <p style={metaStyle}>{t('auth.profile', { profile: status.profile })}</p>
+      {status?.appId !== undefined ? (
+        <p style={metaStyle}>{t('auth.appIdLabel', { appId: status.appId })}</p>
       ) : null}
       {status?.detail !== undefined && status.detail !== '' ? (
         <p style={errorStyle}>{t('auth.detail', { detail: status.detail })}</p>
       ) : null}
       {error !== '' ? <p style={errorStyle}>{t('auth.actionError', { message: error })}</p> : null}
-
-      {needsApp ? (
-        <div style={formStyle}>
-          <label style={labelStyle}>
-            <span style={labelTextStyle}>{t('auth.appId')}</span>
-            <input
-              style={inputStyle}
-              value={appId}
-              placeholder="cli_xxxxxxxxxxxxxxxx"
-              autoComplete="off"
-              onChange={(event) => setAppId(event.target.value)}
-            />
-          </label>
-          <label style={labelStyle}>
-            <span style={labelTextStyle}>{t('auth.appSecret')}</span>
-            <input
-              style={inputStyle}
-              value={appSecret}
-              type="password"
-              autoComplete="new-password"
-              onChange={(event) => setAppSecret(event.target.value)}
-            />
-            <span style={hintSmallStyle}>{t('auth.appSecretHint')}</span>
-          </label>
-          <button
-            type="button"
-            style={primaryButtonStyle}
-            disabled={busy !== undefined || appId.trim() === '' || appSecret.trim() === ''}
-            onClick={() => void onBind()}
-          >
-            {busy === 'bind' ? t('auth.binding') : t('auth.bind')}
-          </button>
-        </div>
-      ) : null}
 
       {stage === 'user-missing' ? (
         <div style={formStyle}>
@@ -280,31 +226,11 @@ const errorStyle: CSSProperties = {
   color: 'var(--dsw-alias-error-fill, #cf222e)',
 };
 
-const hintSmallStyle: CSSProperties = { ...metaStyle, fontSize: 11 };
-
 const formStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 8,
   paddingTop: 4,
-};
-
-const labelStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 4,
-};
-
-const labelTextStyle: CSSProperties = { ...metaStyle, fontWeight: 500 };
-
-const inputStyle: CSSProperties = {
-  padding: '6px 8px',
-  border: '1px solid var(--dsw-alias-border-l2)',
-  borderRadius: 'var(--dsw-radius-sm, 6px)',
-  background: 'var(--dsw-alias-bg-l1, transparent)',
-  color: 'var(--dsw-alias-label-primary)',
-  font: 'inherit',
-  fontSize: 13,
 };
 
 const buttonBase: CSSProperties = {

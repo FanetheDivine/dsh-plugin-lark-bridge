@@ -6,9 +6,6 @@ export const PLUGIN_LABEL = 'dsh-plugin-lark-bridge';
 /** 工具名。 */
 export const NOTIFY_TOOL_NAME = 'lark_notify';
 
-/** 插件专用 lark-cli 配置档案名。 */
-export const DEFAULT_PROFILE = 'dsh-lark-bridge';
-
 /** 桥接会话的默认标题。 */
 export const DEFAULT_SESSION_TITLE = '飞书';
 

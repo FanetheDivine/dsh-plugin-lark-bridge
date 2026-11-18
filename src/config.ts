@@ -6,13 +6,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import Schema from '@deepseek-ai/schemastery';
 
-import {
-  DEFAULT_PROFILE,
-  DEFAULT_SESSION_TITLE,
-  PLUGIN_LABEL,
-  STATE_DIR,
-  STATE_FILE,
-} from './constants.ts';
+import { DEFAULT_SESSION_TITLE, PLUGIN_LABEL, STATE_DIR, STATE_FILE } from './constants.ts';
 import type { Volatile } from './types.ts';
 import { isRecord } from './utils.ts';
 
@@ -22,12 +16,8 @@ export interface Config {
   workspaceRoot: Volatile<string>;
   /** 桥接会话标题。 */
   sessionTitle: Volatile<string>;
-  /** 插件专用 lark-cli 配置档案名。 */
-  profile: Volatile<string>;
   /** 显式 lark-cli 可执行文件或入口脚本；空值自动解析。 */
   larkCli: Volatile<string>;
-  /** 显式指定已绑定用户的 open_id；空值使用授权结果。 */
-  ownerOpenId: Volatile<string>;
   /** 每次加载是否执行鉴权检查。 */
   authCheckOnStartup: Volatile<boolean>;
 }
@@ -39,12 +29,7 @@ export interface Config {
 export const Config: Schema<Config> = Schema.object({
   workspaceRoot: Schema.string().default('').volatile(),
   sessionTitle: Schema.string().default(DEFAULT_SESSION_TITLE).volatile(),
-  profile: Schema.string()
-    .default(DEFAULT_PROFILE)
-    .pattern(/^[A-Za-z0-9._-]+$/)
-    .volatile(),
   larkCli: Schema.string().default('').volatile(),
-  ownerOpenId: Schema.string().default('').volatile(),
   authCheckOnStartup: Schema.boolean().default(true).volatile(),
 }) as unknown as Schema<Config>;
 
@@ -52,9 +37,7 @@ export const Config: Schema<Config> = Schema.object({
 export interface PluginConfig {
   workspaceRoot: string;
   sessionTitle: string;
-  profile: string;
   larkCli: string;
-  ownerOpenId: string;
   authCheckOnStartup: boolean;
 }
 
@@ -62,9 +45,7 @@ export interface PluginConfig {
 export const DEFAULT_CONFIG: Readonly<PluginConfig> = Object.freeze({
   workspaceRoot: '',
   sessionTitle: DEFAULT_SESSION_TITLE,
-  profile: DEFAULT_PROFILE,
   larkCli: '',
-  ownerOpenId: '',
   authCheckOnStartup: true,
 });
 
@@ -72,11 +53,12 @@ export const DEFAULT_CONFIG: Readonly<PluginConfig> = Object.freeze({
 const CONFIG_KEYS = new Set<string>([
   'workspaceRoot',
   'sessionTitle',
-  'profile',
   'larkCli',
-  'ownerOpenId',
   'authCheckOnStartup',
 ]);
+
+/** 旧版本的配置键：接受并丢弃，避免升级后插件加载失败。 */
+const LEGACY_KEYS = new Set<string>(['profile', 'ownerOpenId']);
 
 /** 把缺省或 null 的输入转为空对象。 */
 function normalizeConfigInput(raw: unknown): Record<string, unknown> {
@@ -104,7 +86,8 @@ function stringField(
 export function resolveConfig(raw?: unknown): Readonly<PluginConfig> {
   const input = normalizeConfigInput(raw);
   for (const key of Object.keys(input)) {
-    if (!CONFIG_KEYS.has(key)) throw new Error(`${PLUGIN_LABEL}: unknown config key "${key}"`);
+    if (!CONFIG_KEYS.has(key) && !LEGACY_KEYS.has(key))
+      throw new Error(`${PLUGIN_LABEL}: unknown config key "${key}"`);
   }
   const config: PluginConfig = { ...DEFAULT_CONFIG };
 
@@ -117,17 +100,7 @@ export function resolveConfig(raw?: unknown): Readonly<PluginConfig> {
   config.sessionTitle = stringField(input, 'sessionTitle', DEFAULT_CONFIG.sessionTitle, (value) => {
     if (value === '') throw new Error(`${PLUGIN_LABEL}: config sessionTitle must not be empty`);
   });
-  config.profile = stringField(input, 'profile', DEFAULT_CONFIG.profile, (value) => {
-    if (!/^[A-Za-z0-9._-]+$/.test(value)) {
-      throw new Error(`${PLUGIN_LABEL}: config profile must match [A-Za-z0-9._-]+`);
-    }
-  });
   config.larkCli = stringField(input, 'larkCli', DEFAULT_CONFIG.larkCli, () => {});
-  config.ownerOpenId = stringField(input, 'ownerOpenId', DEFAULT_CONFIG.ownerOpenId, (value) => {
-    if (value !== '' && !value.startsWith('ou_')) {
-      throw new Error(`${PLUGIN_LABEL}: config ownerOpenId must start with "ou_"`);
-    }
-  });
 
   const authCheck = input.authCheckOnStartup;
   if (authCheck !== undefined && authCheck !== null) {

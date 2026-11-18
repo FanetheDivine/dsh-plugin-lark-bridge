@@ -1,28 +1,19 @@
 // 事件桥测试：过滤、去重、提醒格式化与注入。
+import { EventEmitter } from 'node:events';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import type { AuthSnapshot } from '../src/auth.ts';
 import { acceptEvent, EventBridge, type FeishuEvent, formatFeishuReminder } from '../src/bridge.ts';
-import type { PluginConfig } from '../src/config.ts';
 import { StateStore } from '../src/state.ts';
-
-const CONFIG: PluginConfig = {
-  workspaceRoot: 'D:/work',
-  sessionTitle: '飞书',
-  profile: 'dsh-lark-bridge',
-  larkCli: '',
-  ownerOpenId: '',
-  authCheckOnStartup: true,
-};
 
 /** 就绪的鉴权快照。 */
 function ready(): AuthSnapshot {
   return {
     stage: 'ready',
     ready: true,
-    profile: 'dsh-lark-bridge',
     appId: 'cli_x',
     botStatus: 'ready',
     userName: '袁',
@@ -53,7 +44,6 @@ async function bridge(auth: AuthSnapshot = ready()) {
   const inject = vi.fn(async () => ({ sessionId: 's1', created: true }));
   const logger = { info: vi.fn(), warn: vi.fn() };
   const instance = new EventBridge({
-    getConfig: () => CONFIG,
     getCli: () => ({ spawn: vi.fn() }) as never,
     getAuth: () => auth,
     store,
@@ -62,6 +52,44 @@ async function bridge(auth: AuthSnapshot = ready()) {
   });
   return { instance, inject, logger, store };
 }
+
+describe('EventBridge.start', () => {
+  it('以 bot 身份消费事件且不指定档案', async () => {
+    const spawn = vi.fn(() => {
+      const child = new EventEmitter() as EventEmitter & {
+        stdout: PassThrough;
+        stderr: PassThrough;
+        kill: () => void;
+      };
+      child.kill = vi.fn();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      return child;
+    });
+    const dir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-events-'));
+    const instance = new EventBridge({
+      getCli: () => ({ spawn }) as never,
+      getAuth: () => ready(),
+      store: new StateStore(path.join(dir, 'state.json')),
+      sessions: { inject: vi.fn() } as never,
+      logger: { info: vi.fn(), warn: vi.fn() },
+    });
+    instance.sync(ready());
+    instance.stop();
+    expect(spawn).toHaveBeenCalledTimes(1);
+    const args = spawn.mock.calls[0] as unknown as string[][];
+    expect(args[0]).toEqual([
+      'event',
+      'consume',
+      'im.message.receive_v1',
+      '--as',
+      'bot',
+      '--quiet',
+      '--timeout',
+      '0',
+    ]);
+  });
+});
 
 describe('acceptEvent', () => {
   it('只接受目标用户的私聊', () => {

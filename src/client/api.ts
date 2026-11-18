@@ -1,18 +1,12 @@
 /** 浏览器侧调用宿主 `/lark-bridge/*` 路由。导出 BridgeStatus 与 fetch 函数。 */
 
 /** 鉴权阶段。 */
-export type AuthStage =
-  | 'cli-missing'
-  | 'app-missing'
-  | 'bot-unavailable'
-  | 'user-missing'
-  | 'ready';
+export type AuthStage = 'cli-missing' | 'bot-unavailable' | 'user-missing' | 'ready';
 
 /** 路由返回的状态。 */
 export interface BridgeStatus {
   readonly ready: boolean;
   readonly stage: AuthStage;
-  readonly profile: string;
   readonly appId?: string;
   readonly botStatus?: string;
   readonly userName?: string;
@@ -98,14 +92,6 @@ export function fetchStatus(signal?: AbortSignal): Promise<ApiResult<BridgeStatu
 /** 重新检测。 */
 export function checkAuth(): Promise<ApiResult<BridgeStatus>> {
   return callApi<BridgeStatus>('check', { method: 'POST', body: '{}' });
-}
-
-/** 绑定应用凭据。 */
-export function bindApp(appId: string, appSecret: string): Promise<ApiResult<BridgeStatus>> {
-  return callApi<BridgeStatus>('app', {
-    method: 'POST',
-    body: JSON.stringify({ appId, appSecret }),
-  });
 }
 
 /** 开始设备码授权。 */
