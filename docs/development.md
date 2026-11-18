@@ -99,11 +99,35 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 
 | Job | 触发 | 内容 |
 | --- | --- | --- |
-| `check` | PR、打 tag | Node 24 上运行 `pnpm run full-check` |
+| `check` | PR、推分支、打 tag | Node 24 上运行 `pnpm run full-check` |
 | `publish` | 打 tag | 用 OIDC 发布新版本；版本已存在时跳过 |
 
 - `full-check` 依次运行 `check` 与 `build`：`check` 不读取 `dist`，产物测试在 `build` 末尾执行。
 - `pnpm run release` 推送 tag 后触发 `publish`。
+
+## 合并门禁
+
+`main` 由规则集 `main-merge-gate` 保护：
+
+| 规则 | 效果 |
+| --- | --- |
+| `required_status_checks` | 合并与直推都要求全部 check 通过；PR 分支还要求与 `main` 同步 |
+| `non_fast_forward` | 禁止强推 |
+| `deletion` | 禁止删除 |
+
+- check 来源限定 GitHub Actions，context 为 `ci.yml` 的两个 job 名。
+- 规则集没有 bypass，管理员同样受限。
+- 新增 CI job 后，把新 job 名加入规则集，新 job 才会参与门禁。
+
+查看当前规则：
+
+```bash
+gh api repos/FanetheDivine/dsh-plugin-lark-bridge/rules/branches/main --jq '.[] | {type, parameters}'
+```
+
+直推：先推分支让 CI 跑完 `check`，再把同一提交推到 `main`；没有通过的 check 时直推被拒。
+
+关闭门禁：在 GitHub 的 Settings → Rules 里把 `main-merge-gate` 的 enforcement 改为 Disabled，修好后改回 Active。用 API 修改要提交完整规则体。
 
 ## 测试
 
