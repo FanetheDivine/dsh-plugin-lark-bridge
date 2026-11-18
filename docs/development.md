@@ -90,6 +90,7 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | 允许的动作 | publish |
 
 - `scripts/publish-guard.mjs` 查询 registry；目标版本已存在时 `publish` job 跳过发布。
+- `publish` job 使用 runner 自带的 npm；npm 低于 11.5.1 时该 job 直接失败。
 - 引导发布不带 provenance，从 CI 发布的版本开始生成。
 
 ## CI

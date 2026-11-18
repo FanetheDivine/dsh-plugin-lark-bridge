@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { packedFiles } from '../scripts/pack-report.mjs';
 import { assertFreshDist } from './support/dist-freshness.ts';
 
 /** 仓库根目录（tests/ 的上一级）。 */
@@ -29,11 +30,8 @@ function packedPaths(): Set<string> {
   if (res.status !== 0) {
     throw new Error(`npm pack --dry-run 失败：${String(res.stderr ?? res.stdout ?? '未知错误')}`);
   }
-  // npm pack --json 输出数组（单个包 = 单元素数组），取所有包的文件列表
-  const report = JSON.parse(String(res.stdout ?? '[]')) as Array<{
-    files?: Array<{ path: string }>;
-  }>;
-  cachedPaths = new Set(report.flatMap((p) => p.files ?? []).map((f) => f.path));
+  // npm 11 返回数组，npm 12 返回以包名为键的对象；packedFiles 归一化两种输出
+  cachedPaths = new Set(packedFiles(JSON.parse(String(res.stdout ?? '[]'))));
   return cachedPaths;
 }
 

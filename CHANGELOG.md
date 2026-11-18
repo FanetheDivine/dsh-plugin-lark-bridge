@@ -21,3 +21,8 @@
 - 依赖新增 `@larksuite/cli` 与宿主会话、工作区、LLM 类型包。
 - `package.json` 补 `repository`、`homepage`、`bugs`，满足 npm OIDC 发布的 provenance 校验。
 - CI 的 `publish` job 在版本已存在时跳过发布。
+- `publish` job 沿用 runner 自带的 npm，不再全局升级。
+
+### Fixed
+
+- `publish` job 不再因 npm 12 的 `npm pack --json` 输出格式而在 Build 步骤失败。
