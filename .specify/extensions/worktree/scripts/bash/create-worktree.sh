@@ -142,14 +142,10 @@ if [[ -d "$MAIN_WORKTREE/specs" ]]; then
 fi
 while IFS= read -r entry; do consider "$entry"; done < <(git for-each-ref --format='%(refname:short)' refs/heads refs/remotes)
 
-FEATURE_NUM="$(printf '%03d' $((max + 1)))"
-FEATURE_NAME="$FEATURE_NUM-$SLUG"
-BRANCH_NAME="$TYPE/$FEATURE_NAME"
-# Nested layout: worktrees/<NNN>-<slug> inside the primary checkout.
-WORKTREE_PATH="$MAIN_WORKTREE/worktrees/$FEATURE_NAME"
-
-git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" && die "branch '$BRANCH_NAME' already exists"
-[[ -e "$WORKTREE_PATH" ]] && die "path '$WORKTREE_PATH' already exists"
+FEATURE_NUM=""
+FEATURE_NAME=""
+BRANCH_NAME=""
+CLAIMED=false
 
 # release_claim BRANCH: drop a claim the flow is not going to keep.
 release_claim() {
@@ -157,17 +153,63 @@ release_claim() {
   git -C "$MAIN_WORKTREE" branch -D "$1" >/dev/null 2>&1 || true
 }
 
-# Claim the number on the remote before the worktree exists. A push failure
-# leaves no local state.
-CLAIMED=false
-if ! $DRY_RUN; then
-  git -C "$MAIN_WORKTREE" branch --no-track "$BRANCH_NAME" "$BASE_REF" >&2 ||
-    die "failed to create branch '$BRANCH_NAME'"
-  if ! git -C "$MAIN_WORKTREE" push --quiet origin "$BRANCH_NAME" >&2; then
+if $DRY_RUN; then
+  FEATURE_NUM="$(printf '%03d' $((max + 1)))"
+  FEATURE_NAME="$FEATURE_NUM-$SLUG"
+  BRANCH_NAME="$TYPE/$FEATURE_NAME"
+else
+  # Claim the number on the remote before the worktree exists. A push failure
+  # leaves no local state; a number another developer already claimed moves on.
+  next=$((max + 1))
+  attempt=0
+  while :; do
+    attempt=$((attempt + 1))
+    if ((attempt > 10)); then
+      die "could not claim a free spec number after 10 attempts"
+    fi
+    FEATURE_NUM="$(printf '%03d' "$next")"
+    FEATURE_NAME="$FEATURE_NUM-$SLUG"
+    BRANCH_NAME="$TYPE/$FEATURE_NAME"
+    git show-ref --verify --quiet "refs/heads/$BRANCH_NAME" && die "branch '$BRANCH_NAME' already exists"
+    git -C "$MAIN_WORKTREE" branch --no-track "$BRANCH_NAME" "$BASE_REF" >&2 ||
+      die "failed to create branch '$BRANCH_NAME'"
+    if ! git -C "$MAIN_WORKTREE" push --quiet origin "$BRANCH_NAME" >&2; then
+      git -C "$MAIN_WORKTREE" branch -D "$BRANCH_NAME" >/dev/null 2>&1
+      die "failed to push claim branch '$BRANCH_NAME' to origin"
+    fi
+    if ! remote_heads="$(git -C "$MAIN_WORKTREE" ls-remote --heads origin)"; then
+      release_claim "$BRANCH_NAME"
+      die "failed to query remote 'origin' for spec-number conflicts"
+    fi
+    remote_names="$(printf '%s\n' "$remote_heads" | remote_branches)"
+    same_number="$(printf '%s\n' "$remote_names" | spec_branches_with_number "$FEATURE_NUM")"
+    # The lexicographically first branch keeps the number so both sides agree.
+    owner="$(printf '%s\n' "$same_number" | LC_ALL=C sort | head -n 1)"
+    if [[ -z "$owner" || "$owner" == "$BRANCH_NAME" ]]; then
+      CLAIMED=true
+      break
+    fi
+    if ! git -C "$MAIN_WORKTREE" push --quiet origin --delete "$BRANCH_NAME" >&2; then
+      die "failed to release conflicting claim branch '$BRANCH_NAME'"
+    fi
     git -C "$MAIN_WORKTREE" branch -D "$BRANCH_NAME" >/dev/null 2>&1
-    die "failed to push claim branch '$BRANCH_NAME' to origin"
-  fi
-  CLAIMED=true
+    next=0
+    while IFS= read -r remote_name; do
+      scan_number="$(feature_number_from_branch "$remote_name")"
+      if [[ -n "$scan_number" ]]; then
+        scan_number=$((10#$scan_number))
+        if ((scan_number > next)); then next=$scan_number; fi
+      fi
+    done < <(printf '%s\n' "$remote_names")
+    next=$((next + 1))
+  done
+fi
+
+# Nested layout: worktrees/<NNN>-<slug> inside the primary checkout.
+WORKTREE_PATH="$MAIN_WORKTREE/worktrees/$FEATURE_NAME"
+if [[ -e "$WORKTREE_PATH" ]]; then
+  $DRY_RUN || release_claim "$BRANCH_NAME"
+  die "path '$WORKTREE_PATH' already exists"
 fi
 
 CREATED=false
