@@ -8,7 +8,7 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 在 worktree 根目录运行 `pnpm install`，确认 `pnpm test:code -- tests/worktree-extension.test.ts` 在改动前通过；提交 `specs/021-spec-number-uniqueness/`
+- [X] T001 在 worktree 根目录运行 `pnpm install`，确认 `pnpm test:code -- tests/worktree-extension.test.ts` 在改动前通过；提交 `specs/021-spec-number-uniqueness/`
 
 ---
 
@@ -18,16 +18,16 @@
 
 **Independent Test**: `pnpm test:code -- tests/worktree-extension.test.ts` 通过。
 
-- [ ] T002 [P] 新增 `.specify/extensions/worktree/scripts/bash/spec-number-lib.sh`：
+- [X] T002 [P] 新增 `.specify/extensions/worktree/scripts/bash/spec-number-lib.sh`：
   - `feature_number_from_branch BRANCH` 从分支名最后一段取三位以上数字，无匹配时输出空。
   - `remote_branches` 读取 `git ls-remote --heads` 输出，去掉 `refs/heads/` 前缀。
   - `spec_branches_with_number NUMBER` 筛出最后一段以 `NUMBER-` 开头的分支。
   - 文件只定义函数，无副作用；文件头注释说明职责与导出。
-- [ ] T003 [P] 在 `tests/worktree-extension.test.ts` 新增测试辅助：
+- [X] T003 [P] 在 `tests/worktree-extension.test.ts` 新增测试辅助：
   - `secondClone()`：在临时 origin 旁建第二个克隆。
   - `pushBranch(clone, branch)`：在克隆中建分支并推送。
   - `remoteBranches(cwd)`：读取远程分支名列表。
-- [ ] T004 运行 `pnpm format && pnpm check`，提交
+- [X] T004 运行 `pnpm format && pnpm check`，提交
 
 **Checkpoint**: 库函数与测试辅助就绪，现有用例保持通过。
 
@@ -39,22 +39,22 @@
 
 **Independent Test**: 按 [quickstart.md](./quickstart.md) 场景 1 与场景 4 核对。
 
-- [ ] T005 [US1] 修改 `.specify/extensions/worktree/scripts/bash/create-worktree.sh`：
+- [X] T005 [US1] 修改 `.specify/extensions/worktree/scripts/bash/create-worktree.sh`：
   - 先建本地分支 `git branch --no-track <BRANCH_NAME> <BASE_REF>`，再 `git push origin <BRANCH_NAME>` 占号。
   - 占号失败删除本地分支，退出码 1，stderr 说明推送失败。
   - 占号成功后 `git worktree add <WORKTREE_PATH> <BRANCH_NAME>`；worktree 创建失败时删除远程与本地分支并退出 1。
   - JSON 输出增加 `CLAIMED`：本次占号成功为 `true`，`--dry-run` 与 `IN_WORKTREE` 复用为 `false`。
   - `--dry-run` 不建分支、不推送、不建 worktree。
-- [ ] T006 [P] [US1] 在 `tests/worktree-extension.test.ts` 新增用例：
+- [X] T006 [P] [US1] 在 `tests/worktree-extension.test.ts` 新增用例：
   - 创建成功后 `git ls-remote --heads origin <BRANCH_NAME>` 非空，`CLAIMED` 为 `true`。
   - `--dry-run` 不产生远程分支与 worktree，`CLAIMED` 为 `false`。
   - 占号失败（`--no-fetch` 且 origin 指向不可达路径）时退出码非 0，`worktrees/` 无新目录，`git branch --list` 无新分支。
-- [ ] T007 [P] [US1] 修改 `.specify/extensions/worktree/commands/speckit.worktree.create.md`：
+- [X] T007 [P] [US1] 修改 `.specify/extensions/worktree/commands/speckit.worktree.create.md`：
   - 删除「Native worktree tool」分支，创建统一执行 `create-worktree.sh`。
   - 写明执行顺序：同步、算号、占号、建 worktree；占号失败时停止。
   - Output 增加 `CLAIMED`。
   - 把正文同步到 `.dsh/skills/speckit-worktree-create/SKILL.md`，保留 front matter。
-- [ ] T008 [US1] 运行 `pnpm format && pnpm check`，提交
+- [X] T008 [US1] 运行 `pnpm format && pnpm check`，提交
 
 **Checkpoint**: 创建流程结束时远程已有占号分支。
 
@@ -66,25 +66,25 @@
 
 **Independent Test**: 按 [quickstart.md](./quickstart.md) 场景 3 与场景 5 核对。
 
-- [ ] T009 [US2] 修改 `.specify/extensions/worktree/scripts/bash/create-worktree.sh`：
+- [X] T009 [US2] 修改 `.specify/extensions/worktree/scripts/bash/create-worktree.sh`：
   - 占号后重新执行 `git ls-remote --heads origin`，用 `spec_branches_with_number` 取同号分支。
   - 本分支名不是字典序最小者时，删除远程占号分支与本地分支，编号取当前已知最大编号加一后重试，最多 10 次。
   - 第 10 次仍是冲突时退出 1，删除本次占号。
   - `git ls-remote` 失败时删除占号并退出 1。
-- [ ] T010 [US2] 新增 `.specify/extensions/worktree/scripts/bash/check-spec-number.sh`，按 [contracts/check-spec-number-cli.md](./contracts/check-spec-number-cli.md)：
+- [X] T010 [US2] 新增 `.specify/extensions/worktree/scripts/bash/check-spec-number.sh`，按 [contracts/check-spec-number-cli.md](./contracts/check-spec-number-cli.md)：
   - 先 `git fetch --quiet origin <base-ref 的分支>`。
   - 远程同号分支与 base ref 的同号 spec 目录都算冲突。
   - 退出码 0/4/1，`--json` 与 `KEY=VALUE` 两种输出。
-- [ ] T011 [P] [US2] 在 `tests/worktree-extension.test.ts` 新增用例：
+- [X] T011 [P] [US2] 在 `tests/worktree-extension.test.ts` 新增用例：
   - 另一克隆已推送 `fix/002-alpha`，本仓库 `--no-fetch` 创建 `zeta` 时改为 003，远程保留 `fix/002-alpha` 与 `fix/003-zeta`。
   - 本分支字典序靠前时保留原编号。
   - `check-spec-number.sh`：无冲突退出 0 且 `UNIQUE=true`；同号分支冲突退出 4 并列出分支；base ref 含同号 spec 目录时退出 4。
-- [ ] T012 [P] [US2] 修改 `.specify/extensions/worktree/commands/speckit.worktree.finish.md`：
+- [X] T012 [P] [US2] 修改 `.specify/extensions/worktree/commands/speckit.worktree.finish.md`：
   - 在提交之后、推送与 PR 之前新增一步运行 `check-spec-number.sh --json`。
   - 退出 4 时停止并报告冲突引用；退出 1 时停止。
   - 后续步骤重新编号，正文引用同步。
   - 把正文同步到 `.dsh/skills/speckit-worktree-finish/SKILL.md`，保留 front matter。
-- [ ] T013 [US2] 运行 `pnpm format && pnpm check`，提交
+- [X] T013 [US2] 运行 `pnpm format && pnpm check`，提交
 
 **Checkpoint**: 同号冲突在创建时收敛，交付前拦截残留冲突。
 
@@ -96,14 +96,14 @@
 
 **Independent Test**: 按 [quickstart.md](./quickstart.md) 场景 2 核对。
 
-- [ ] T014 [US3] 修改 `.specify/extensions/worktree/scripts/bash/create-worktree.sh`：
+- [X] T014 [US3] 修改 `.specify/extensions/worktree/scripts/bash/create-worktree.sh`：
   - 算号前执行 `git fetch --quiet --prune origin`，更新全部分支的远程引用。
   - `--no-fetch` 跳过该步，仍占号并校验。
   - base ref 不含远程前缀时跳过该步，沿用现有错误路径。
-- [ ] T015 [P] [US3] 在 `tests/worktree-extension.test.ts` 新增用例：
+- [X] T015 [P] [US3] 在 `tests/worktree-extension.test.ts` 新增用例：
   - 另一克隆推送 `fix/002-other` 后本仓库不 fetch，创建结果编号为 003。
   - `--no-fetch` 时新编号基于本地可见状态，并仍完成占号。
-- [ ] T016 [US3] 运行 `pnpm format && pnpm check`，提交
+- [X] T016 [US3] 运行 `pnpm format && pnpm check`，提交
 
 **Checkpoint**: 别人已推送、本机未 fetch 时编号仍然避让。
 
@@ -111,12 +111,12 @@
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T017 [P] 更新 `docs/development.md`：
+- [X] T017 [P] 更新 `docs/development.md`：
   - Spec Kit 流程节写明创建时占号、编号来自远程、交付前校验。
   - 维护 worktree 扩展节补充 `check-spec-number.sh`、`spec-number-lib.sh` 与测试覆盖。
-- [ ] T018 [P] 更新 `CHANGELOG.md` 的 `## Unreleased`，记录占号、自动改号与交付前校验。
-- [ ] T019 按 [quickstart.md](./quickstart.md) 在两个真实克隆上验证场景 1–5。
-- [ ] T020 运行 `pnpm format && pnpm check`，提交
+- [X] T018 [P] 更新 `CHANGELOG.md` 的 `## Unreleased`，记录占号、自动改号与交付前校验。
+- [X] T019 按 [quickstart.md](./quickstart.md) 在两个真实克隆上验证场景 1–5。
+- [X] T020 运行 `pnpm format && pnpm check`，提交
 
 ---
 
