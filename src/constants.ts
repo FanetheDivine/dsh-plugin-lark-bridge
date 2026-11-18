@@ -1,10 +1,32 @@
-/** 共享常量：插件标识、工具名与默认前缀。 */
+/** 共享常量：插件标识、默认值、工具名与状态目录。 */
 
-/** 错误消息使用的插件标识。 */
-export const PLUGIN_LABEL = 'dsh-plugin-template';
+/** 插件标识，与包名、cordis.patch.yml 的 id 一致。 */
+export const PLUGIN_LABEL = 'dsh-plugin-lark-bridge';
 
-/** demo 工具名。 */
-export const DEMO_TOOL_NAME = 'demo_echo';
+/** 工具名。 */
+export const NOTIFY_TOOL_NAME = 'lark_notify';
 
-/** 配置项 prefix 的默认值。 */
-export const DEFAULT_PREFIX = 'demo';
+/** 插件专用 lark-cli 配置档案名。 */
+export const DEFAULT_PROFILE = 'dsh-lark-bridge';
+
+/** 桥接会话的默认标题。 */
+export const DEFAULT_SESSION_TITLE = '飞书';
+
+/** 设备码授权请求的最小 scope。 */
+export const DEFAULT_LOGIN_SCOPE = 'auth:user.id:read';
+
+/** 状态目录名，位于 DSH home 下。 */
+export const STATE_DIR = 'lark-bridge';
+
+/** 状态文件名。 */
+export const STATE_FILE = 'state.json';
+
+/** 去重窗口最多保留的消息条数。 */
+export const SEEN_LIMIT = 500;
+
+/** 单条飞书文本消息的最大字符数。 */
+export const MAX_MESSAGE_CHARS = 15_000;
+
+/** 监听重启的初始与最大退避。 */
+export const RESTART_MIN_MS = 2_000;
+export const RESTART_MAX_MS = 60_000;

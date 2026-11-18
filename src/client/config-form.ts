@@ -1,8 +1,7 @@
 /**
- * 插件面板配置页的草稿模型：用官方 SettingsFormModel 暂存两个热重载字段。
- * 导出行键、命名空间、PluginConfigForm 与注入面类型。
+ * 插件面板配置页的草稿模型：工作区、标题、档案名与鉴权开关。
+ * 导出行键、PluginConfigForm 与注入面类型。
  */
-
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store';
 import type {
   SettingsFieldSpec,
@@ -13,67 +12,114 @@ import type {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import { SettingsFormModel } from '@deepseek-ai/dsh-client-ui-primitives';
 
-/** 插件在“插件”页的配置页键：`<包名>#<行 id>`。 */
-export const ROW_KEY = 'dsh-plugin-template#dsh-plugin-template';
+/** 插件在前端使用的行键：`<包名>#<行 id>`。 */
+export const ROW_KEY = 'dsh-plugin-lark-bridge#dsh-plugin-lark-bridge';
 
-/** 行 id。同时是宿主配置的条目 id 与表单命名空间。 */
-export const ROW_ID = 'dsh-plugin-template';
+/** 行 id，同时是宿主配置的条目 id 与表单命名空间。 */
+export const ROW_ID = 'dsh-plugin-lark-bridge';
 
-/** 配置页可编辑的两个字段，取值与宿主 `Config` 的实时值一致。 */
+/** 配置页可编辑字段。 */
 export interface ConfigFields {
-  /** 是否注册 demo 工具。 */
-  demoEnabled: boolean;
-  /** 工具回显与事件日志使用的前缀。 */
-  prefix: string;
+  workspaceRoot: string;
+  sessionTitle: string;
+  profile: string;
+  larkCli: string;
+  ownerOpenId: string;
+  authCheckOnStartup: boolean;
 }
 
 /** 配置页读取的草稿与表单状态。 */
 export interface ConfigFormState extends SettingsFormShell {
-  /** 开关字段。 */
-  demoEnabled: SettingsFieldState;
-  /** 前缀字段。 */
-  prefix: SettingsFieldState;
+  workspaceRoot: SettingsFieldState;
+  sessionTitle: SettingsFieldState;
+  profile: SettingsFieldState;
+  larkCli: SettingsFieldState;
+  ownerOpenId: SettingsFieldState;
+  authCheckOnStartup: SettingsFieldState;
 }
 
 /** 配置页向槽位组件提供的注入值。 */
 export interface ConfigPageInjected extends SettingsFormActions {
-  /** 草稿与表单状态。 */
   hooks: { configForm: SnapshotStore<ConfigFormState> };
 }
 
-/** 开关字段：草稿是 `true` 或 `false`。 */
-const demoEnabledSpec: SettingsFieldSpec = {
-  field: 'demoEnabled',
+/** 判断路径是否为绝对路径。 */
+function isAbsolutePath(value: string): boolean {
+  return /^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(value);
+}
+
+const workspaceSpec: SettingsFieldSpec = {
+  field: 'workspaceRoot',
+  format: (value) => (typeof value === 'string' ? value : ''),
+  parse: (text) => {
+    const path = text.trim();
+    return isAbsolutePath(path) ? { kind: 'set', value: path } : undefined;
+  },
+};
+
+const titleSpec: SettingsFieldSpec = {
+  field: 'sessionTitle',
+  format: (value) => (typeof value === 'string' ? value : ''),
+  parse: (text) => {
+    const title = text.trim();
+    return title === '' ? undefined : { kind: 'set', value: title };
+  },
+};
+
+const profileSpec: SettingsFieldSpec = {
+  field: 'profile',
+  format: (value) => (typeof value === 'string' ? value : ''),
+  parse: (text) => {
+    const profile = text.trim();
+    return /^[A-Za-z0-9._-]+$/.test(profile) ? { kind: 'set', value: profile } : undefined;
+  },
+};
+
+const cliSpec: SettingsFieldSpec = {
+  field: 'larkCli',
+  format: (value) => (typeof value === 'string' ? value : ''),
+  parse: (text) => ({ kind: 'set', value: text.trim() }),
+};
+
+const ownerSpec: SettingsFieldSpec = {
+  field: 'ownerOpenId',
+  format: (value) => (typeof value === 'string' ? value : ''),
+  parse: (text) => {
+    const owner = text.trim();
+    return owner === '' || owner.startsWith('ou_') ? { kind: 'set', value: owner } : undefined;
+  },
+};
+
+const authCheckSpec: SettingsFieldSpec = {
+  field: 'authCheckOnStartup',
   format: (value) => (value === false ? 'false' : 'true'),
   parse: (text) =>
     text === 'true' || text === 'false' ? { kind: 'set', value: text === 'true' } : undefined,
 };
 
-/** 前缀字段：空白草稿非法，保存时写入去掉首尾空白的前缀。 */
-const prefixSpec: SettingsFieldSpec = {
-  field: 'prefix',
-  format: (value) => (typeof value === 'string' ? value : ''),
-  parse: (text) => {
-    const prefix = text.trim();
-    return prefix === '' ? undefined : { kind: 'set', value: prefix };
-  },
-};
-
-/**
- * 暂存两处编辑，保存时一次写入宿主配置。
- * 保留模式：离开配置页丢弃草稿，写入只发生在保存。
- */
+/** 暂存配置页的编辑，保存时一次写入宿主配置。 */
 export class PluginConfigForm {
   private readonly form: SettingsFormModel<ConfigFields>;
   private readonly state: SnapshotStore<ConfigFormState>;
 
   /** @param scope - 宿主为该行提供的配置表单。 */
   constructor(scope: SettingsFormScope<ConfigFields>) {
-    this.form = new SettingsFormModel(scope, [demoEnabledSpec, prefixSpec]);
+    this.form = new SettingsFormModel(scope, [
+      workspaceSpec,
+      titleSpec,
+      profileSpec,
+      cliSpec,
+      ownerSpec,
+      authCheckSpec,
+    ]);
     this.state = this.form.bind(() => ({
       ...this.form.shell(),
-      demoEnabled: this.form.field('demoEnabled'),
-      prefix: this.form.field('prefix'),
+      workspaceRoot: this.form.field('workspaceRoot'),
+      sessionTitle: this.form.field('sessionTitle'),
+      profile: this.form.field('profile'),
+      larkCli: this.form.field('larkCli'),
+      ownerOpenId: this.form.field('ownerOpenId'),
+      authCheckOnStartup: this.form.field('authCheckOnStartup'),
     }));
   }
 

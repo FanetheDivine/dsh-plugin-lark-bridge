@@ -1,25 +1,18 @@
 # 项目说明
 
-DSH 插件模板，用 TypeScript 开发，用 tsdown 构建，用 biome 检查代码质量，用 vitest 运行测试。
+`dsh-plugin-lark-bridge` 是 DSH 插件：通过 lark-cli 的 bot 身份接收飞书私聊消息，注入 DSH 会话，并提供通知用户的工具。用 TypeScript 开发，用 tsdown 构建，用 biome 检查代码质量，用 vitest 运行测试。
 
 - 常用 pnpm 脚本：`dev`、`build`、`check`、`full-check`、`release`、`test:code`、`test:dist`、`lint`、`lint:fix`、`format`。
 - 命令说明见 [development.md](./docs/development.md#命令)。
 
 # 文档索引
 
-- [README.md](./README.md) 了解项目功能。
-- [how-it-works.md](./docs/how-it-works.md)：插件的构造方式与运行流程。
+- [README.md](./README.md)：功能、安装、配置与工具。
+- [how-it-works.md](./docs/how-it-works.md)：插件构造、鉴权、消息与会话流程。
 - [known-risks.md](./docs/known-risks.md)：已知风险与宿主限制。
-- [development.md](./docs/development.md)：本地开发、命令、测试、Spec Kit 命令一览、worktree 扩展维护与文件地图。
+- [development.md](./docs/development.md)：本地开发、命令、测试、Spec Kit 命令与文件地图。
 - [i18n.md](./docs/i18n.md)：插件元数据与前端字典的国际化规范。
-- [template-conversion.md](./docs/template-conversion.md)：变更类别、模板变更要求与模板转化步骤。
-
-# 模板说明
-
-本仓库是 DSH 插件模板。
-
-- 每个 spec 按 [template-conversion.md](./docs/template-conversion.md#变更类别) 声明变更类别。
-- 把模板改造成插件前，先读 [template-conversion.md](./docs/template-conversion.md#模板转化)，按其中的顺序执行。
+- [change-categories.md](./docs/change-categories.md)：spec 的变更类别。
 
 # 主工作区
 

@@ -1,6 +1,6 @@
 /**
- * 插件面板配置页：`summary` 一行描述，`page` 用官方表单控件渲染两个字段。
- * 导出 ConfigPage 与其 props。
+ * 插件面板配置页：鉴权面板、会话设置与桥接会话重置。
+ * 导出 ConfigPage。
  */
 
 // Type-only：拉取 plugins.row.config 槽位声明。
@@ -8,12 +8,14 @@ import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives';
 import { SettingsForm, SettingsValueField, Switch } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-import { type CSSProperties, useId } from 'react';
+import { type CSSProperties, useId, useState } from 'react';
 
+import { resetSession } from './api.ts';
+import { AuthPanel } from './auth-panel.tsx';
 import type { ConfigPageInjected } from './config-form.ts';
 import type { NS } from './locales.ts';
 
-/** 配置页组件 props：行配置页的运行时值、字典与注入面。 */
+/** 配置页组件 props。 */
 export type ConfigPageProps = PropsRuntime<'plugins.row.config'> &
   PropsLocale<typeof NS> &
   InjectFace<ConfigPageInjected>;
@@ -29,64 +31,162 @@ function formLabels(t: ConfigPageProps['t']): SettingsFormLabels {
   };
 }
 
-/**
- * 渲染模板插件在“插件”页的行配置。
- * @param props - 视图名、已暂存的表单，以及编辑、保存与放弃动作。
- * @returns `page` 渲染表单，`summary` 渲染该行缺失描述时的一行文案。
- */
+/** 渲染插件行配置。 */
 export function ConfigPage(props: ConfigPageProps) {
   const { t } = props;
   const id = useId();
   const state = props.useConfigForm((value) => value);
+  const [resetNotice, setResetNotice] = useState('');
+
   if (props.view === 'summary') return t('config.summary');
+
   const disabled = !state.writable || state.saving;
-  const title = t('config.demoEnabled.title');
+
   return (
-    <SettingsForm
-      labels={formLabels(t)}
-      state={state}
-      onSave={props.save}
-      onDiscard={props.discard}
-    >
-      <div data-dsh-template-config style={rowStyle}>
-        <div style={textStyle}>
-          <span style={titleStyle}>{title}</span>
-          <p style={descriptionStyle}>{t('config.demoEnabled.description')}</p>
+    <div>
+      <AuthPanel t={t} />
+
+      <SettingsForm
+        state={state}
+        labels={formLabels(t)}
+        onSave={props.save}
+        onDiscard={props.discard}
+      >
+        <h4 style={sectionTitleStyle}>{t('config.section.session')}</h4>
+
+        <div style={fieldStyle} data-dsh-lark-config-workspace>
+          <SettingsValueField
+            id={`${id}-workspace`}
+            label={t('config.workspaceRoot.title')}
+            hint={t('config.workspaceRoot.description')}
+            invalidLabel={t('config.workspaceRoot.invalid')}
+            overriddenLabel={t('config.overridden')}
+            resetLabel={t('config.reset')}
+            text={state.workspaceRoot.text}
+            overridden={state.workspaceRoot.overridden}
+            invalid={state.workspaceRoot.invalid}
+            disabled={disabled}
+            onEdit={(text) => props.edit('workspaceRoot', text)}
+            onReset={() => props.resetField('workspaceRoot')}
+          />
         </div>
-        <Switch
-          checked={state.demoEnabled.text === 'true'}
-          disabled={disabled}
-          label={title}
-          onChange={(next) => {
-            props.edit('demoEnabled', next ? 'true' : 'false');
-          }}
-        />
-      </div>
-      <div data-dsh-template-config-prefix style={fieldStyle}>
-        <SettingsValueField
-          id={`${id}-prefix`}
-          label={t('config.prefix.title')}
-          hint={t('config.prefix.description')}
-          invalidLabel={t('config.prefix.invalid')}
-          overriddenLabel={t('config.overridden')}
-          resetLabel={t('config.reset')}
-          text={state.prefix.text}
-          overridden={state.prefix.overridden}
-          invalid={state.prefix.invalid}
-          disabled={disabled}
-          onEdit={(text) => {
-            props.edit('prefix', text);
-          }}
-          onReset={() => {
-            props.resetField('prefix');
-          }}
-        />
-      </div>
-    </SettingsForm>
+
+        <div style={fieldStyle}>
+          <SettingsValueField
+            id={`${id}-title`}
+            label={t('config.sessionTitle.title')}
+            hint={t('config.sessionTitle.description')}
+            invalidLabel={t('config.sessionTitle.invalid')}
+            overriddenLabel={t('config.overridden')}
+            resetLabel={t('config.reset')}
+            text={state.sessionTitle.text}
+            overridden={state.sessionTitle.overridden}
+            invalid={state.sessionTitle.invalid}
+            disabled={disabled}
+            onEdit={(text) => props.edit('sessionTitle', text)}
+            onReset={() => props.resetField('sessionTitle')}
+          />
+        </div>
+
+        <div style={rowStyle}>
+          <div style={textStyle}>
+            <span style={titleStyle}>{t('config.authCheckOnStartup.title')}</span>
+            <p style={descriptionStyle}>{t('config.authCheckOnStartup.description')}</p>
+          </div>
+          <Switch
+            checked={state.authCheckOnStartup.text !== 'false'}
+            label={t('config.authCheckOnStartup.title')}
+            disabled={disabled}
+            onChange={(next) => props.edit('authCheckOnStartup', next ? 'true' : 'false')}
+          />
+        </div>
+
+        <h4 style={sectionTitleStyle}>{t('config.section.auth')}</h4>
+
+        <div style={fieldStyle}>
+          <SettingsValueField
+            id={`${id}-profile`}
+            label={t('config.profile.title')}
+            hint={t('config.profile.description')}
+            invalidLabel={t('config.profile.invalid')}
+            overriddenLabel={t('config.overridden')}
+            resetLabel={t('config.reset')}
+            text={state.profile.text}
+            overridden={state.profile.overridden}
+            invalid={state.profile.invalid}
+            disabled={disabled}
+            onEdit={(text) => props.edit('profile', text)}
+            onReset={() => props.resetField('profile')}
+          />
+        </div>
+
+        <div style={fieldStyle}>
+          <SettingsValueField
+            id={`${id}-cli`}
+            label={t('config.larkCli.title')}
+            hint={t('config.larkCli.description')}
+            invalidLabel={t('config.larkCli.description')}
+            overriddenLabel={t('config.overridden')}
+            resetLabel={t('config.reset')}
+            text={state.larkCli.text}
+            overridden={state.larkCli.overridden}
+            invalid={state.larkCli.invalid}
+            disabled={disabled}
+            onEdit={(text) => props.edit('larkCli', text)}
+            onReset={() => props.resetField('larkCli')}
+          />
+        </div>
+
+        <div style={fieldStyle}>
+          <SettingsValueField
+            id={`${id}-owner`}
+            label={t('config.ownerOpenId.title')}
+            hint={t('config.ownerOpenId.description')}
+            invalidLabel={t('config.ownerOpenId.invalid')}
+            overriddenLabel={t('config.overridden')}
+            resetLabel={t('config.reset')}
+            text={state.ownerOpenId.text}
+            overridden={state.ownerOpenId.overridden}
+            invalid={state.ownerOpenId.invalid}
+            disabled={disabled}
+            onEdit={(text) => props.edit('ownerOpenId', text)}
+            onReset={() => props.resetField('ownerOpenId')}
+          />
+        </div>
+
+        <div style={rowStyle}>
+          <div style={textStyle}>
+            <span style={titleStyle}>{t('config.resetSession')}</span>
+            <p style={descriptionStyle}>{t('config.resetSessionHint')}</p>
+            {resetNotice !== '' ? <p style={noticeStyle}>{resetNotice}</p> : null}
+          </div>
+          <button
+            type="button"
+            style={secondaryButtonStyle}
+            disabled={disabled}
+            onClick={() => {
+              void resetSession().then((result) => {
+                setResetNotice(result.ok ? t('config.resetDone') : result.error.message);
+              });
+            }}
+          >
+            {t('config.resetSession')}
+          </button>
+        </div>
+      </SettingsForm>
+    </div>
   );
 }
 
-/** 开关行：标题与说明在左，开关在右，与官方配置页的开关行一致。 */
+const sectionTitleStyle: CSSProperties = {
+  margin: '16px 0 0',
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--dsw-alias-label-secondary)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+};
+
 const rowStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -95,7 +195,10 @@ const rowStyle: CSSProperties = {
   padding: '12px 0',
 };
 
-/** 开关行的文字列。 */
+const fieldStyle: CSSProperties = {
+  borderTop: '0.5px solid var(--dsw-alias-border-l2)',
+};
+
 const textStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -103,7 +206,6 @@ const textStyle: CSSProperties = {
   minWidth: 0,
 };
 
-/** 字段标题：13px、中等字重。 */
 const titleStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 500,
@@ -111,7 +213,6 @@ const titleStyle: CSSProperties = {
   color: 'var(--dsw-alias-label-primary)',
 };
 
-/** 字段说明：12px、次级文字色。 */
 const descriptionStyle: CSSProperties = {
   margin: 0,
   fontSize: 12,
@@ -119,7 +220,19 @@ const descriptionStyle: CSSProperties = {
   color: 'var(--dsw-alias-label-secondary)',
 };
 
-/** 前缀字段外层：与上一字段之间画 0.5px 的 l2 分隔线。 */
-const fieldStyle: CSSProperties = {
-  borderTop: '0.5px solid var(--dsw-alias-border-l2)',
+const noticeStyle: CSSProperties = {
+  ...descriptionStyle,
+  color: 'var(--dsw-alias-label-link, #0969da)',
+};
+
+const secondaryButtonStyle: CSSProperties = {
+  flex: 'none',
+  padding: '4px 10px',
+  border: '1px solid var(--dsw-alias-border-l2)',
+  borderRadius: 'var(--dsw-radius-sm, 6px)',
+  background: 'var(--dsw-alias-button-tool-bar-fill, transparent)',
+  color: 'var(--dsw-alias-label-primary)',
+  font: 'inherit',
+  fontSize: 12,
+  cursor: 'pointer',
 };

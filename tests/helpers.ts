@@ -33,7 +33,8 @@ export function textBlock(text: string) {
  * 可编程 ctx 模拟：记录 tools.register / ctx.on / logger 调用，
  * 测试据此断言 apply 的工具注册、事件监听与日志输出。
  */
-export function makeCtx() {
+export function makeCtx(options: { services?: Record<string, unknown> } = {}) {
+  const services = new Map<string, unknown>(Object.entries(options.services ?? {}));
   const onCallbacks = new Map<string, ((...args: unknown[]) => unknown)[]>();
   const registeredTools: unknown[] = [];
   const activeTools = new Set<unknown>();
@@ -75,8 +76,12 @@ export function makeCtx() {
       list.push(fn);
       return () => true;
     },
+    get(name: string) {
+      return services.get(name);
+    },
     _onCallbacks: onCallbacks,
     _registeredTools: registeredTools,
+    _services: services,
     _activeTools: activeTools,
     /** 触发某事件的全部监听。 */
     _emit: (type: string, ...args: unknown[]) => {
@@ -200,7 +205,14 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
       state._configFormRequests.push(entryId);
       const fake = makeConfigFormScope<Record<string, unknown>>({
         status: 'ready',
-        value: { demoEnabled: true, prefix: 'demo' },
+        value: {
+          workspaceRoot: '/tmp/work',
+          sessionTitle: '飞书',
+          profile: 'dsh-lark-bridge',
+          larkCli: '',
+          ownerOpenId: '',
+          authCheckOnStartup: true,
+        },
       });
       state._configFormScopes.push(fake);
       return fake.scope;
@@ -275,6 +287,9 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
     },
     get configForms() {
       return require('configForms', configFormsService);
+    },
+    get(name: string) {
+      return undefined;
     },
     get slots() {
       return require('slots', slotsService);

@@ -1,6 +1,6 @@
 {
-  "name": "dsh-plugin-template",
-  "version": "0.0.3",
+  "name": "dsh-plugin-lark-bridge",
+  "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -10,7 +10,8 @@
     "deepseek",
     "harness",
     "plugin",
-    "template"
+    "lark",
+    "feishu"
   ],
   "exports": {
     ".": {
@@ -37,7 +38,7 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-plugin-manager",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-settings"
@@ -71,12 +72,17 @@
     "@deepseek-ai/dsh-client-locale": "0.2.2-rc.3",
     "@deepseek-ai/dsh-client-store": "0.2.2-rc.3",
     "@deepseek-ai/dsh-client-ui-conversation": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-client-ui-layout": "0.2.2-rc.3",
     "@deepseek-ai/dsh-client-ui-plugin-manager": "0.2.2-rc.3",
     "@deepseek-ai/dsh-client-ui-primitives": "0.2.2-rc.3",
     "@deepseek-ai/dsh-client-ui-renderer": "0.2.2-rc.3",
     "@deepseek-ai/dsh-client-ui-settings": "0.2.2-rc.3",
     "@deepseek-ai/dsh-client-ui-slots": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-llm": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-session": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-session-title": "0.2.2-rc.3",
     "@deepseek-ai/dsh-tools": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-workspace": "0.2.2-rc.3",
     "@deepseek-ai/schemastery": "~3.19.0",
     "@types/node": "^24.19.2",
     "@types/react": "~18.3.1",
@@ -91,5 +97,9 @@
     "vitest": "^4.1.10",
     "zod": "4.6.6",
     "zustand": "^5.1.0"
-  }
+  },
+  "dependencies": {
+    "@larksuite/cli": "1.0.100"
+  },
+  "description": "通过 lark-cli 的 bot 身份接收飞书消息并注入 DSH 会话，同时提供通知用户的工具。"
 }
