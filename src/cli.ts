@@ -256,7 +256,6 @@ export class LarkCli {
     this.runner = runner;
   }
 
-  /** 返回一份使用同一命令的新实例，用于配置热重载。 */
   /** 运行一次调用；非零退出码转为 CliError。 */
   async run(
     args: readonly string[],
