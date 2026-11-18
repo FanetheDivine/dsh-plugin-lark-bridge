@@ -12,9 +12,9 @@
 
 ## Phase 2: 文档
 
-- [ ] T006 `docs/development.md` 发布节说明 npm 版本要求
-- [ ] T007 `CHANGELOG.md` 记录修复
-- [ ] T008 运行 `pnpm format && pnpm check`，提交阶段二
+- [x] T006 `docs/development.md` 发布节说明 npm 版本要求
+- [x] T007 `CHANGELOG.md` 记录修复
+- [x] T008 运行 `pnpm format && pnpm check`，提交阶段二
 
 ## Phase 3: 合并与 tag
 
