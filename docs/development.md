@@ -65,6 +65,33 @@
 
 代码质量门禁是 `pnpm check`；`test:code` 与 `test:dist` 用于局部验证。
 
+## 发布
+
+npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布。
+
+首次发布由维护者手工完成，因为 npm 要求包已存在才能绑定 Trusted Publisher。
+
+| 步骤 | 命令 | 说明 |
+| --- | --- | --- |
+| 登录 | `npm login --auth-type=web` | 浏览器授权，凭据写入 `~/.npmrc` |
+| 引导发布 | `pnpm build && npm publish` | 只有 `0.1.0` 需要 |
+| 绑定 | `npm trust github dsh-plugin-lark-bridge --repo FanetheDivine/dsh-plugin-lark-bridge --file ci.yml --allow-publish -y` | 需要 2FA 口令 |
+| 核对 | `npm trust list dsh-plugin-lark-bridge` | 只有 1 条 GitHub Actions 绑定 |
+| 后续发布 | `pnpm run release` | 递增版本、归档 CHANGELOG、推送 commit 与 tag |
+
+绑定参数必须与 workflow 一致：
+
+| 字段 | 值 |
+| --- | --- |
+| Provider | GitHub Actions |
+| Repository | `FanetheDivine/dsh-plugin-lark-bridge` |
+| Workflow | `.github/workflows/ci.yml` |
+| Environment | 空 |
+| 允许的动作 | publish |
+
+- `scripts/publish-guard.mjs` 查询 registry；目标版本已存在时 `publish` job 跳过发布。
+- 引导发布不带 provenance，从 CI 发布的版本开始生成。
+
 ## CI
 
 `.github/workflows/ci.yml` 有两个 job：
@@ -72,11 +99,10 @@
 | Job | 触发 | 内容 |
 | --- | --- | --- |
 | `check` | PR、打 tag | Node 24 上运行 `pnpm run full-check` |
-| `publish` | 打 tag | 发布 npm，用 OIDC 换取发布令牌 |
+| `publish` | 打 tag | 用 OIDC 发布新版本；版本已存在时跳过 |
 
 - `full-check` 依次运行 `check` 与 `build`：`check` 不读取 `dist`，产物测试在 `build` 末尾执行。
 - `pnpm run release` 推送 tag 后触发 `publish`。
-- npm 的 Trusted Publisher 需要绑定到本仓库与 `.github/workflows/ci.yml`。
 
 ## 测试
 
