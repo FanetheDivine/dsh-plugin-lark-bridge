@@ -43,7 +43,6 @@ export function apply(ctx: Context, config?: unknown): void {
 
   let bridge!: EventBridge;
   const auth = new AuthManager({
-    getConfig: () => current,
     getCli: () => cli,
     logger: ctx.logger,
     onChange: (snapshot: AuthSnapshot) => {
@@ -57,7 +56,6 @@ export function apply(ctx: Context, config?: unknown): void {
   });
 
   bridge = new EventBridge({
-    getConfig: () => current,
     getCli: () => cli,
     getAuth: () => auth.current,
     store,
@@ -66,10 +64,8 @@ export function apply(ctx: Context, config?: unknown): void {
   });
 
   const notifyTool = buildNotifyTool({
-    getConfig: () => current,
     getCli: () => cli,
-    getOwner: () =>
-      auth.current.ownerOpenId ?? (current.ownerOpenId === '' ? undefined : current.ownerOpenId),
+    getOwner: () => auth.current.ownerOpenId,
   });
   const unregisterTool = ctx.tools.register(notifyTool);
   ctx.effect(() => () => unregisterTool(), `${PLUGIN_LABEL}: notify tool`);
@@ -114,7 +110,7 @@ export function apply(ctx: Context, config?: unknown): void {
       const cliChanged = next.larkCli !== current.larkCli;
       current = next;
       if (cliChanged) cli = new LarkCli(next.larkCli);
-      ctx.logger.info(`[${PLUGIN_LABEL}] config updated: profile=${current.profile}`);
+      ctx.logger.info(`[${PLUGIN_LABEL}] config updated`);
       runCheck();
     } catch (error) {
       ctx.logger.warn(`[${PLUGIN_LABEL}] config update ignored: ${String(error)}`);

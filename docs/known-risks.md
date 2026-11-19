@@ -28,13 +28,13 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 - 下载需要访问 npm 镜像或 GitHub Releases，网络受限时鉴权停在 `cli-missing`。
 - 二进制随版本升级可能移动到新路径；解析顺序见 `src/cli.ts`。
 
-## 独立档案
+## 默认配置
 
-插件使用自己的 lark-cli 档案，不读取用户已有登录。
+插件使用 lark-cli 当前生效的配置，不再隔离档案。
 
-- 用户必须重新填写 App ID/Secret 并授权一次。
-- 档案名变化后旧档案保留在 lark-cli 中；插件只删除自己当前配置的档案。
-- `profile remove` 会清除该档案的凭据，插件只在重新绑定同一档案时执行。
+- 终端里切换 lark-cli 的生效档案会同时改变插件使用的机器人，下一次检测或重启监听后生效。
+- 用户授权失效后，插件发起的授权只请求 `auth:user.id:read`，新令牌会替换终端里同一档案原有的授权范围，需要时在终端重新授权。
+- 旧版本创建的专用档案 `dsh-lark-bridge` 保留在 lark-cli 中，插件不会读取或删除它。
 
 ## 飞书开放平台
 
@@ -72,7 +72,7 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 
 配置中出现未知键或非法值时，插件加载失败。
 
-- 用户在 `cordis.patch.yml` 写错键名会导致插件停用。
+- 用户在 `cordis.patch.yml` 写错键名会导致插件停用。旧版本的 `profile` 与 `ownerOpenId` 例外，加载时被丢弃。
 - 用 `dsh --profile <profile> --dump-config` 检查最终配置。
 
 ## 国际化

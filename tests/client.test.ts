@@ -38,9 +38,7 @@ function pageState(): ConfigFormState {
     failed: false,
     workspaceRoot: { text: 'D:/work', overridden: false, invalid: false },
     sessionTitle: { text: '飞书', overridden: false, invalid: false },
-    profile: { text: 'dsh-lark-bridge', overridden: false, invalid: false },
     larkCli: { text: '', overridden: false, invalid: false },
-    ownerOpenId: { text: '', overridden: false, invalid: false },
     authCheckOnStartup: { text: 'true', overridden: false, invalid: false },
   };
 }
@@ -201,6 +199,23 @@ describe('字典与渲染', () => {
     expect(html).toContain(zh['config.workspaceRoot.title']);
     expect(html).toContain(zh['config.sessionTitle.title']);
     expect(html).toContain(zh['config.resetSession']);
+  });
+
+  it('配置页没有机器人凭据、档案名与 open_id 输入', () => {
+    for (const dict of [zh, en]) {
+      const html = renderConfigPage('page', dict);
+      expect(html).not.toContain('App Secret');
+      expect(html).not.toContain('type="password"');
+      expect(html).not.toContain('open_id');
+      expect(html).not.toContain('档案');
+      expect(html).not.toContain('profile');
+    }
+  });
+
+  it('bot 身份不可用时提示用 lark-cli 配置机器人', () => {
+    expect(zh['auth.stage.bot-unavailable.hint']).toContain('lark-cli config init');
+    expect(en['auth.stage.bot-unavailable.hint']).toContain('lark-cli config init');
+    expect(Object.keys(zh).filter((key) => key.startsWith('auth.stage.app-missing'))).toEqual([]);
   });
 
   it('弹窗在状态就绪时不渲染', () => {

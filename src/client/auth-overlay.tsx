@@ -99,9 +99,6 @@ export function AuthOverlay({ t, openSettings }: AuthOverlayProps) {
       }
     >
       <p style={bodyStyle}>{t('auth.description')}</p>
-      {status.profile !== '' ? (
-        <p style={bodyStyle}>{t('auth.profile', { profile: status.profile })}</p>
-      ) : null}
     </Modal>
   );
 }

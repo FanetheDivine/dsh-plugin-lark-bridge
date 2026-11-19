@@ -14,9 +14,7 @@ import { makeConfigFormScope } from './helpers.ts';
 const DEFAULTS: ConfigFields = {
   workspaceRoot: 'D:/work',
   sessionTitle: '飞书',
-  profile: 'dsh-lark-bridge',
   larkCli: '',
-  ownerOpenId: '',
   authCheckOnStartup: true,
 };
 
@@ -41,7 +39,7 @@ describe('配置页草稿', () => {
     const current = state();
     expect(current.workspaceRoot.text).toBe('D:/work');
     expect(current.sessionTitle.text).toBe('飞书');
-    expect(current.profile.text).toBe('dsh-lark-bridge');
+    expect(current.larkCli.text).toBe('');
     expect(current.authCheckOnStartup.text).toBe('true');
     expect(current.dirty).toBe(false);
     expect(current.invalid).toBe(false);
@@ -54,24 +52,20 @@ describe('配置页草稿', () => {
     expect(current.available).toBe(false);
   });
 
-  it('相对工作区、空白标题与非法档案名被拒绝', () => {
+  it('相对工作区与空白标题被拒绝', () => {
     const { form, state } = setup();
     const actions = form.inject();
     actions.edit('workspaceRoot', 'relative/path');
     actions.edit('sessionTitle', '   ');
-    actions.edit('profile', 'bad profile');
     expect(state().workspaceRoot.invalid).toBe(true);
     expect(state().sessionTitle.invalid).toBe(true);
-    expect(state().profile.invalid).toBe(true);
     expect(state().invalid).toBe(true);
   });
 
-  it('非法 open_id 被拒绝', () => {
-    const { form, state } = setup();
-    form.inject().edit('ownerOpenId', 'abc');
-    expect(state().ownerOpenId.invalid).toBe(true);
-    form.inject().edit('ownerOpenId', '');
-    expect(state().ownerOpenId.invalid).toBe(false);
+  it('状态不再包含档案名与 open_id 字段', () => {
+    const { state } = setup();
+    expect(state()).not.toHaveProperty('profile');
+    expect(state()).not.toHaveProperty('ownerOpenId');
   });
 });
 
@@ -81,27 +75,27 @@ describe('配置页保存', () => {
     const actions = form.inject();
     actions.edit('workspaceRoot', '  D:/other  ');
     actions.edit('sessionTitle', '  桥  ');
-    actions.edit('profile', 'other');
+    actions.edit('larkCli', '  D:/tools/lark-cli.exe  ');
     actions.edit('authCheckOnStartup', 'false');
     await actions.save();
     expect(fake.writes).toEqual([
       [
         { op: 'set', path: ['workspaceRoot'], value: 'D:/other' },
         { op: 'set', path: ['sessionTitle'], value: '桥' },
-        { op: 'set', path: ['profile'], value: 'other' },
+        { op: 'set', path: ['larkCli'], value: 'D:/tools/lark-cli.exe' },
         { op: 'set', path: ['authCheckOnStartup'], value: false },
       ],
     ]);
   });
 
   it('恢复默认提交清除操作', async () => {
-    const { fake, form, state } = setup({}, { profile: 'other' });
+    const { fake, form, state } = setup({}, { larkCli: 'other' });
     const actions = form.inject();
-    expect(state().profile.overridden).toBe(true);
-    actions.resetField('profile');
-    expect(state().profile.text).toBe('dsh-lark-bridge');
+    expect(state().larkCli.overridden).toBe(true);
+    actions.resetField('larkCli');
+    expect(state().larkCli.text).toBe('');
     await actions.save();
-    expect(fake.writes).toEqual([[{ op: 'unset', path: ['profile'] }]]);
+    expect(fake.writes).toEqual([[{ op: 'unset', path: ['larkCli'] }]]);
   });
 
   it('放弃草稿回到宿主值', () => {

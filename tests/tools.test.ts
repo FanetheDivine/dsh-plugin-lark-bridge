@@ -2,17 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { LarkCli } from '../src/cli.ts';
-import type { PluginConfig } from '../src/config.ts';
 import { buildNotifyTool, sendNotification } from '../src/tools.ts';
-
-const CONFIG: PluginConfig = {
-  workspaceRoot: 'D:/work',
-  sessionTitle: '飞书',
-  profile: 'dsh-lark-bridge',
-  larkCli: 'fake',
-  ownerOpenId: '',
-  authCheckOnStartup: true,
-};
 
 /** 记录调用并返回固定 JSON 的 CLI。 */
 function makeCli(results: Array<{ ok: boolean }> = [{ ok: true }]) {
@@ -37,7 +27,7 @@ function send(text: unknown, owner: string | undefined, results?: Array<{ ok: bo
   return {
     calls,
     result: sendNotification(
-      { getConfig: () => CONFIG, getCli: () => cli, getOwner: () => owner },
+      { getCli: () => cli, getOwner: () => owner },
       typeof text === 'string' ? { text } : text,
     ),
   };
@@ -48,8 +38,6 @@ describe('sendNotification', () => {
     const { result, calls } = send('hello', 'ou_1');
     await expect(result).resolves.toEqual({ ok: true, parts: 1, messageId: 'om_sent' });
     expect(calls[0]).toEqual([
-      '--profile',
-      'dsh-lark-bridge',
       'im',
       '+messages-send',
       '--as',
@@ -100,7 +88,6 @@ describe('buildNotifyTool', () => {
   it('定义字段完整', () => {
     const { cli } = makeCli();
     const tool = buildNotifyTool({
-      getConfig: () => CONFIG,
       getCli: () => cli,
       getOwner: () => 'ou_1',
     });

@@ -105,23 +105,6 @@ export function ConfigPage(props: ConfigPageProps) {
 
         <div style={fieldStyle}>
           <SettingsValueField
-            id={`${id}-profile`}
-            label={t('config.profile.title')}
-            hint={t('config.profile.description')}
-            invalidLabel={t('config.profile.invalid')}
-            overriddenLabel={t('config.overridden')}
-            resetLabel={t('config.reset')}
-            text={state.profile.text}
-            overridden={state.profile.overridden}
-            invalid={state.profile.invalid}
-            disabled={disabled}
-            onEdit={(text) => props.edit('profile', text)}
-            onReset={() => props.resetField('profile')}
-          />
-        </div>
-
-        <div style={fieldStyle}>
-          <SettingsValueField
             id={`${id}-cli`}
             label={t('config.larkCli.title')}
             hint={t('config.larkCli.description')}
@@ -134,23 +117,6 @@ export function ConfigPage(props: ConfigPageProps) {
             disabled={disabled}
             onEdit={(text) => props.edit('larkCli', text)}
             onReset={() => props.resetField('larkCli')}
-          />
-        </div>
-
-        <div style={fieldStyle}>
-          <SettingsValueField
-            id={`${id}-owner`}
-            label={t('config.ownerOpenId.title')}
-            hint={t('config.ownerOpenId.description')}
-            invalidLabel={t('config.ownerOpenId.invalid')}
-            overriddenLabel={t('config.overridden')}
-            resetLabel={t('config.reset')}
-            text={state.ownerOpenId.text}
-            overridden={state.ownerOpenId.overridden}
-            invalid={state.ownerOpenId.invalid}
-            disabled={disabled}
-            onEdit={(text) => props.edit('ownerOpenId', text)}
-            onReset={() => props.resetField('ownerOpenId')}
           />
         </div>
 

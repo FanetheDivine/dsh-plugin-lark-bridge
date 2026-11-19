@@ -4,7 +4,6 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { LarkCli } from './cli.ts';
-import type { PluginConfig } from './config.ts';
 import { MAX_MESSAGE_CHARS, NOTIFY_TOOL_NAME } from './constants.ts';
 import { BridgeError } from './errors.ts';
 import type { ToolDefinition, ToolRunContext } from './types.ts';
@@ -20,7 +19,6 @@ export interface NotifyResult {
 
 /** 发送依赖。 */
 export interface NotifyDeps {
-  readonly getConfig: () => Readonly<PluginConfig>;
   readonly getCli: () => LarkCli;
   /** 当前可用的用户 open_id；未知时返回 undefined。 */
   readonly getOwner: () => string | undefined;
@@ -47,7 +45,6 @@ export async function sendNotification(deps: NotifyDeps, args: unknown): Promise
       error: { code: 'owner-missing', message: '尚未确定已绑定用户，请先在配置页完成鉴权' },
     };
   }
-  const config = deps.getConfig();
   const parts = splitText(text, MAX_MESSAGE_CHARS);
   const baseKey = `lark-notify-${randomUUID()}`;
   let first: string | undefined;
@@ -56,8 +53,6 @@ export async function sendNotification(deps: NotifyDeps, args: unknown): Promise
       const value = await deps
         .getCli()
         .json([
-          '--profile',
-          config.profile,
           'im',
           '+messages-send',
           '--as',

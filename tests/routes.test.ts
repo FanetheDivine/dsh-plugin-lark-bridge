@@ -12,9 +12,7 @@ import { StateStore } from '../src/state.ts';
 const CONFIG: PluginConfig = {
   workspaceRoot: 'D:/work',
   sessionTitle: '飞书',
-  profile: 'dsh-lark-bridge',
   larkCli: '',
-  ownerOpenId: '',
   authCheckOnStartup: true,
 };
 
@@ -22,7 +20,6 @@ const CONFIG: PluginConfig = {
 const SNAPSHOT: AuthSnapshot = {
   stage: 'ready',
   ready: true,
-  profile: 'dsh-lark-bridge',
   appId: 'cli_x',
   botStatus: 'ready',
   userName: '袁',
@@ -98,7 +95,6 @@ async function setup() {
   await store.patch({ sessionId: 's1', workspaceRoot: 'D:/work', title: '飞书' });
   const { webServer, routes } = makeWebServer();
   const check = vi.fn(async () => SNAPSHOT);
-  const bindApp = vi.fn(async () => SNAPSHOT);
   const startLogin = vi.fn(async () => ({
     verificationUrl: 'https://example.com/verify',
     deviceCode: 'dev',
@@ -109,7 +105,6 @@ async function setup() {
     auth: {
       current: SNAPSHOT,
       check,
-      bindApp,
       startLogin,
       cancelLogin: vi.fn(),
       whenLoginSettled: async () => SNAPSHOT,
@@ -121,7 +116,7 @@ async function setup() {
     logger: { warn: vi.fn() },
   };
   const dispose = registerRoutes(deps);
-  return { routes, dispose, deps, check, bindApp, startLogin, store };
+  return { routes, dispose, deps, check, startLogin, store };
 }
 
 describe('projectStatus', () => {
@@ -141,10 +136,9 @@ describe('projectStatus', () => {
 });
 
 describe('registerRoutes', () => {
-  it('注册六条精确路由', async () => {
+  it('注册五条精确路由', async () => {
     const { routes } = await setup();
     expect([...routes.keys()].sort()).toEqual([
-      '/lark-bridge/app',
       '/lark-bridge/auth/cancel',
       '/lark-bridge/auth/start',
       '/lark-bridge/check',
@@ -172,17 +166,6 @@ describe('registerRoutes', () => {
     expect(captured.status).toBe(403);
   });
 
-  it('POST app 调用绑定并返回状态', async () => {
-    const { routes, bindApp } = await setup();
-    const { res, captured } = response();
-    await routes.get('/lark-bridge/app')?.(
-      request('POST', JSON.stringify({ appId: 'cli_abc', appSecret: 'secret' })),
-      res,
-    );
-    expect(bindApp).toHaveBeenCalledWith('cli_abc', 'secret');
-    expect(JSON.parse(captured.body)).toMatchObject({ ok: true });
-  });
-
   it('POST auth/start 返回授权链接', async () => {
     const { routes } = await setup();
     const { res, captured } = response();
@@ -193,12 +176,9 @@ describe('registerRoutes', () => {
     });
   });
 
-  it('超大请求体被拒绝', async () => {
-    const { routes, bindApp } = await setup();
-    const { res, captured } = response();
-    await routes.get('/lark-bridge/app')?.(request('POST', 'x'.repeat(65 * 1024)), res);
-    expect(captured.status).toBe(400);
-    expect(bindApp).not.toHaveBeenCalled();
+  it('不提供应用绑定路由', async () => {
+    const { routes } = await setup();
+    expect(routes.has('/lark-bridge/app')).toBe(false);
   });
 
   it('未知路径不在注册表中', async () => {

@@ -6,7 +6,6 @@ import { createInterface } from 'node:readline';
 import type { AuthSnapshot } from './auth.ts';
 import type { LarkCli } from './cli.ts';
 import { killChildTree } from './cli.ts';
-import type { PluginConfig } from './config.ts';
 import { RESTART_MAX_MS, RESTART_MIN_MS } from './constants.ts';
 import type { SessionManager } from './sessions.ts';
 import type { StateStore } from './state.ts';
@@ -36,7 +35,6 @@ export interface BridgeLogger {
 
 /** EventBridge 的依赖。 */
 export interface BridgeDeps {
-  readonly getConfig: () => Readonly<PluginConfig>;
   readonly getCli: () => LarkCli;
   readonly getAuth: () => AuthSnapshot;
   readonly store: StateStore;
@@ -116,13 +114,10 @@ export class EventBridge {
   /** 启动一个消费者子进程。 */
   private spawn(): void {
     if (this.stopped || this.child !== undefined) return;
-    const config = this.deps.getConfig();
     const cli = this.deps.getCli();
     let child: ReturnType<LarkCli['spawn']>;
     try {
       child = cli.spawn([
-        '--profile',
-        config.profile,
         'event',
         'consume',
         'im.message.receive_v1',
@@ -197,7 +192,7 @@ export class EventBridge {
   async handleEvent(event: FeishuEvent): Promise<boolean> {
     const auth = this.deps.getAuth();
     if (auth.ready !== true) return false;
-    const owner = auth.ownerOpenId ?? this.deps.getConfig().ownerOpenId;
+    const owner = auth.ownerOpenId;
     if (owner === undefined || owner === '') return false;
     if (!acceptEvent(event, owner)) return false;
     const id = messageId(event);

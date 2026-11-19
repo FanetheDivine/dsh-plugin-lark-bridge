@@ -11,7 +11,7 @@
 - [x] T001 `package.json` 增加 `repository`（`git+https://github.com/FanetheDivine/dsh-plugin-lark-bridge.git`）、`homepage`、`bugs`
 - [x] T002 [P] 新增 `scripts/publish-guard.mjs`：导出 `isVersionPublished(name, version, fetchImpl)`，CLI 输出 `exists=true|false`
 - [x] T003 [P] 新增 `tests/publish-guard.test.mjs`：版本存在、包不存在、版本缺失、网络错误、请求参数
-- [x] T004 新增 `tests/package-metadata.test.ts`：`repository.url` 归一化后等于 `git remote get-url origin`，`homepage`、`bugs` 由仓库地址派生
+- [x] T004 新增 `tests/package-metadata.test.ts`：`repository.url` 归一化后是公网 GitHub 仓库地址，`homepage`、`bugs` 由仓库地址派生
 - [x] T005 运行 `pnpm format && pnpm check`，提交阶段一
 
 ## Phase 2: CI 守卫与文档

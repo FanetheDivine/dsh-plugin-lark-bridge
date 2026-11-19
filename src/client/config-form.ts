@@ -1,5 +1,5 @@
 /**
- * 插件面板配置页的草稿模型：工作区、标题、档案名与鉴权开关。
+ * 插件面板配置页的草稿模型：工作区、标题、lark-cli 路径与鉴权开关。
  * 导出行键、PluginConfigForm 与注入面类型。
  */
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store';
@@ -22,9 +22,7 @@ export const ROW_ID = 'dsh-plugin-lark-bridge';
 export interface ConfigFields {
   workspaceRoot: string;
   sessionTitle: string;
-  profile: string;
   larkCli: string;
-  ownerOpenId: string;
   authCheckOnStartup: boolean;
 }
 
@@ -32,9 +30,7 @@ export interface ConfigFields {
 export interface ConfigFormState extends SettingsFormShell {
   workspaceRoot: SettingsFieldState;
   sessionTitle: SettingsFieldState;
-  profile: SettingsFieldState;
   larkCli: SettingsFieldState;
-  ownerOpenId: SettingsFieldState;
   authCheckOnStartup: SettingsFieldState;
 }
 
@@ -66,28 +62,10 @@ const titleSpec: SettingsFieldSpec = {
   },
 };
 
-const profileSpec: SettingsFieldSpec = {
-  field: 'profile',
-  format: (value) => (typeof value === 'string' ? value : ''),
-  parse: (text) => {
-    const profile = text.trim();
-    return /^[A-Za-z0-9._-]+$/.test(profile) ? { kind: 'set', value: profile } : undefined;
-  },
-};
-
 const cliSpec: SettingsFieldSpec = {
   field: 'larkCli',
   format: (value) => (typeof value === 'string' ? value : ''),
   parse: (text) => ({ kind: 'set', value: text.trim() }),
-};
-
-const ownerSpec: SettingsFieldSpec = {
-  field: 'ownerOpenId',
-  format: (value) => (typeof value === 'string' ? value : ''),
-  parse: (text) => {
-    const owner = text.trim();
-    return owner === '' || owner.startsWith('ou_') ? { kind: 'set', value: owner } : undefined;
-  },
 };
 
 const authCheckSpec: SettingsFieldSpec = {
@@ -104,21 +82,12 @@ export class PluginConfigForm {
 
   /** @param scope - 宿主为该行提供的配置表单。 */
   constructor(scope: SettingsFormScope<ConfigFields>) {
-    this.form = new SettingsFormModel(scope, [
-      workspaceSpec,
-      titleSpec,
-      profileSpec,
-      cliSpec,
-      ownerSpec,
-      authCheckSpec,
-    ]);
+    this.form = new SettingsFormModel(scope, [workspaceSpec, titleSpec, cliSpec, authCheckSpec]);
     this.state = this.form.bind(() => ({
       ...this.form.shell(),
       workspaceRoot: this.form.field('workspaceRoot'),
       sessionTitle: this.form.field('sessionTitle'),
-      profile: this.form.field('profile'),
       larkCli: this.form.field('larkCli'),
-      ownerOpenId: this.form.field('ownerOpenId'),
       authCheckOnStartup: this.form.field('authCheckOnStartup'),
     }));
   }

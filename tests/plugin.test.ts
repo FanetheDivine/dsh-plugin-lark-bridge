@@ -36,7 +36,7 @@ describe('配置', () => {
     const parsed = Config({});
     expect(parsed.workspaceRoot.get()).toBe('');
     expect(parsed.sessionTitle.get()).toBe('飞书');
-    expect(parsed.profile.get()).toBe('dsh-lark-bridge');
+    expect(parsed.larkCli.get()).toBe('');
     expect(parsed.authCheckOnStartup.get()).toBe(true);
   });
 
@@ -44,45 +44,43 @@ describe('配置', () => {
     const config = {
       workspaceRoot: volatile('D:/work'),
       sessionTitle: volatile('桥'),
-      profile: volatile('p1'),
       larkCli: volatile(''),
-      ownerOpenId: volatile('ou_abc'),
       authCheckOnStartup: volatile(false),
     };
     expect(readConfig(config)).toEqual({
       workspaceRoot: 'D:/work',
       sessionTitle: '桥',
-      profile: 'p1',
       larkCli: '',
-      ownerOpenId: 'ou_abc',
       authCheckOnStartup: false,
     });
   });
 
-  it('拒绝未知键、非法档案名与非法 open_id', () => {
+  it('容忍并丢弃旧版本的 profile 与 ownerOpenId', () => {
+    const resolved = resolveConfig({ profile: 'a b', ownerOpenId: 'abc', sessionTitle: '桥' });
+    expect(resolved).toEqual(resolveConfig({ sessionTitle: '桥' }));
+    expect(resolved).not.toHaveProperty('profile');
+    expect(resolved).not.toHaveProperty('ownerOpenId');
+  });
+
+  it('拒绝未知键与空标题', () => {
     expect(() => resolveConfig({ bogus: 1 })).toThrow('unknown config key "bogus"');
-    expect(() => resolveConfig({ profile: 'a b' })).toThrow('profile must match');
-    expect(() => resolveConfig({ ownerOpenId: 'abc' })).toThrow('must start with "ou_"');
     expect(() => resolveConfig({ sessionTitle: '  ' })).toThrow('must not be empty');
   });
 });
 
 describe('apply 接线', () => {
-  it('注册通知工具与六条路由', () => {
+  it('注册通知工具与五条路由', () => {
     process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
     const { webServer, routes } = makeWebServer();
     const ctx = makeCtx({ services: { webServer } });
     apply(ctx, {
       workspaceRoot: '',
       sessionTitle: '飞书',
-      profile: 'dsh-lark-bridge',
       larkCli: '',
-      ownerOpenId: '',
       authCheckOnStartup: false,
     });
     expect(ctx._registeredTools.map((tool) => tool.name)).toEqual([NOTIFY_TOOL_NAME]);
     expect(routes.map((route) => route.path).sort()).toEqual([
-      '/lark-bridge/app',
       '/lark-bridge/auth/cancel',
       '/lark-bridge/auth/start',
       '/lark-bridge/check',
@@ -98,18 +96,16 @@ describe('apply 接线', () => {
     const config = {
       workspaceRoot: volatile(''),
       sessionTitle: volatile('飞书'),
-      profile: volatile('dsh-lark-bridge'),
       larkCli: volatile(''),
-      ownerOpenId: volatile(''),
       authCheckOnStartup: volatile(false),
     };
     apply(ctx, config);
-    config.profile.set('another');
+    config.sessionTitle.set('另一个标题');
     ctx._emit('loader/volatile-update');
     const infos = ctx._loggerCalls
       .filter((call) => call.level === 'info')
       .map((call) => String(call.args[0]));
-    expect(infos.some((line) => line.includes('profile=another'))).toBe(true);
+    expect(infos.some((line) => line.includes('config updated'))).toBe(true);
   });
 
   it('卸载时注销工具并停止监听', () => {

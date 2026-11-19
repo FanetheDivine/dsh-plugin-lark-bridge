@@ -1,5 +1,5 @@
 /**
- * 浏览器与宿主之间的同源 JSON 路由：鉴权状态、应用绑定、设备码授权与会话重置。
+ * 浏览器与宿主之间的同源 JSON 路由：鉴权状态、设备码授权与会话重置。
  * 导出 registerRoutes 与 RouteDeps。
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -13,9 +13,6 @@ import { describeError } from './utils.ts';
 
 /** 路由前缀。 */
 export const ROUTE_PREFIX = '/lark-bridge';
-
-/** 请求体上限。 */
-const BODY_LIMIT = 64 * 1024;
 
 /** Web 服务器的最小接口。 */
 export interface WebServerLike {
@@ -57,25 +54,6 @@ function send(res: ServerResponse, status: number, body: Reply): void {
     'content-length': Buffer.byteLength(text),
   });
   res.end(text);
-}
-
-/** 读取并解析 JSON 请求体。 */
-async function readBody(req: IncomingMessage): Promise<unknown> {
-  let size = 0;
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    size += buffer.length;
-    if (size > BODY_LIMIT) throw new BridgeError('body-too-large', '请求体超过 64 KiB');
-    chunks.push(buffer);
-  }
-  const text = Buffer.concat(chunks).toString('utf8').trim();
-  if (text === '') return {};
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    throw new BridgeError('invalid-json', '请求体不是合法 JSON');
-  }
 }
 
 /** 判断请求是否来自回环地址。 */
@@ -132,28 +110,13 @@ export async function projectStatus(
 }
 
 /** 执行路由动作并生成响应。 */
-async function handle(
-  deps: RouteDeps,
-  path: string,
-  method: string,
-  req: IncomingMessage,
-): Promise<Reply> {
+async function handle(deps: RouteDeps, path: string, method: string): Promise<Reply> {
   if (method === 'GET' && path === `${ROUTE_PREFIX}/status`) {
     return { ok: true, data: await projectStatus(deps) };
   }
   if (method !== 'POST') throw new BridgeError('method-not-allowed', '只支持 GET 与 POST');
   if (path === `${ROUTE_PREFIX}/check`) {
     const snapshot = await deps.auth.check({ verify: true });
-    deps.onAuthChanged?.(snapshot);
-    return { ok: true, data: await projectStatus(deps) };
-  }
-  if (path === `${ROUTE_PREFIX}/app`) {
-    const body = await readBody(req);
-    const record =
-      typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
-    const appId = typeof record['appId'] === 'string' ? record['appId'] : '';
-    const appSecret = typeof record['appSecret'] === 'string' ? record['appSecret'] : '';
-    const snapshot = await deps.auth.bindApp(appId, appSecret);
     deps.onAuthChanged?.(snapshot);
     return { ok: true, data: await projectStatus(deps) };
   }
@@ -184,7 +147,7 @@ async function handle(
  * @returns 注销全部路由的清理函数。
  */
 export function registerRoutes(deps: RouteDeps): () => void {
-  const paths = ['status', 'check', 'app', 'auth/start', 'auth/cancel', 'session/reset'];
+  const paths = ['status', 'check', 'auth/start', 'auth/cancel', 'session/reset'];
   const disposers: Array<() => void> = [];
   for (const suffix of paths) {
     const path = `${ROUTE_PREFIX}/${suffix}`;
@@ -199,7 +162,7 @@ export function registerRoutes(deps: RouteDeps): () => void {
             return;
           }
           try {
-            const reply = await handle(deps, path, req.method ?? 'GET', req);
+            const reply = await handle(deps, path, req.method ?? 'GET');
             send(res, 200, reply);
           } catch (error) {
             const code = error instanceof BridgeError ? error.code : 'internal';

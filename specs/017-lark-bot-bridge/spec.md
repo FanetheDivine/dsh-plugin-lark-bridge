@@ -10,6 +10,8 @@
 
 **变更类别**: 模板转化
 
+**后续变更**: 专用档案、应用凭据与 open_id 手填已被 [022-default-bot-identity](../022-default-bot-identity/spec.md) 取代。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - 启动鉴权与弹窗引导 (Priority: P1)
