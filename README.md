@@ -1,5 +1,7 @@
 # dsh-plugin-lark-bridge
 
+[![npm](https://img.shields.io/npm/v/dsh-plugin-lark-bridge?logo=npm&label=npm)](https://www.npmjs.com/package/dsh-plugin-lark-bridge)
+
 DSH 插件：通过 lark-cli 的 bot 身份接收飞书私聊消息，注入指定工作区的 DSH 会话；AI 可以调用工具以 bot 身份回复用户。
 
 ## 功能
