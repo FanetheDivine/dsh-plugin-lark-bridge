@@ -146,7 +146,7 @@ describe('SessionManager', () => {
     expect(resolveByPath).toHaveBeenCalledWith(cwd);
     expect(created[0]?.meta).toEqual({ cwd });
     expect(appended[0]?.[0]).toBe('session/title');
-    expect(appended[0]?.[1]).toMatchObject({ title: SESSION_TITLE });
+    expect(appended[0]?.[1]).toMatchObject({ title: '飞书桥接会话' });
     expect(attached).toEqual([result.sessionId]);
     expect(pinned).toEqual([result.sessionId]);
     expect(registryCreate).not.toHaveBeenCalled();
@@ -167,18 +167,17 @@ describe('SessionManager', () => {
     expect(followups).toHaveLength(0);
   });
 
-  it('已有记录且会话可恢复时复用并同步固定标题', async () => {
+  it('已有记录且会话可恢复时复用并保留已有标题', async () => {
     const { sessions, store, created, appended, followups } = await setup();
     const first = await sessions.inject('一');
     expect(created).toHaveLength(1);
     await store.patch({ title: '历史标题' });
     await sessions.inject('二');
     expect(created).toHaveLength(1);
-    expect(appended[1]?.[0]).toBe('session/title');
-    expect(appended[1]?.[1]).toMatchObject({ title: SESSION_TITLE });
+    expect(appended.filter(([type]) => type === 'session/title')).toHaveLength(1);
     const state = await store.load();
     expect(state.sessionId).toBe(first.sessionId);
-    expect(state.title).toBe(SESSION_TITLE);
+    expect(state.title).toBe('历史标题');
     expect(followups).toHaveLength(2);
     expect(JSON.stringify(followups[1]?.content)).toContain('二');
   });

@@ -7,7 +7,7 @@ export const PLUGIN_LABEL = 'dsh-plugin-lark-bridge';
 export const NOTIFY_TOOL_NAME = 'lark_notify';
 
 /** 桥接会话的固定标题。 */
-export const SESSION_TITLE = '来自用户的飞书消息';
+export const SESSION_TITLE = '飞书桥接会话';
 
 /** 状态目录名，位于 DSH home 下。 */
 export const STATE_DIR = 'lark-bridge';
