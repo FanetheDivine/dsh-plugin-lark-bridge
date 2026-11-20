@@ -391,6 +391,7 @@ describe('新建会话的预设配置', () => {
     expect(controllerCreate).toHaveBeenCalledWith(
       expect.objectContaining({ agentPreset: 'bridge', workspaceId: 'ws-one' }),
     );
+    expect(controllerCreate.mock.calls[0]?.[0]).not.toHaveProperty('sessionId');
   });
 
   it('名册标记损坏的预设按不可用处理并记录警告', async () => {
