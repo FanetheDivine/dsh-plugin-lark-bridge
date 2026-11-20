@@ -16,8 +16,6 @@ export interface Config {
   workspaceRoot: Volatile<string>;
   /** 桥接会话标题。 */
   sessionTitle: Volatile<string>;
-  /** 显式 lark-cli 可执行文件或入口脚本；空值自动解析。 */
-  larkCli: Volatile<string>;
   /** 每次加载是否执行鉴权检查。 */
   authCheckOnStartup: Volatile<boolean>;
 }
@@ -29,7 +27,6 @@ export interface Config {
 export const Config: Schema<Config> = Schema.object({
   workspaceRoot: Schema.string().default('').volatile(),
   sessionTitle: Schema.string().default(DEFAULT_SESSION_TITLE).volatile(),
-  larkCli: Schema.string().default('').volatile(),
   authCheckOnStartup: Schema.boolean().default(true).volatile(),
 }) as unknown as Schema<Config>;
 
@@ -37,7 +34,6 @@ export const Config: Schema<Config> = Schema.object({
 export interface PluginConfig {
   workspaceRoot: string;
   sessionTitle: string;
-  larkCli: string;
   authCheckOnStartup: boolean;
 }
 
@@ -45,20 +41,14 @@ export interface PluginConfig {
 export const DEFAULT_CONFIG: Readonly<PluginConfig> = Object.freeze({
   workspaceRoot: '',
   sessionTitle: DEFAULT_SESSION_TITLE,
-  larkCli: '',
   authCheckOnStartup: true,
 });
 
 /** 合法的配置键。出现其他键时报错。 */
-const CONFIG_KEYS = new Set<string>([
-  'workspaceRoot',
-  'sessionTitle',
-  'larkCli',
-  'authCheckOnStartup',
-]);
+const CONFIG_KEYS = new Set<string>(['workspaceRoot', 'sessionTitle', 'authCheckOnStartup']);
 
 /** 旧版本的配置键：接受并丢弃，避免升级后插件加载失败。 */
-const LEGACY_KEYS = new Set<string>(['profile', 'ownerOpenId']);
+const LEGACY_KEYS = new Set<string>(['profile', 'ownerOpenId', 'larkCli']);
 
 /** 把缺省或 null 的输入转为空对象。 */
 function normalizeConfigInput(raw: unknown): Record<string, unknown> {
@@ -100,7 +90,6 @@ export function resolveConfig(raw?: unknown): Readonly<PluginConfig> {
   config.sessionTitle = stringField(input, 'sessionTitle', DEFAULT_CONFIG.sessionTitle, (value) => {
     if (value === '') throw new Error(`${PLUGIN_LABEL}: config sessionTitle must not be empty`);
   });
-  config.larkCli = stringField(input, 'larkCli', DEFAULT_CONFIG.larkCli, () => {});
 
   const authCheck = input.authCheckOnStartup;
   if (authCheck !== undefined && authCheck !== null) {

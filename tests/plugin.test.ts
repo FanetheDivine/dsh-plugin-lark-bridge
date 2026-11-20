@@ -36,30 +36,41 @@ describe('配置', () => {
     const parsed = Config({});
     expect(parsed.workspaceRoot.get()).toBe('');
     expect(parsed.sessionTitle.get()).toBe('飞书');
-    expect(parsed.larkCli.get()).toBe('');
     expect(parsed.authCheckOnStartup.get()).toBe(true);
+    expect(parsed).not.toHaveProperty('larkCli');
   });
 
   it('展开热重载引用后严格校验', () => {
     const config = {
       workspaceRoot: volatile('D:/work'),
       sessionTitle: volatile('桥'),
-      larkCli: volatile(''),
       authCheckOnStartup: volatile(false),
     };
-    expect(readConfig(config)).toEqual({
+    const resolved = readConfig(config);
+    expect(resolved).toEqual({
       workspaceRoot: 'D:/work',
       sessionTitle: '桥',
-      larkCli: '',
       authCheckOnStartup: false,
     });
+    expect(resolved).not.toHaveProperty('larkCli');
   });
 
-  it('容忍并丢弃旧版本的 profile 与 ownerOpenId', () => {
-    const resolved = resolveConfig({ profile: 'a b', ownerOpenId: 'abc', sessionTitle: '桥' });
+  it('容忍并丢弃旧版本的 profile、ownerOpenId 与 larkCli', () => {
+    const legacy = {
+      profile: 'a b',
+      ownerOpenId: 'abc',
+      larkCli: 'D:/legacy/lark-cli.js',
+      sessionTitle: '桥',
+    };
+    const resolved = resolveConfig(legacy);
     expect(resolved).toEqual(resolveConfig({ sessionTitle: '桥' }));
     expect(resolved).not.toHaveProperty('profile');
     expect(resolved).not.toHaveProperty('ownerOpenId');
+    expect(resolved).not.toHaveProperty('larkCli');
+
+    const read = readConfig({ ...legacy, larkCli: volatile('D:/legacy/other-lark-cli.js') });
+    expect(read).toEqual(resolved);
+    expect(read).not.toHaveProperty('larkCli');
   });
 
   it('拒绝未知键与空标题', () => {
@@ -76,7 +87,6 @@ describe('apply 接线', () => {
     apply(ctx, {
       workspaceRoot: '',
       sessionTitle: '飞书',
-      larkCli: '',
       authCheckOnStartup: false,
     });
     expect(ctx._registeredTools.map((tool) => tool.name)).toEqual([NOTIFY_TOOL_NAME]);
@@ -96,7 +106,6 @@ describe('apply 接线', () => {
     const config = {
       workspaceRoot: volatile(''),
       sessionTitle: volatile('飞书'),
-      larkCli: volatile(''),
       authCheckOnStartup: volatile(false),
     };
     apply(ctx, config);

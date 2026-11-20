@@ -52,18 +52,21 @@ export async function sendNotification(deps: NotifyDeps, args: unknown): Promise
     try {
       const value = await deps
         .getCli()
-        .json([
-          'im',
-          '+messages-send',
-          '--as',
-          'bot',
-          '--user-id',
-          owner,
-          '--text',
-          part,
-          '--idempotency-key',
-          `${baseKey}-${index}`.slice(0, 50),
-        ]);
+        .json(
+          [
+            'im',
+            '+messages-send',
+            '--as',
+            'bot',
+            '--user-id',
+            owner,
+            '--text',
+            '-',
+            '--idempotency-key',
+            `${baseKey}-${index}`.slice(0, 50),
+          ],
+          { input: part },
+        );
       const record =
         typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
       first ??= typeof record['message_id'] === 'string' ? record['message_id'] : undefined;

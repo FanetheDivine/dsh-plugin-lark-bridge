@@ -1,11 +1,8 @@
 /**
- * `lark-cli` 适配层：定位可执行文件、启动子进程、解析 JSON envelope。
- * 导出 LarkCli、CliError 与 resolveLarkCli。
+ * `lark-cli` 适配层：调用本机命令、管理子进程、解析 JSON envelope。
+ * 导出 LarkCli、CliError 与进程构造辅助函数。
  */
 import { type SpawnOptions, spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
 
 import { describeError } from './utils.ts';
 
@@ -77,7 +74,9 @@ export function createCliProcess(
 ): ReturnType<typeof spawn> {
   const spec = createSpawnSpec(command, args, platform);
   try {
-    return spawnFn(spec.file, [...spec.args], { ...options, shell: spec.shell });
+    return spec.shell
+      ? spawnFn(spec.file, { ...options, shell: true })
+      : spawnFn(spec.file, [...spec.args], { ...options, shell: false });
   } catch (error) {
     throw new CliError('spawn-failed', describeError(error));
   }
@@ -104,77 +103,6 @@ const WINDOWS = process.platform === 'win32';
 const TIMEOUT_DEFAULT = 120_000;
 const VIEWPORT = 10 * 1024 * 1024;
 
-/** 判断文件是否存在。 */
-function hasFile(path: string): boolean {
-  return existsSync(path);
-}
-
-/** 从包目录解析可执行文件或入口脚本。 */
-function fromPackageDir(dir: string, nodePath: string): CliCommand | undefined {
-  const bin = join(dir, 'bin', WINDOWS ? 'lark-cli.exe' : 'lark-cli');
-  if (hasFile(bin)) return { file: bin, args: [] };
-  const entry = join(dir, 'scripts', 'run.js');
-  if (hasFile(entry)) return { file: nodePath, args: [entry] };
-  return undefined;
-}
-
-/** 尝试解析依赖包；未安装时返回 undefined。 */
-function resolvePackage(nodePath: string): CliCommand | undefined {
-  try {
-    const require = createRequire(import.meta.url);
-    const manifest = require.resolve('@larksuite/cli/package.json');
-    return fromPackageDir(dirname(manifest), nodePath);
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * 解析 lark-cli 命令。
- * 顺序：显式路径 → `LARK_CLI` → 已安装的 npm 包 → PATH 中的包目录 → `lark-cli`。
- * @param explicit - 配置中的覆盖路径；空串表示未覆盖。
- * @param env - 环境变量；默认 `process.env`。
- * @param nodePath - 运行入口脚本时使用的 Node/Electron 路径。
- * @returns 可执行的命令与固定参数。
- */
-export function resolveLarkCli(
-  explicit = '',
-  env: NodeJS.ProcessEnv = process.env,
-  nodePath = process.execPath,
-): CliCommand {
-  const trimmed = explicit.trim();
-  if (trimmed !== '') {
-    if (/\.(c|m)?js$/i.test(trimmed)) return { file: nodePath, args: [trimmed] };
-    return { file: trimmed, args: [] };
-  }
-  const fromEnv = String(env['LARK_CLI'] ?? '').trim();
-  if (fromEnv !== '') {
-    if (/\.(c|m)?js$/i.test(fromEnv)) return { file: nodePath, args: [fromEnv] };
-    return { file: fromEnv, args: [] };
-  }
-  const packaged = resolvePackage(nodePath);
-  if (packaged !== undefined) return packaged;
-
-  const pathValue = String(env['PATH'] ?? env['Path'] ?? '');
-  const directories = pathValue.split(WINDOWS ? ';' : ':').filter((item) => item !== '');
-  for (const directory of directories) {
-    const local = fromPackageDir(join(directory, 'node_modules', '@larksuite', 'cli'), nodePath);
-    if (local !== undefined) return local;
-    const direct = join(directory, WINDOWS ? 'lark-cli.exe' : 'lark-cli');
-    if (hasFile(direct)) return { file: direct, args: [] };
-  }
-  // 常见的全局 npm 前缀，便于未安装依赖的开发环境直接使用。
-  const appData = String(env['APPDATA'] ?? '').trim();
-  if (appData !== '') {
-    const global = fromPackageDir(
-      join(appData, 'npm', 'node_modules', '@larksuite', 'cli'),
-      nodePath,
-    );
-    if (global !== undefined) return global;
-  }
-  return { file: 'lark-cli', args: [] };
-}
-
 /** 杀掉子进程及其后代。 */
 export function killChildTree(child: ReturnType<typeof spawn>): void {
   if (child.pid === undefined) {
@@ -196,10 +124,10 @@ export function killChildTree(child: ReturnType<typeof spawn>): void {
   child.kill('SIGTERM');
 }
 
-/** 默认运行器：直接启动可执行文件，不经 shell。 */
+/** 默认运行器：按平台安全调用本机命令。 */
 export const defaultRunner: CliRunner = (command, args, options) =>
   new Promise<CliResult>((resolvePromise, reject) => {
-    const child = spawn(command.file, [...command.args, ...args], {
+    const child = createCliProcess(command, args, {
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, ...(options.env ?? {}) },
@@ -284,19 +212,12 @@ export function parseJsonOutput(text: string): unknown {
 
 /** 面向插件的 CLI 封装。 */
 export class LarkCli {
-  /** 解析后的命令。 */
-  readonly command: CliCommand;
+  /** 固定的本机命令。 */
+  readonly command: CliCommand = { file: 'lark-cli', args: [] };
   private readonly runner: CliRunner;
-  private readonly nodePath: string;
 
-  /**
-   * @param explicit - 配置覆盖的可执行文件路径。
-   * @param runner - 运行器；测试注入。
-   * @param nodePath - 运行入口脚本的 Node 路径。
-   */
-  constructor(explicit = '', runner: CliRunner = defaultRunner, nodePath = process.execPath) {
-    this.nodePath = nodePath;
-    this.command = resolveLarkCli(explicit, process.env, nodePath);
+  /** @param runner - 运行器；测试注入。 */
+  constructor(runner: CliRunner = defaultRunner) {
     this.runner = runner;
   }
 
@@ -305,11 +226,7 @@ export class LarkCli {
     args: readonly string[],
     options: RunOptions & { allowFailure?: boolean } = {},
   ): Promise<CliResult> {
-    const env =
-      this.command.file === this.nodePath
-        ? { ...(options.env ?? {}), ELECTRON_RUN_AS_NODE: '1' }
-        : (options.env ?? {});
-    const result = await this.runner(this.command, args, { ...options, env });
+    const result = await this.runner(this.command, args, options);
     if (result.code !== 0 && options.allowFailure !== true) {
       const detail =
         result.stderr.trim() !== ''
@@ -338,14 +255,10 @@ export class LarkCli {
    * @returns 子进程与 stdout/stderr 读取器。
    */
   spawn(args: readonly string[]): ReturnType<typeof spawn> {
-    const env =
-      this.command.file === this.nodePath
-        ? { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
-        : process.env;
-    return spawn(this.command.file, [...this.command.args, ...args], {
+    return createCliProcess(this.command, args, {
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env,
+      env: process.env,
     });
   }
 }

@@ -42,6 +42,12 @@ describe('createSpawnSpec', () => {
 });
 
 describe('createCliProcess', () => {
+  it('Windows shell 调用不接收参数数组', () => {
+    const spawn = vi.fn(() => ({}) as never);
+    createCliProcess(LOCAL_COMMAND, ['--version'], {}, 'win32', spawn as never);
+    expect(spawn).toHaveBeenCalledWith('lark-cli --version', { shell: true });
+  });
+
   it('同步 spawn 异常转换为 spawn-failed', () => {
     const spawn = vi.fn(() => {
       throw new Error('EINVAL');

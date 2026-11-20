@@ -49,16 +49,16 @@ description: "完全使用本机 lark-cli 的实施任务"
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] 更新 `tests/cli.test.ts` 与 `tests/auth.test.ts`，新增直接命令调用、无路径/环境覆盖和启动失败为 `cli-missing` 的失败测试，并调整 `LarkCli` 构造预期。
-- [ ] T005 [P] [US1] 更新 `tests/tools.test.ts`，新增 `--text -` 与 stdin 正文测试，覆盖 Unicode、换行和 shell 元字符不进入参数列表。
-- [ ] T006 [P] [US1] 更新 `tests/plugin.test.ts`，新增运行时配置无 `larkCli`、旧 `larkCli` 接受并忽略、其他未知键仍报错的失败测试。
+- [x] T004 [P] [US1] 更新 `tests/cli.test.ts` 与 `tests/auth.test.ts`，新增直接命令调用、无路径/环境覆盖和启动失败为 `cli-missing` 的失败测试，并调整 `LarkCli` 构造预期。
+- [x] T005 [P] [US1] 更新 `tests/tools.test.ts`，新增 `--text -` 与 stdin 正文测试，覆盖 Unicode、换行和 shell 元字符不进入参数列表。
+- [x] T006 [P] [US1] 更新 `tests/plugin.test.ts`，新增运行时配置无 `larkCli`、旧 `larkCli` 接受并忽略、其他未知键仍报错的失败测试。
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] 重构 `src/cli.ts`：删除包解析、`LARK_CLI`、自定义 `PATH`、脚本入口与 Node 路径参数；一次性调用和 `spawn` 统一使用本机命令及 Phase 2 安全构造层。
-- [ ] T008 [P] [US1] 更新 `src/tools.ts`，通知改用 `--text -` 并通过 `options.input` 写入正文，保持分段和错误返回行为。
-- [ ] T009 [P] [US1] 更新 `src/config.ts`、`src/index.ts`、`cordis.patch.yml`：移除 `larkCli` 运行时字段，加入旧键忽略集合，插件只创建一个 `LarkCli`。
-- [ ] T010 [US1] 运行 `tests/cli-process.test.ts`、`tests/cli.test.ts`、`tests/auth.test.ts`、`tests/tools.test.ts`、`tests/plugin.test.ts`，再运行 `pnpm format && pnpm check` 验证 US1。
+- [x] T007 [US1] 重构 `src/cli.ts`：删除包解析、`LARK_CLI`、自定义 `PATH`、脚本入口与 Node 路径参数；一次性调用和 `spawn` 统一使用本机命令及 Phase 2 安全构造层。
+- [x] T008 [P] [US1] 更新 `src/tools.ts`，通知改用 `--text -` 并通过 `options.input` 写入正文，保持分段和错误返回行为。
+- [x] T009 [P] [US1] 更新 `src/config.ts`、`src/index.ts`、`cordis.patch.yml`：移除 `larkCli` 运行时字段，加入旧键忽略集合，插件只创建一个 `LarkCli`。
+- [x] T010 [US1] 运行 `tests/cli-process.test.ts`、`tests/cli.test.ts`、`tests/auth.test.ts`、`tests/tools.test.ts`、`tests/plugin.test.ts`，再运行 `pnpm format && pnpm check` 验证 US1。
 
 **Checkpoint**: 本机命令链路可独立交付；完成 Phase 3 后提交。
 
