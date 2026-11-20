@@ -36,10 +36,10 @@ description: "迁移模板热更新与前端链接规则的实施任务"
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] 改写 `.dsh/skills/real-device-test/scripts/setup-env.sh`：第 4 步用 `dsh plugin --profile "$PROFILE" add "$REPO"` 链接安装；第 5 步写入 `- id: hmr` 与 `config.root: ["$REPO/dist"]`；复用补丁缺该条目时先移除 `[]` 占位行再追加；结尾提示构建后生效与结束删除 profile；保留插件配置 `prefix: rdt`。
-- [ ] T003 [P] [US1] 更新 `.dsh/skills/real-device-test/scripts/run-test.mjs` 的 A1 两条断言文案为「加载的版本」「加载产物」。
-- [ ] T004 [P] [US1] 在 `CHANGELOG.md` 的 `Unreleased` → `Changed` 增加实机链接安装与热更新条目。
-- [ ] T005 [US1] 运行 `bash -n .dsh/skills/real-device-test/scripts/setup-env.sh` 与 `node --check .dsh/skills/real-device-test/scripts/run-test.mjs`，按 [quickstart.md](./quickstart.md) 核对 diff，勾选本阶段任务。
+- [x] T002 [US1] 改写 `.dsh/skills/real-device-test/scripts/setup-env.sh`：第 4 步用 `dsh plugin --profile "$PROFILE" add "$REPO"` 链接安装；第 5 步写入 `- id: hmr` 与 `config.root: ["$REPO/dist"]`；复用补丁缺该条目时先移除 `[]` 占位行再追加；结尾提示构建后生效与结束删除 profile；保留插件配置 `prefix: rdt`。
+- [x] T003 [P] [US1] 更新 `.dsh/skills/real-device-test/scripts/run-test.mjs` 的 A1 两条断言文案为「加载的版本」「加载产物」。
+- [x] T004 [P] [US1] 在 `CHANGELOG.md` 的 `Unreleased` → `Changed` 增加实机链接安装与热更新条目。
+- [x] T005 [US1] 运行 `bash -n .dsh/skills/real-device-test/scripts/setup-env.sh` 与 `node --check .dsh/skills/real-device-test/scripts/run-test.mjs`，按 [quickstart.md](./quickstart.md) 核对 diff，勾选本阶段任务。
 
 **Checkpoint**: 搭建脚本与装载文案完成；完成 Phase 2 后提交 `feat(027): 实机链接安装与 HMR`。
 
