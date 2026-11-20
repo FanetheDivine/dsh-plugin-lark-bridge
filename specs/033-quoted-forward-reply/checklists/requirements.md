@@ -34,11 +34,11 @@
 
 - [x] CHK014 需求未引入新的会话消息，与 SC-005 一致
 - [x] CHK015 提醒条目（FR-016）与引用块、聊天记录块的最终呈现一致
-- [ ] CHK016 文档同步已按 D-011 收敛为 CHANGELOG 与 how-it-works；README 不改的偏离需在 plan 的 Complexity Tracking 记录
+- [x] CHK016 文档同步已按 D-011 收敛为 CHANGELOG 与 how-it-works；README 不改的偏离需在 plan 的 Complexity Tracking 记录
 
 ## 结果
 
-- 15/16 通过；CHK016 待 plan 记录偏离后勾选
+- 16/16 通过；README 不更新的偏离已记录在 [plan.md](../plan.md#complexity-tracking)
 
 ## Notes
 

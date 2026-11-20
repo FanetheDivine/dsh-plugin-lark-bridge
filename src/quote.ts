@@ -52,7 +52,8 @@ function firstMessage(value: unknown): Record<string, unknown> | undefined {
  */
 export function toQuotedMessage(messageId: string, raw: Record<string, unknown>): QuotedMessage {
   const sender = isRecord(raw['sender']) ? raw['sender'] : {};
-  const from: QuoteFrom = sender['sender_type'] === 'bot' ? 'bot' : 'user';
+  const senderType = sender['sender_type'];
+  const from: QuoteFrom = senderType === 'bot' || senderType === 'app' ? 'bot' : 'user';
   const type = String(raw['msg_type'] ?? 'text');
   const content = typeof raw['content'] === 'string' ? raw['content'].trim() : '';
   const time = formatTime(typeof raw['create_time'] === 'string' ? raw['create_time'] : undefined);

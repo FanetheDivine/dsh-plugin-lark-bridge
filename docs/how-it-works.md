@@ -11,6 +11,7 @@
 | `src/workspace.ts` | 注册工作区解析、缓存与删除失效 |
 | `src/workspace-path.ts` | Linux 风格路径、平台比较与 Host 原生路径转换 |
 | `src/bridge.ts` | 事件消费、过滤、去重与注入 |
+| `src/quote.ts` | 被引消息读取与 `<quote>` 渲染 |
 | `src/sessions.ts` | 工作区会话的创建、恢复、新建标题与置顶 |
 | `src/routes.ts` | 安全状态与完整检测的同源 JSON 路由 |
 | `src/state.ts` | 会话标识、归一化路径与去重窗口的持久化 |
@@ -99,7 +100,14 @@ lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 
 插件只接受 owner open_id 的私聊，要求鉴权与工作区均有效。消息过滤与去重窗口保持稳定。
 
-注入内容是一条 `<lark-message message_id="…" time="…">` 块，块内只有消息正文；非文本消息使用类型占位。块边界与属性值会转义。
+注入内容是一条 `<lark-message message_id="…" reply_to="…" time="…">` 块：
+
+- 普通文本：块内是正文；非文本消息使用类型占位。
+- 引用回复：块内先放 `<quote message_id="…" from="…" time="…">`，再放本条正文。被引消息用 `lark-cli im +messages-mget --no-reactions` 读取，user 身份优先、bot 兜底，单次 8 秒。
+- 读取失败时只注入本条正文，`<quote>` 保留消息 ID 与失败说明，并记录一条警告。
+- 引用正文最多 500 字符，超出追加「（已截断）」。
+- 聊天记录消息：块内是 `<forwarded_messages message_id="…"/>`，不展开子消息。
+- 块边界与属性值会转义。
 
 鉴权或工作区无效时停止事件消费者，不补投停止期间的历史消息。
 
@@ -127,6 +135,14 @@ lark-cli im +messages-send --as bot --user-id <open_id> --text - --idempotency-k
 ```
 
 正文通过 stdin 传递。任一段失败时返回 `{ ok: false, error }`。
+
+提供 `reply_to` 时，首段改为：
+
+```sh
+lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempotency-key <key>
+```
+
+其余段仍用 `+messages-send`。`reply_to` 不做预先校验，无法回复时返回 `reply-failed` 错误，不回落为普通发送。
 
 ## 生命周期
 

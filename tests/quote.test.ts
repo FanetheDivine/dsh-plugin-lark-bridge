@@ -74,6 +74,11 @@ describe('toQuotedMessage', () => {
     expect(value.from).toBe('bot');
   });
 
+  it('应用身份的消息也算机器人', () => {
+    const value = toQuotedMessage('om_old', raw({ sender: { sender_type: 'app' } }));
+    expect(value.from).toBe('bot');
+  });
+
   it('非文本消息使用类型占位', () => {
     const value = toQuotedMessage('om_old', raw({ msg_type: 'image', content: '![Image](img_1)' }));
     expect(value).toMatchObject({ kind: 'other', text: '[image 消息]' });

@@ -17,7 +17,7 @@
 | 字段 | 类型 | 含义 |
 | --- | --- | --- |
 | `messageId` | string | 被引消息标识 |
-| `from` | `'user' \| 'bot'` | 发送者类型 |
+| `from` | `'user' \| 'bot'` | 发送者类型；mget 的 `app` 与 `bot` 都映射为 `bot` |
 | `time` | string | 已格式化时间；不可得为空串 |
 | `kind` | `'text' \| 'forwarded' \| type` | 渲染分支：文本、聊天记录或类型占位 |
 | `text` | string | 截断并转义后的正文 |
