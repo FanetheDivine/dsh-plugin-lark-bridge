@@ -13,6 +13,10 @@ import { makeConfigFormScope } from './helpers.ts';
 /** 默认配置值。 */
 const DEFAULTS: ConfigFields = {
   workspaceRoot: 'C:/work',
+  sessionProvider: '',
+  sessionModel: '',
+  sessionEffort: '',
+  sessionPreset: '',
 };
 
 /** 构造表单与状态读取器。 */
@@ -37,9 +41,25 @@ describe('配置页草稿', () => {
     expect(current.workspaceRoot.text).toBe('/c/work/demo/Lark');
     expect(current.dirty).toBe(false);
     expect(current.invalid).toBe(false);
-    expectTypeOf<ConfigFields>().toEqualTypeOf<{ workspaceRoot: string }>();
+    expectTypeOf<ConfigFields>().toEqualTypeOf<{
+      workspaceRoot: string;
+      sessionProvider: string;
+      sessionModel: string;
+      sessionEffort: string;
+      sessionPreset: string;
+    }>();
     expectTypeOf<keyof ConfigFormState>().toEqualTypeOf<
-      'available' | 'writable' | 'dirty' | 'invalid' | 'saving' | 'failed' | 'workspaceRoot'
+      | 'available'
+      | 'writable'
+      | 'dirty'
+      | 'invalid'
+      | 'saving'
+      | 'failed'
+      | 'workspaceRoot'
+      | 'sessionProvider'
+      | 'sessionModel'
+      | 'sessionEffort'
+      | 'sessionPreset'
     >();
   });
 
@@ -58,6 +78,26 @@ describe('配置页草稿', () => {
     expect(state().invalid).toBe(true);
     await actions.save();
     expect(fake.writes).toEqual([]);
+  });
+
+  it('模型与预设字段按文本写入', async () => {
+    const { fake, form, state } = setup();
+    const actions = form.inject();
+    actions.edit('sessionProvider', ' deepseek ');
+    actions.edit('sessionModel', 'deepseek-chat');
+    actions.edit('sessionEffort', 'high');
+    actions.edit('sessionPreset', 'bridge');
+    expect(state().sessionProvider.text).toBe(' deepseek ');
+    expect(state().sessionPreset.text).toBe('bridge');
+    await actions.save();
+    expect(fake.writes).toEqual([
+      [
+        { op: 'set', path: ['sessionProvider'], value: 'deepseek' },
+        { op: 'set', path: ['sessionModel'], value: 'deepseek-chat' },
+        { op: 'set', path: ['sessionEffort'], value: 'high' },
+        { op: 'set', path: ['sessionPreset'], value: 'bridge' },
+      ],
+    ]);
   });
 
   it('状态不包含已移除的配置字段', () => {
