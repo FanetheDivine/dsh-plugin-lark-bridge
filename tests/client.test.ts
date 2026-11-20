@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // 前端测试：入口接线、字典、安全连接状态展示与共享状态控制器。
 import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
@@ -26,7 +27,12 @@ import {
   ROW_ID,
   ROW_KEY,
 } from '../src/client/config-form.ts';
-import { ConfigPage, type ConfigPageProps, WorkspaceSelect } from '../src/client/config-page.tsx';
+import {
+  ConfigPage,
+  type ConfigPageProps,
+  WorkspaceSelect,
+  workspaceOptions,
+} from '../src/client/config-page.tsx';
 import * as clientEntry from '../src/client/index.ts';
 import { en, NS, zh } from '../src/client/locales.ts';
 import { StatusController } from '../src/client/status-controller.ts';
@@ -94,14 +100,6 @@ function renderWorkspaceSelect(
       onChange: vi.fn(),
     }),
   );
-}
-
-/** 读取 SSR 原生选择器的选项值与文字。 */
-function selectOptions(html: string): Array<{ value: string; label: string }> {
-  return [...html.matchAll(/<option\b([^>]*)>(.*?)<\/option>/g)].map((match) => ({
-    value: /value="([^"]*)"/.exec(match[1] ?? '')?.[1] ?? '',
-    label: match[2] ?? '',
-  }));
 }
 
 /** 构造配置表单的纯展示状态。 */
@@ -424,27 +422,32 @@ describe('连接状态展示', () => {
 });
 
 describe('工作区选择与共用弹窗', () => {
-  it('选项仅来自注册列表并归一化值与同名路径标签', () => {
-    const html = renderWorkspaceSelect([
-      { workspaceId: 'one', path: 'C:\\work\\demo\\One', title: '项目' },
-      { workspaceId: 'two', path: 'c:/work/demo/Two/', title: '项目' },
+  it('选项仅来自注册列表并归一化为 Linux 风格路径', () => {
+    const options = workspaceOptions([
+      { workspaceId: 'one', path: 'C:\\work\\demo\\One', title: '项目一' },
+      { workspaceId: 'two', path: 'c:/work/demo/Two/', title: '项目二' },
     ]);
-    const options = selectOptions(html);
-    expect(options.map((option) => option.value)).toEqual([
-      '',
-      '/c/work/demo/One',
-      '/c/work/demo/Two',
+    expect(options).toEqual([
+      { id: 'one', title: '项目一', path: '/c/work/demo/One' },
+      { id: 'two', title: '项目二', path: '/c/work/demo/Two' },
     ]);
-    expect(options[1]?.label).toContain('项目 — /c/work/demo/One');
-    expect(options[2]?.label).toContain('项目 — /c/work/demo/Two');
+
+    const html = renderWorkspaceSelect(
+      [{ workspaceId: 'one', path: 'C:\\work\\demo\\One', title: '项目一' }],
+      'C:\\work\\demo\\One',
+    );
+    expect(html).toContain('项目一 — /c/work/demo/One');
+    expect(html).toContain('aria-haspopup="menu"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain('<select');
     expect(html).not.toContain('type="text"');
   });
 
   it('空注册列表显示空状态并禁用选择', () => {
     const html = renderWorkspaceSelect([]);
     expect(html).toContain('暂无已注册工作区');
-    expect(html).toMatch(/<select\b[^>]*disabled/);
-    expect(selectOptions(html)).toHaveLength(1);
+    expect(html).toMatch(/<button\b[^>]*\bdisabled/);
+    expect(html).not.toContain('role="menu"');
   });
 
   it('配置页只保留连接面板与工作区选择', () => {

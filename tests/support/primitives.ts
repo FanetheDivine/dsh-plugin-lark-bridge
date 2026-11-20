@@ -12,7 +12,6 @@ export {
 } from '@deepseek-ai/dsh-client-ui-primitives/src/icons/index.tsx';
 export { Menu, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives/src/Menu.tsx';
 export { Switch } from '@deepseek-ai/dsh-client-ui-primitives/src/Switch.tsx';
-export { useClipboardCopy } from '@deepseek-ai/dsh-client-ui-primitives/src/use-clipboard-copy.ts';
 export type { SettingsFieldProps } from '@deepseek-ai/dsh-client-ui-primitives/src/settings-form/fields.tsx';
 export {
   SettingsSecretField,
@@ -39,3 +38,4 @@ export type {
   SettingsFormProps,
 } from '@deepseek-ai/dsh-client-ui-primitives/src/settings-form/SettingsForm.tsx';
 export { SettingsForm } from '@deepseek-ai/dsh-client-ui-primitives/src/settings-form/SettingsForm.tsx';
+export { useClipboardCopy } from '@deepseek-ai/dsh-client-ui-primitives/src/use-clipboard-copy.ts';
