@@ -3,9 +3,8 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
-
+import { EventBridge } from '../src/bridge.ts';
 import { LarkCli } from '../src/cli.ts';
-
 import {
   Config,
   DEFAULT_CONFIG,
@@ -193,6 +192,23 @@ describe('apply 接线', () => {
       .filter((call) => call.level === 'info')
       .map((call) => String(call.args[0]));
     expect(infos.some((line) => line.includes('config updated'))).toBe(true);
+  });
+
+  it('配置热重载不停止监听', async () => {
+    process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
+    const { webServer } = makeWebServer();
+    const ctx = makeCtx({ services: { webServer } });
+    apply(ctx, { workspaceRoot: '' });
+    await vi.waitFor(() => {
+      expect(LarkCli.prototype.json).toHaveBeenCalledWith(
+        ['auth', 'status', '--json', '--verify'],
+        { timeoutMs: 60_000 },
+      );
+    });
+    const stop = vi.spyOn(EventBridge.prototype, 'stop');
+    ctx._emit('loader/volatile-update');
+    await Promise.resolve();
+    expect(stop).not.toHaveBeenCalled();
   });
 
   it('注册提醒补注监听', () => {

@@ -7,7 +7,7 @@ export const PLUGIN_LABEL = 'dsh-plugin-lark-bridge';
 export const NOTIFY_TOOL_NAME = 'lark_notify';
 
 /** 桥接会话的固定标题。 */
-export const SESSION_TITLE = '来自用户的飞书消息';
+export const SESSION_TITLE = '飞书桥接会话';
 
 /** 状态目录名，位于 DSH home 下。 */
 export const STATE_DIR = 'lark-bridge';
@@ -20,6 +20,9 @@ export const SEEN_LIMIT = 500;
 
 /** 单条飞书文本消息的最大字符数。 */
 export const MAX_MESSAGE_CHARS = 15_000;
+
+/** 注入前的静默窗口：队列在此期间没有新消息才发起注入。 */
+export const INJECT_SILENCE_MS = 15_000;
 
 /** 监听重启的初始与最大退避。 */
 export const RESTART_MIN_MS = 2_000;

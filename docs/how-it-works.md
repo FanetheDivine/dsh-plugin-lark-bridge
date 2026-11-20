@@ -11,7 +11,7 @@
 | `src/workspace.ts` | 注册工作区解析、缓存与删除失效 |
 | `src/workspace-path.ts` | Linux 风格路径、平台比较与 Host 原生路径转换 |
 | `src/bridge.ts` | 事件消费、过滤、去重与注入 |
-| `src/sessions.ts` | 工作区会话的创建、恢复、固定标题与置顶 |
+| `src/sessions.ts` | 工作区会话的创建、恢复、新建标题与置顶 |
 | `src/routes.ts` | 安全状态与完整检测的同源 JSON 路由 |
 | `src/state.ts` | 会话标识、归一化路径与去重窗口的持久化 |
 
@@ -99,19 +99,28 @@ Windows 比较忽略大小写，POSIX 比较保持大小写敏感。调用 `work
 lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 ```
 
-插件只接受 owner open_id 的私聊，要求鉴权与工作区均有效。消息过滤与去重窗口保持稳定。
+监听在 CLI、bot、user 与工作区全部就绪后启动，启动时刻写入 `startedAt`。插件只接受 owner open_id 的私聊；消息按 `message_id` 去重。
 
-注入内容是一条 `<lark-message message_id="…" time="…">` 块，块内只有消息正文；非文本消息使用类型占位。块边界与属性值会转义。
+事件按以下顺序处理：
 
-鉴权或工作区无效时停止事件消费者，不补投停止期间的历史消息。
+1. 鉴权未就绪或发送者不符时丢弃。
+2. `message_id` 已在去重窗口时忽略。
+3. `create_time` 早于 `startedAt` 时过滤并记日志；飞书会按 `15 秒 / 5 分钟 / 1 小时 / 6 小时` 重推未确认事件，这些历史消息不会注入。
+4. 其余消息进入队列，并重置 15 秒静默计时。
+
+计时到点且队列非空时，一次取走全部消息，按 `create_time` 升序拼成一个用户消息，每条一个 `<lark-message message_id="…" time="…">` 块，块内只有正文；非文本消息使用类型占位。块边界与属性值会转义。
+
+注入失败时整批丢弃并记录原因，不重试。监听停止时清空队列与计时器。
+
+ACK 由 lark-cli 完成；插件持续读取消费者输出，注入不阻塞事件读取。
 
 ## 会话
 
-状态文件保存 `sessionId`、归一化 `workspaceRoot`、固定标题与去重窗口。
+状态文件保存 `sessionId`、归一化 `workspaceRoot`、创建时的标题与去重窗口。
 
 - 路径一致且会话可恢复时复用。
 - 恢复失败、会话已归档或路径变化时新建。
-- 新建与复用都使用固定标题「来自用户的飞书消息」。
+- 新建会话使用固定标题「飞书桥接会话」；复用会话保留已有标题。
 - 新建会话挂到已注册工作区并置顶。
 - 新建会话经 `sessionController.create` 建立，配置的预设作为 `agentPreset` 传入；配置的模型先经 `llm.resolveCallConfig` 校验，再写入 `agent.model.select`。
 - 预设不在宿主名册、名册读取失败或模型校验失败时，新建会话按宿主默认运行并记录警告；飞书消息照常注入。
@@ -137,7 +146,8 @@ lark-cli im +messages-send --as bot --user-id <open_id> --text - --idempotency-k
 
 - 事件子进程退出后按 2 秒起、上限 60 秒的退避重启。
 - 插件卸载时终止子进程、注销路由和工具，并清理 Client 订阅与计时器。
-- 鉴权失效、配置变化和注册删除先停止旧监听。
+- 鉴权失效时停止监听。
+- 保存配置、增删工作区不重启监听；工作区失效后的注入按失败处理。
 
 ## 依赖
 
