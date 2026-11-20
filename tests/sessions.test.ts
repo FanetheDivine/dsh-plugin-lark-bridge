@@ -86,26 +86,22 @@ async function setup(
       return { agent, dispose: async () => undefined };
     },
   };
-  const controllerCreate = vi.fn(
-    async (request: {
-      sessionId: string;
-      workspaceId: string;
-      cwd: string;
-      agentPreset?: string;
-    }) => {
-      created.push({
-        sessionId: request.sessionId,
-        meta: { cwd: request.cwd },
-        workspaceId: request.workspaceId,
-        ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }),
-      });
-      liveAgent = agent;
-      return {
-        sessionId: request.sessionId,
-        ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }),
-      };
-    },
-  );
+  const controllerRequests: Array<{ workspaceId: string; agentPreset?: string }> = [];
+  const controllerCreate = vi.fn(async (request: { workspaceId: string; agentPreset?: string }) => {
+    controllerRequests.push(request);
+    const sessionId = `session-${controllerRequests.length}`;
+    created.push({
+      sessionId,
+      meta: { cwd },
+      workspaceId: request.workspaceId,
+      ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }),
+    });
+    liveAgent = agent;
+    return {
+      sessionId,
+      ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }),
+    };
+  });
   const sessionController =
     options.controller === 'missing'
       ? undefined
@@ -170,6 +166,7 @@ async function setup(
     selections,
     resolveCallConfig,
     controllerCreate,
+    controllerRequests,
     presetsList,
     logger,
   };
@@ -225,6 +222,15 @@ describe('SessionManager', () => {
     expect((await store.load()).workspaceRoot).toBe(workspaceRoot);
     expect(followups[0]?.content).toEqual([{ type: 'text', text: '飞书消息' }]);
     expect(followups[0]?.source).toEqual({ kind: 'lark-bridge' });
+  });
+
+  it('创建请求只向宿主传工作区标识', async () => {
+    const { sessions, controllerRequests } = await setup();
+    await sessions.inject('hi');
+    expect(controllerRequests).toHaveLength(1);
+    expect(controllerRequests[0]).toEqual({ workspaceId: 'ws-one' });
+    expect(controllerRequests[0]).not.toHaveProperty('cwd');
+    expect(controllerRequests[0]).not.toHaveProperty('sessionId');
   });
 
   it('followup 前再次解析工作区，注销后拒绝注入', async () => {
