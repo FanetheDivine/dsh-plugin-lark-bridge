@@ -2,7 +2,7 @@
  * `lark-cli` 适配层：定位可执行文件、启动子进程、解析 JSON envelope。
  * 导出 LarkCli、CliError 与 resolveLarkCli。
  */
-import { spawn } from 'node:child_process';
+import { type SpawnOptions, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
@@ -36,6 +36,50 @@ export class CliError extends Error {
     this.name = 'CliError';
     this.code = code;
     this.exitCode = exitCode;
+  }
+}
+
+/** 归一化后的进程启动参数。 */
+export interface SpawnSpec {
+  readonly file: string;
+  readonly args: readonly string[];
+  readonly shell: boolean;
+}
+
+/** Windows 命令字符串只允许不需要转义的安全 token。 */
+const WINDOWS_SAFE_TOKEN = /^[A-Za-z0-9._:+-]+$/;
+
+/** 构造进程参数；Windows 用安全 token 组成单一命令字符串。 */
+export function createSpawnSpec(
+  command: CliCommand,
+  args: readonly string[],
+  platform: NodeJS.Platform = process.platform,
+): SpawnSpec {
+  const tokens = [command.file, ...command.args, ...args];
+  if (platform !== 'win32') {
+    return { file: command.file, args: [...command.args, ...args], shell: false };
+  }
+  for (const token of tokens) {
+    if (token === '' || !WINDOWS_SAFE_TOKEN.test(token)) {
+      throw new CliError('unsafe-arg', 'lark-cli argument contains unsupported Windows characters');
+    }
+  }
+  return { file: tokens.join(' '), args: [], shell: true };
+}
+
+/** 启动 CLI 子进程，并把同步启动异常归一化为 CliError。 */
+export function createCliProcess(
+  command: CliCommand,
+  args: readonly string[],
+  options: SpawnOptions,
+  platform: NodeJS.Platform = process.platform,
+  spawnFn: typeof spawn = spawn,
+): ReturnType<typeof spawn> {
+  const spec = createSpawnSpec(command, args, platform);
+  try {
+    return spawnFn(spec.file, [...spec.args], { ...options, shell: spec.shell });
+  } catch (error) {
+    throw new CliError('spawn-failed', describeError(error));
   }
 }
 

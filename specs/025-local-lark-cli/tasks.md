@@ -34,8 +34,8 @@ description: "完全使用本机 lark-cli 的实施任务"
 
 **⚠️ CRITICAL**: 后续故事不得绕过该命令构造层。
 
-- [ ] T002 在 `tests/cli-process.test.ts` 新增失败测试，覆盖 Unix 参数数组、Windows 单一命令字符串、`^[A-Za-z0-9._:+-]+$` 白名单、危险参数拒绝与同步 `spawn` 异常映射。
-- [ ] T003 在 `src/cli.ts` 实现纯命令构造与启动错误归一化逻辑，满足 `tests/cli-process.test.ts`，保留现有公开调用形状供下一阶段迁移。
+- [x] T002 在 `tests/cli-process.test.ts` 新增失败测试，覆盖 Unix 参数数组、Windows 单一命令字符串、`^[A-Za-z0-9._:+-]+$` 白名单、危险参数拒绝与同步 `spawn` 异常映射。
+- [x] T003 在 `src/cli.ts` 实现纯命令构造与启动错误归一化逻辑，满足 `tests/cli-process.test.ts`，保留现有公开调用形状供下一阶段迁移。
 
 **Checkpoint**: 安全命令构造测试通过；完成 Phase 2 后提交。
 
