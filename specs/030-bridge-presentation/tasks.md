@@ -98,10 +98,10 @@
 
 **Purpose**: 变更记录与质量门禁
 
-- [ ] T017 更新 `CHANGELOG.md`：新增 `## Unreleased`，记录标题、图标与 README 变化
-- [ ] T018 运行 `pnpm format && pnpm check && pnpm build`，修复全部问题
-- [ ] T019 按 `quickstart.md` 的自动化场景复核；确认无实机验证项
-- [ ] T020 提交收尾，确认 `git status --porcelain` 干净
+- [X] T017 更新 `CHANGELOG.md`：新增 `## Unreleased`，记录标题、图标与 README 变化
+- [X] T018 运行 `pnpm format && pnpm check && pnpm build`，修复全部问题
+- [X] T019 按 `quickstart.md` 的自动化场景复核；确认无实机验证项
+- [X] T020 提交收尾，确认 `git status --porcelain` 干净
 
 ---
 
