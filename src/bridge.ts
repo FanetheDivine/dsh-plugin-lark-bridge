@@ -6,7 +6,7 @@ import { createInterface } from 'node:readline';
 import type { AuthSnapshot } from './auth.ts';
 import type { LarkCli } from './cli.ts';
 import { killChildTree } from './cli.ts';
-import { RESTART_MAX_MS, RESTART_MIN_MS } from './constants.ts';
+import { INJECT_SILENCE_MS, RESTART_MAX_MS, RESTART_MIN_MS } from './constants.ts';
 import type { SessionManager } from './sessions.ts';
 import type { StateStore } from './state.ts';
 import { describeError, escapeAttribute, formatTime, parseTimestamp } from './utils.ts';
@@ -44,6 +44,14 @@ export interface BridgeDeps {
   readonly logger: BridgeLogger;
 }
 
+/** 等待注入的一条飞书消息。 */
+interface QueuedMessage {
+  readonly id: string;
+  readonly createdAt: number;
+  readonly receivedAt: number;
+  readonly block: string;
+}
+
 /** 把一条飞书消息渲染为 `<lark-message>` 块。 */
 export function formatLarkMessage(event: FeishuEvent): string {
   const time = formatTime(parseTimestamp(event.timestamp ?? event.create_time));
@@ -77,6 +85,9 @@ export class EventBridge {
   private backoff = RESTART_MIN_MS;
   private startedAt = 0;
   private stopped = true;
+  private readonly queue: QueuedMessage[] = [];
+  private silenceTimer: NodeJS.Timeout | undefined;
+  private draining = false;
 
   constructor(deps: BridgeDeps) {
     this.deps = deps;
@@ -99,18 +110,24 @@ export class EventBridge {
     this.stopped = true;
     if (this.restartTimer !== undefined) clearTimeout(this.restartTimer);
     this.restartTimer = undefined;
+    if (this.silenceTimer !== undefined) clearTimeout(this.silenceTimer);
+    this.silenceTimer = undefined;
+    if (this.queue.length > 0) {
+      this.deps.logger.warn(`lark-bridge: dropped ${this.queue.length} queued message(s) on stop`);
+      this.queue.length = 0;
+    }
     const child = this.child;
     this.child = undefined;
     if (child !== undefined) killChildTree(child);
   }
 
-  /** 鉴权或工作区状态变化时同步监听。 */
+  /** 鉴权或工作区状态变化时同步监听；工作区变化不停止已运行的监听。 */
   sync(snapshot: AuthSnapshot): void {
-    if (snapshot.ready && this.deps.getWorkspaceReady()) {
-      if (!this.running) this.start();
+    if (!snapshot.ready) {
+      this.stop();
       return;
     }
-    this.stop();
+    if (!this.running && this.deps.getWorkspaceReady()) this.start();
   }
 
   /** 启动一个消费者子进程。 */
@@ -190,27 +207,66 @@ export class EventBridge {
     this.restartTimer.unref?.();
   }
 
-  /** 处理一条事件：过滤、去重、格式化并注入。 */
+  /** 处理一条事件：过滤、去重、过滤过期消息并放入队列。 */
   async handleEvent(event: FeishuEvent): Promise<boolean> {
-    const auth = this.deps.getAuth();
-    if (auth.ready !== true || !this.deps.getWorkspaceReady()) return false;
-    const owner = auth.ownerOpenId;
-    if (owner === undefined || owner === '') return false;
-    if (!acceptEvent(event, owner)) return false;
     const id = messageId(event);
     if (id === '') return false;
-    const time = parseTimestamp(event.timestamp ?? event.create_time);
-    if (!(await this.deps.store.markSeen(id, time))) return false;
-    const block = formatLarkMessage(event);
-    try {
-      const result = await this.deps.sessions.inject(block);
-      this.deps.logger.info(
-        `lark-bridge: delivered ${id} to session ${result.sessionId} (created=${String(result.created)})`,
+    const auth = this.deps.getAuth();
+    const owner = auth.ownerOpenId;
+    if (auth.ready !== true || owner === undefined || owner === '') {
+      this.deps.logger.warn(`lark-bridge: dropped ${id}: auth not ready`);
+      return false;
+    }
+    if (!acceptEvent(event, owner)) return false;
+    const createdAt = parseTimestamp(event.timestamp ?? event.create_time);
+    const receivedAt = Date.now();
+    if (!(await this.deps.store.markSeen(id, createdAt))) return false;
+    if (createdAt < this.startedAt) {
+      this.deps.logger.warn(
+        `lark-bridge: filtered ${id} created=${formatTime(createdAt)} listenerStart=${formatTime(this.startedAt)}`,
       );
-      return true;
-    } catch (error) {
-      await this.deps.store.forget(id);
-      throw error;
+      return false;
+    }
+    this.queue.push({ id, createdAt, receivedAt, block: formatLarkMessage(event) });
+    this.schedule();
+    return true;
+  }
+
+  /** 重置静默计时；窗口内没有新消息时发起注入。 */
+  private schedule(): void {
+    if (this.silenceTimer !== undefined) clearTimeout(this.silenceTimer);
+    const timer = setTimeout(() => {
+      this.silenceTimer = undefined;
+      void this.drain();
+    }, INJECT_SILENCE_MS);
+    timer.unref?.();
+    this.silenceTimer = timer;
+  }
+
+  /** 取空队列并按创建时间升序批量注入；失败的批次直接丢弃。 */
+  private async drain(): Promise<void> {
+    if (this.draining || this.queue.length === 0) return;
+    this.draining = true;
+    try {
+      while (this.queue.length > 0) {
+        const batch = this.queue.splice(0).sort((a, b) => a.createdAt - b.createdAt);
+        const text = batch.map((item) => item.block).join('\n\n');
+        const ids = batch.map((item) => item.id).join(',');
+        try {
+          const result = await this.deps.sessions.inject(text);
+          this.deps.logger.info(
+            `lark-bridge: delivered ${batch.length} message(s) [${ids}] to session ${result.sessionId} (created=${String(result.created)})`,
+          );
+        } catch (error) {
+          this.deps.logger.warn(
+            `lark-bridge: failed ${batch.length} message(s) [${ids}]: ${describeError(error)}`,
+          );
+        }
+        if (this.silenceTimer !== undefined) return;
+      }
+    } finally {
+      this.draining = false;
+      if (this.queue.length > 0 && this.silenceTimer === undefined) this.schedule();
     }
   }
 }

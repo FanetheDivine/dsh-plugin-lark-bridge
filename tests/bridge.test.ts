@@ -1,4 +1,4 @@
-// 事件桥测试：过滤、去重、提醒格式化与注入。
+// 事件桥测试：过滤、去重、队列批量注入、静默窗口与生命周期。
 import { EventEmitter } from 'node:events';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -7,6 +7,7 @@ import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import type { AuthSnapshot } from '../src/auth.ts';
 import { acceptEvent, EventBridge, type FeishuEvent, formatLarkMessage } from '../src/bridge.ts';
+import { INJECT_SILENCE_MS } from '../src/constants.ts';
 import { StateStore } from '../src/state.ts';
 
 /** 就绪的鉴权快照。 */
@@ -55,10 +56,14 @@ function event(overrides: Partial<FeishuEvent> = {}): FeishuEvent {
 }
 
 /** 构造桥。 */
-async function bridge(auth: AuthSnapshot = ready(), workspaceReady = true) {
+async function bridge(
+  auth: AuthSnapshot = ready(),
+  workspaceReady = true,
+  injectImpl?: () => Promise<{ sessionId: string; created: boolean }>,
+) {
   const dir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-events-'));
   const store = new StateStore(path.join(dir, 'state.json'));
-  const inject = vi.fn(async () => ({ sessionId: 's1', created: true }));
+  const inject = vi.fn(injectImpl ?? (async () => ({ sessionId: 's1', created: true })));
   const logger = { info: vi.fn(), warn: vi.fn() };
   const instance = new EventBridge({
     getCli: () => ({ spawn: vi.fn() }) as never,
@@ -117,7 +122,7 @@ describe('EventBridge.start', () => {
     expect(instance.running).toBe(false);
   });
 
-  it('工作区无效时 sync 停止消费者', async () => {
+  it('工作区无效时 sync 保持消费者运行', async () => {
     let workspaceReady = true;
     const { spawn } = consumer();
     const dir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-events-'));
@@ -135,8 +140,9 @@ describe('EventBridge.start', () => {
     workspaceReady = false;
     instance.sync(ready());
 
-    expect(instance.running).toBe(false);
+    expect(instance.running).toBe(true);
     expect(spawn).toHaveBeenCalledTimes(1);
+    instance.stop();
   });
 });
 
@@ -178,18 +184,197 @@ describe('formatLarkMessage', () => {
 });
 
 describe('EventBridge.handleEvent', () => {
-  it('接受消息并注入一次', async () => {
-    const { instance, inject } = await bridge();
-    expect(await instance.handleEvent(event())).toBe(true);
-    expect(inject).toHaveBeenCalledTimes(1);
-    expect(inject.mock.calls[0]?.[0]).toContain('你好');
+  it('静默 15 秒后注入', async () => {
+    vi.useFakeTimers();
+    try {
+      const { instance, inject } = await bridge();
+      expect(await instance.handleEvent(event())).toBe(true);
+      expect(inject).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+      expect(inject).toHaveBeenCalledTimes(1);
+      expect(inject.mock.calls[0]?.[0]).toContain('你好');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it('重复消息只注入一次', async () => {
-    const { instance, inject } = await bridge();
-    expect(await instance.handleEvent(event())).toBe(true);
+  it('15 秒内的多条消息合并为一次注入并按时间排序', async () => {
+    vi.useFakeTimers();
+    try {
+      const { instance, inject } = await bridge();
+      const now = Date.now();
+      await instance.handleEvent(
+        event({ message_id: 'om_a', timestamp: String(now - 3_000), content: 'A' }),
+      );
+      await instance.handleEvent(
+        event({ message_id: 'om_b', timestamp: String(now - 1_000), content: 'B' }),
+      );
+      await instance.handleEvent(
+        event({ message_id: 'om_c', timestamp: String(now - 2_000), content: 'C' }),
+      );
+      await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+      expect(inject).toHaveBeenCalledTimes(1);
+      const text = String(inject.mock.calls[0]?.[0]);
+      expect(text.indexOf('A')).toBeLessThan(text.indexOf('C'));
+      expect(text.indexOf('C')).toBeLessThan(text.indexOf('B'));
+      expect(text.match(/<lark-message /g)).toHaveLength(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('新消息重置静默计时', async () => {
+    vi.useFakeTimers();
+    try {
+      const { instance, inject } = await bridge();
+      await instance.handleEvent(event({ message_id: 'om_a' }));
+      await vi.advanceTimersByTimeAsync(10_000);
+      await instance.handleEvent(event({ message_id: 'om_b' }));
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(inject).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(inject).toHaveBeenCalledTimes(1);
+      expect(String(inject.mock.calls[0]?.[0]).match(/<lark-message /g)).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('重复消息只入队一次', async () => {
+    vi.useFakeTimers();
+    try {
+      const { instance, inject } = await bridge();
+      expect(await instance.handleEvent(event({ message_id: 'om_a' }))).toBe(true);
+      expect(await instance.handleEvent(event({ message_id: 'om_a' }))).toBe(false);
+      await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+      expect(inject).toHaveBeenCalledTimes(1);
+      expect(String(inject.mock.calls[0]?.[0]).match(/<lark-message /g)).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('注入进行中到达的消息重新计时后再注入', async () => {
+    vi.useFakeTimers();
+    try {
+      let release: (() => void) | undefined;
+      const { instance, inject } = await bridge(
+        ready(),
+        true,
+        () =>
+          new Promise((resolve) => {
+            release = () => resolve({ sessionId: 's1', created: true });
+          }),
+      );
+      await instance.handleEvent(event({ message_id: 'om_a' }));
+      await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+      expect(inject).toHaveBeenCalledTimes(1);
+      await instance.handleEvent(event({ message_id: 'om_b' }));
+      release?.();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(inject).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+      expect(inject).toHaveBeenCalledTimes(2);
+      expect(String(inject.mock.calls[1]?.[0])).toContain('message_id="om_b"');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('早于监听启动的消息被过滤', async () => {
+    vi.useFakeTimers();
+    try {
+      const { spawn } = consumer();
+      const dir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-events-'));
+      const inject = vi.fn(async () => ({ sessionId: 's1', created: true }));
+      const logger = { info: vi.fn(), warn: vi.fn() };
+      const instance = new EventBridge({
+        getCli: () => ({ spawn }) as never,
+        getAuth: () => ready(),
+        getWorkspaceReady: () => true,
+        store: new StateStore(path.join(dir, 'state.json')),
+        sessions: { inject } as never,
+        logger,
+      });
+      instance.start();
+      const old = String(Date.now() - 60_000);
+      expect(await instance.handleEvent(event({ message_id: 'om_old', timestamp: old }))).toBe(
+        false,
+      );
+      await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+      expect(inject).not.toHaveBeenCalled();
+      expect(
+        logger.warn.mock.calls.some((call) => String(call[0]).includes('filtered om_old')),
+      ).toBe(true);
+      instance.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('注入失败后整批丢弃，下一条消息正常注入', async () => {
+    vi.useFakeTimers();
+    try {
+      let fail = true;
+      const { instance, inject, logger } = await bridge(ready(), true, async () => {
+        if (fail) throw new Error('workspace-unregistered');
+        return { sessionId: 's1', created: true };
+      });
+      await instance.handleEvent(event({ message_id: 'om_a' }));
+      await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+      expect(
+        logger.warn.mock.calls.some((call) => String(call[0]).includes('failed 1 message')),
+      ).toBe(true);
+      fail = false;
+      await instance.handleEvent(event({ message_id: 'om_b' }));
+      await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+      expect(inject).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('停止时清空队列与计时器', async () => {
+    vi.useFakeTimers();
+    try {
+      const { instance, inject } = await bridge();
+      await instance.handleEvent(event({ message_id: 'om_a' }));
+      instance.stop();
+      await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+      expect(inject).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('鉴权未就绪时记录丢弃', async () => {
+    const { instance, inject, logger } = await bridge({
+      ...ready(),
+      ready: false,
+      user: 'disconnected',
+    });
     expect(await instance.handleEvent(event())).toBe(false);
-    expect(inject).toHaveBeenCalledTimes(1);
+    expect(inject).not.toHaveBeenCalled();
+    expect(logger.warn.mock.calls.some((call) => String(call[0]).includes('auth not ready'))).toBe(
+      true,
+    );
+  });
+
+  it('工作区无效时注入失败并记录，不创建会话', async () => {
+    vi.useFakeTimers();
+    try {
+      const { instance, inject, logger } = await bridge(ready(), false, async () => {
+        throw new Error('workspace-unregistered');
+      });
+      expect(await instance.handleEvent(event())).toBe(true);
+      await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+      expect(inject).toHaveBeenCalledTimes(1);
+      expect(
+        logger.warn.mock.calls.some((call) => String(call[0]).includes('failed 1 message')),
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('忽略群聊、bot 消息与其他用户', async () => {
@@ -197,18 +382,6 @@ describe('EventBridge.handleEvent', () => {
     expect(await instance.handleEvent(event({ chat_type: 'group' }))).toBe(false);
     expect(await instance.handleEvent(event({ sender_type: 'bot' }))).toBe(false);
     expect(await instance.handleEvent(event({ sender_id: 'ou_2' }))).toBe(false);
-    expect(inject).not.toHaveBeenCalled();
-  });
-
-  it('鉴权未就绪时不处理', async () => {
-    const { instance, inject } = await bridge({ ...ready(), ready: false, user: 'disconnected' });
-    expect(await instance.handleEvent(event())).toBe(false);
-    expect(inject).not.toHaveBeenCalled();
-  });
-
-  it('工作区无效时不处理', async () => {
-    const { instance, inject } = await bridge(ready(), false);
-    expect(await instance.handleEvent(event())).toBe(false);
     expect(inject).not.toHaveBeenCalled();
   });
 
