@@ -5,11 +5,15 @@
 ### Added
 
 - CLI、bot、user 三种连接状态独立展示，每项提供终端命令与完整检测按钮
+- 每条终端命令右侧提供复制按钮，复制成功后图标变对勾
 - 工作区只从当前 DSH 注册列表选择，路径统一为 Linux 风格（例如 `/c/work/demo`）
 - 未选择或注册失效时显示共用设置弹窗，可暂时关闭并在新的失效时重新提示
 
 ### Changed
 
+- 工作区选择改用宿主下拉卡片，展示标题与路径，支持键盘选择、Esc 与点击外部关闭
+- 检测按钮紧跟该行连接状态，状态与动作不再分列两端
+- 工作区字段删除「恢复默认」入口，标题保留
 - 插件完全使用用户本机安装的 `lark-cli`，发布包不再携带 `@larksuite/cli`
 - 移除 `larkCli` 配置、`LARK_CLI` 环境变量覆盖与自定义 `PATH` 搜索；旧 `larkCli` 配置在升级时被忽略
 - `cli-missing` 弹窗与配置页鉴权面板显示 `npm install -g @larksuite/cli@latest && lark-cli config init`

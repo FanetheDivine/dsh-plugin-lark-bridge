@@ -51,7 +51,7 @@ export function AuthPanelStatus({ t, status, busy, onCheck }: AuthPanelStatusPro
                 {t(connection.check)}
               </button>
             </div>
-            <TerminalCommand kind={connection.key} command={t(connection.command)} />
+            <TerminalCommand kind={connection.key} command={t(connection.command)} t={t} />
           </div>
         );
       })}
@@ -112,7 +112,6 @@ const titleStyle: CSSProperties = {
 };
 
 const stateStyle: CSSProperties = {
-  flex: 1,
   fontSize: 12,
   color: 'var(--dsw-alias-label-secondary)',
 };

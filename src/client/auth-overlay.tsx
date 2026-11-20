@@ -169,7 +169,6 @@ export function AuthOverlayContent({
         value={form.workspaceRoot.text}
         disabled={disabled}
         invalid={form.workspaceRoot.invalid}
-        overridden={form.workspaceRoot.overridden}
         onChange={onEdit}
       />
       {form.failed ? <p style={failedStyle}>{t('config.saveFailed')}</p> : null}

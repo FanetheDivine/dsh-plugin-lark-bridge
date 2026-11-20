@@ -22,6 +22,8 @@ export const zh = {
   'auth.command.cli': 'npm install -g @larksuite/cli@latest',
   'auth.command.bot': 'lark-cli config init',
   'auth.command.user': 'lark-cli auth login --scope auth:user.id:read',
+  'auth.command.copy': '复制命令',
+  'auth.command.copied': '已复制',
   'config.summary': '工作区与飞书连接',
   'config.workspaceRoot.title': '工作区',
   'config.workspaceRoot.description': '飞书消息注入到所选 DSH 工作区的会话。',
@@ -34,8 +36,6 @@ export const zh = {
   'config.saveFailed': '此部署未接受这些值，已保留以便修改。',
   'config.save': '保存',
   'config.saving': '保存中…',
-  'config.overridden': '已覆盖',
-  'config.reset': '恢复默认',
 } as const;
 
 /** 英文字典，键集与中文一致。 */
@@ -57,6 +57,8 @@ export const en: Record<BridgeKey, string> = {
   'auth.command.cli': 'npm install -g @larksuite/cli@latest',
   'auth.command.bot': 'lark-cli config init',
   'auth.command.user': 'lark-cli auth login --scope auth:user.id:read',
+  'auth.command.copy': 'Copy command',
+  'auth.command.copied': 'Copied',
   'config.summary': 'Workspace and Lark connections',
   'config.workspaceRoot.title': 'Workspace',
   'config.workspaceRoot.description': 'Lark messages are injected into the selected DSH workspace.',
@@ -70,8 +72,6 @@ export const en: Record<BridgeKey, string> = {
     'The deployment did not accept these values; they were left for you to correct.',
   'config.save': 'Save',
   'config.saving': 'Saving…',
-  'config.overridden': 'Overridden',
-  'config.reset': 'Restore default',
 };
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

@@ -1,7 +1,12 @@
 /** 配置页与共享工作区选择器：仅选择当前注册工作区。 */
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
-import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives';
-import { SettingsForm } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  IconChevronDownOutlineRegular,
+  Menu,
+  SettingsForm,
+  type SettingsFormLabels,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import type {
   GlobalStandardProps,
   InjectFace,
@@ -10,7 +15,7 @@ import type {
   TranslateNS,
 } from '@deepseek-ai/dsh-client-ui-slots';
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
-import { type CSSProperties, useId } from 'react';
+import { type CSSProperties, useId, useRef, useState } from 'react';
 
 import { normalizeWorkspacePath, sameWorkspacePath } from '../workspace-path.ts';
 import { AuthPanel } from './auth-panel.tsx';
@@ -30,11 +35,27 @@ export interface WorkspaceListItem {
   readonly title: string;
 }
 
+/** 下拉里的一项工作区。 */
+export interface WorkspaceOption {
+  readonly id: string;
+  readonly title: string;
+  readonly path: string;
+}
+
 /** 读取宿主当前工作区条目。 */
 export function useWorkspaceItems(
   useWorkspaces: GlobalStandardProps['useWorkspaces'],
 ): readonly WorkspaceListItem[] {
   return useWorkspaces((state) => state.items) as readonly WorkspaceListItem[];
+}
+
+/** 把注册列表转成下拉选项，路径统一为 Linux 风格。 */
+export function workspaceOptions(items: readonly WorkspaceListItem[]): readonly WorkspaceOption[] {
+  return items.map((item) => ({
+    id: String(item.workspaceId),
+    title: item.title,
+    path: normalizeWorkspacePath(item.path),
+  }));
 }
 
 /** 工作区选择器属性。 */
@@ -44,61 +65,79 @@ export interface WorkspaceSelectProps {
   readonly value: string;
   readonly disabled: boolean;
   readonly onChange: (path: string) => void;
-  readonly onReset?: () => void;
-  readonly overridden?: boolean;
   readonly invalid?: boolean;
 }
 
-/** 从当前注册列表选择工作区，值与标签统一为 Linux 风格路径。 */
+/** 从当前注册列表选择工作区，值为归一化路径。 */
 export function WorkspaceSelect({
   t,
   useWorkspaces,
   value,
   disabled,
   onChange,
-  onReset,
-  overridden = false,
   invalid = false,
 }: WorkspaceSelectProps) {
   const id = useId();
   const items = useWorkspaceItems(useWorkspaces);
-  const options = items.map((item) => ({
-    id: String(item.workspaceId),
-    title: item.title,
-    path: normalizeWorkspacePath(item.path),
-  }));
+  const options = workspaceOptions(items);
   const selected = options.find((option) => sameWorkspacePath(option.path, value));
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const empty = options.length === 0;
+  const label = empty
+    ? t('config.workspaceRoot.empty')
+    : selected === undefined
+      ? t('config.workspaceRoot.placeholder')
+      : `${selected.title} — ${selected.path}`;
+
   return (
     <div style={fieldStyle} data-dsh-lark-config-workspace>
       <div style={labelRowStyle}>
         <label htmlFor={id} style={titleStyle}>
           {t('config.workspaceRoot.title')}
         </label>
-        {overridden && onReset !== undefined ? (
-          <button type="button" style={linkButtonStyle} disabled={disabled} onClick={onReset}>
-            {t('config.reset')}
-          </button>
-        ) : null}
       </div>
-      <select
-        id={id}
-        aria-label={t('config.workspaceRoot.title')}
-        style={selectStyle}
-        value={selected?.path ?? ''}
-        disabled={disabled || options.length === 0}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      >
-        <option value="">
-          {options.length === 0
-            ? t('config.workspaceRoot.empty')
-            : t('config.workspaceRoot.placeholder')}
-        </option>
-        {options.map((option) => (
-          <option key={option.id} value={option.path}>
-            {option.title} — {option.path}
-          </option>
-        ))}
-      </select>
+      <div style={triggerRowStyle}>
+        <Menu
+          open={open}
+          anchorRef={triggerRef}
+          portal
+          align="start"
+          items={options.map((option) => ({
+            id: option.id,
+            label: (
+              <span style={optionLabelStyle}>
+                <span style={optionTitleStyle}>{option.title}</span>
+                <span style={optionPathStyle}>{option.path}</span>
+              </span>
+            ),
+          }))}
+          selectedId={selected?.id}
+          onSelect={(selectedId) => {
+            setOpen(false);
+            const option = options.find((candidate) => candidate.id === selectedId);
+            if (option !== undefined) onChange(option.path);
+          }}
+          onClose={() => setOpen(false)}
+          anchor={
+            <Button
+              ref={triggerRef}
+              id={id}
+              type="button"
+              variant="outline"
+              size="md"
+              style={triggerStyle}
+              disabled={disabled || empty}
+              aria-haspopup="menu"
+              aria-expanded={open}
+              onClick={() => setOpen((previous) => !previous)}
+            >
+              <span style={triggerLabelStyle}>{label}</span>
+              <IconChevronDownOutlineRegular size={16} />
+            </Button>
+          }
+        />
+      </div>
       <p style={descriptionStyle}>{t('config.workspaceRoot.description')}</p>
       {invalid ? <p style={invalidStyle}>{t('config.workspaceRoot.invalid')}</p> : null}
     </div>
@@ -138,9 +177,7 @@ export function ConfigPage(props: ConfigPageProps) {
           value={state.workspaceRoot.text}
           disabled={disabled}
           invalid={state.workspaceRoot.invalid}
-          overridden={state.workspaceRoot.overridden}
           onChange={(path) => props.edit('workspaceRoot', path)}
-          onReset={() => props.resetField('workspaceRoot')}
         />
       </SettingsForm>
     </div>
@@ -169,16 +206,49 @@ const titleStyle: CSSProperties = {
   color: 'var(--dsw-alias-label-primary)',
 };
 
-const selectStyle: CSSProperties = {
+const triggerRowStyle: CSSProperties = {
+  display: 'grid',
+};
+
+const triggerStyle: CSSProperties = {
   width: '100%',
-  boxSizing: 'border-box',
-  padding: '6px 8px',
-  border: '1px solid var(--dsw-alias-border-l2)',
-  borderRadius: 'var(--dsw-radius-sm, 6px)',
-  background: 'var(--dsw-alias-bg-primary, transparent)',
-  color: 'var(--dsw-alias-label-primary)',
-  font: 'inherit',
+  justifyContent: 'space-between',
+  gap: 8,
+  paddingInline: 10,
   fontSize: 13,
+  fontWeight: 400,
+};
+
+const triggerLabelStyle: CSSProperties = {
+  flex: '1 1 auto',
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  textAlign: 'left',
+};
+
+const optionLabelStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 1,
+  minWidth: 0,
+  whiteSpace: 'normal',
+};
+
+const optionTitleStyle: CSSProperties = {
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
+
+const optionPathStyle: CSSProperties = {
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  fontSize: 11,
+  lineHeight: '16px',
+  color: 'var(--dsw-alias-label-secondary)',
 };
 
 const descriptionStyle: CSSProperties = {
@@ -191,14 +261,4 @@ const descriptionStyle: CSSProperties = {
 const invalidStyle: CSSProperties = {
   ...descriptionStyle,
   color: 'var(--dsw-alias-error-fill, #cf222e)',
-};
-
-const linkButtonStyle: CSSProperties = {
-  border: 'none',
-  background: 'transparent',
-  color: 'var(--dsw-alias-label-link, #0969da)',
-  font: 'inherit',
-  fontSize: 12,
-  cursor: 'pointer',
-  padding: 0,
 };

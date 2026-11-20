@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // 前端测试：入口接线、字典、安全连接状态展示与共享状态控制器。
 import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
@@ -26,7 +27,12 @@ import {
   ROW_ID,
   ROW_KEY,
 } from '../src/client/config-form.ts';
-import { ConfigPage, type ConfigPageProps, WorkspaceSelect } from '../src/client/config-page.tsx';
+import {
+  ConfigPage,
+  type ConfigPageProps,
+  WorkspaceSelect,
+  workspaceOptions,
+} from '../src/client/config-page.tsx';
 import * as clientEntry from '../src/client/index.ts';
 import { en, NS, zh } from '../src/client/locales.ts';
 import { StatusController } from '../src/client/status-controller.ts';
@@ -94,14 +100,6 @@ function renderWorkspaceSelect(
       onChange: vi.fn(),
     }),
   );
-}
-
-/** 读取 SSR 原生选择器的选项值与文字。 */
-function selectOptions(html: string): Array<{ value: string; label: string }> {
-  return [...html.matchAll(/<option\b([^>]*)>(.*?)<\/option>/g)].map((match) => ({
-    value: /value="([^"]*)"/.exec(match[1] ?? '')?.[1] ?? '',
-    label: match[2] ?? '',
-  }));
 }
 
 /** 构造配置表单的纯展示状态。 */
@@ -347,14 +345,23 @@ describe('连接状态展示', () => {
     expect(html).toContain('未连接');
   });
 
+  it('检测按钮紧跟该行状态文字，文案保留全称', () => {
+    const html = renderAuthPanel(statusFor());
+    expect(html).toMatch(/已连接<\/span><button[^>]*>检测 lark-cli<\/button>/);
+    expect(html).toMatch(/已连接<\/span><button[^>]*>检测机器人身份<\/button>/);
+    expect(html).toMatch(/已连接<\/span><button[^>]*>检测用户身份<\/button>/);
+    expect(html).not.toMatch(/<span style="[^"]*flex:1[^"]*"[^>]*>已连接<\/span>/);
+  });
+
   it('三个区域各有一个检测按钮，忙碌时全部禁用', () => {
+    const detectButtons = /<button type="button" style=/g;
     const idle = renderAuthPanel(statusFor());
-    expect(idle.match(/<button\b/g)).toHaveLength(3);
+    expect(idle.match(detectButtons)).toHaveLength(3);
     expect(idle).not.toContain('disabled');
 
     const busy = renderAuthPanel(statusFor(), true);
-    expect(busy.match(/<button\b/g)).toHaveLength(3);
-    expect(busy.match(/<button\b[^>]*\bdisabled/g)).toHaveLength(3);
+    expect(busy.match(detectButtons)).toHaveLength(3);
+    expect(busy.match(/<button type="button" style="[^"]*" disabled/g)).toHaveLength(3);
   });
 
   it('分别展示安装、机器人配置与用户登录的固定终端命令', () => {
@@ -365,6 +372,15 @@ describe('连接状态展示', () => {
     expect(html).toContain(BOT_COMMAND);
     expect(html).toContain(USER_COMMAND);
     expect(html).not.toContain(`${CLI_COMMAND} &amp;&amp; ${BOT_COMMAND}`);
+  });
+
+  it('每条命令右侧有复制按钮，标签为复制命令', () => {
+    const html = renderAuthPanel(statusFor());
+    expect(html.match(/aria-label="复制命令"/g)).toHaveLength(3);
+    expect(html).toMatch(/<code[^>]*>[^<]*<\/code><button[^>]*aria-label="复制命令"/);
+    expect(html).toContain('data-dsh-lark-command-row="cli"');
+    expect(html).toContain('data-dsh-lark-command-row="bot"');
+    expect(html).toContain('data-dsh-lark-command-row="user"');
   });
 
   it('忽略 URL、原始错误与身份元数据', () => {
@@ -406,33 +422,40 @@ describe('连接状态展示', () => {
 });
 
 describe('工作区选择与共用弹窗', () => {
-  it('选项仅来自注册列表并归一化值与同名路径标签', () => {
-    const html = renderWorkspaceSelect([
-      { workspaceId: 'one', path: 'C:\\work\\demo\\One', title: '项目' },
-      { workspaceId: 'two', path: 'c:/work/demo/Two/', title: '项目' },
+  it('选项仅来自注册列表并归一化为 Linux 风格路径', () => {
+    const options = workspaceOptions([
+      { workspaceId: 'one', path: 'C:\\work\\demo\\One', title: '项目一' },
+      { workspaceId: 'two', path: 'c:/work/demo/Two/', title: '项目二' },
     ]);
-    const options = selectOptions(html);
-    expect(options.map((option) => option.value)).toEqual([
-      '',
-      '/c/work/demo/One',
-      '/c/work/demo/Two',
+    expect(options).toEqual([
+      { id: 'one', title: '项目一', path: '/c/work/demo/One' },
+      { id: 'two', title: '项目二', path: '/c/work/demo/Two' },
     ]);
-    expect(options[1]?.label).toContain('项目 — /c/work/demo/One');
-    expect(options[2]?.label).toContain('项目 — /c/work/demo/Two');
+
+    const html = renderWorkspaceSelect(
+      [{ workspaceId: 'one', path: 'C:\\work\\demo\\One', title: '项目一' }],
+      'C:\\work\\demo\\One',
+    );
+    expect(html).toContain('项目一 — /c/work/demo/One');
+    expect(html).toContain('aria-haspopup="menu"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain('<select');
     expect(html).not.toContain('type="text"');
   });
 
   it('空注册列表显示空状态并禁用选择', () => {
     const html = renderWorkspaceSelect([]);
     expect(html).toContain('暂无已注册工作区');
-    expect(html).toMatch(/<select\b[^>]*disabled/);
-    expect(selectOptions(html)).toHaveLength(1);
+    expect(html).toMatch(/<button\b[^>]*\bdisabled/);
+    expect(html).not.toContain('role="menu"');
   });
 
   it('配置页只保留连接面板与工作区选择', () => {
     const html = renderConfigPage();
     expect(html).toContain('data-dsh-lark-auth-panel');
     expect(html).toContain('data-dsh-lark-config-workspace');
+    expect(html).toContain('工作区');
+    expect(html).not.toContain('恢复默认');
     expect(html).not.toContain('会话标题');
     expect(html).not.toContain('启动时检测鉴权');
     expect(html).not.toContain('重置桥接会话');
@@ -449,6 +472,8 @@ describe('工作区选择与共用弹窗', () => {
     expect(html).toContain('data-dsh-lark-auth-panel');
     expect(html).toContain('data-dsh-lark-config-workspace');
     expect(html).toContain('保存选择');
+    expect(html).toContain('工作区');
+    expect(html).not.toContain('恢复默认');
     expect(html).not.toContain('<a');
   });
 });
