@@ -21,6 +21,12 @@ export const SEEN_LIMIT = 500;
 /** 单条飞书文本消息的最大字符数。 */
 export const MAX_MESSAGE_CHARS = 15_000;
 
+/** 引用正文最多保留的字符数。 */
+export const QUOTE_MAX_CHARS = 500;
+
+/** 读取被引消息单次调用的超时毫秒数。 */
+export const QUOTE_TIMEOUT_MS = 8_000;
+
 /** 注入前的静默窗口：队列在此期间没有新消息才发起注入。 */
 export const INJECT_SILENCE_MS = 15_000;
 

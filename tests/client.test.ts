@@ -51,10 +51,7 @@ import {
 import * as clientEntry from '../src/client/index.ts';
 import { en, NS, zh } from '../src/client/locales.ts';
 import type { ModelDefaultsInjected } from '../src/client/model-defaults.ts';
-import {
-  type PresetDefaultsInjected,
-  type PresetDefaultsState,
-} from '../src/client/preset-defaults.ts';
+import type { PresetDefaultsInjected, PresetDefaultsState } from '../src/client/preset-defaults.ts';
 import { currentText, menuItems, PresetSelect } from '../src/client/preset-select.tsx';
 import { StatusController } from '../src/client/status-controller.ts';
 import type { ConnectionState } from '../src/types.ts';

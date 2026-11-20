@@ -26,13 +26,18 @@ function makeCli(results: Array<{ ok: boolean }> = [{ ok: true }]) {
 }
 
 /** 调用发送。 */
-function send(text: unknown, owner: string | undefined, results?: Array<{ ok: boolean }>) {
+function send(
+  text: unknown,
+  owner: string | undefined,
+  results?: Array<{ ok: boolean }>,
+  extra: Record<string, unknown> = {},
+) {
   const { cli, calls } = makeCli(results);
   return {
     calls,
     result: sendNotification(
       { getCli: () => cli, getOwner: () => owner },
-      typeof text === 'string' ? { text } : text,
+      typeof text === 'string' ? { text, ...extra } : text,
     ),
   };
 }
@@ -113,6 +118,67 @@ describe('sendNotification', () => {
     expect(value.ok).toBe(false);
     expect(value.error?.code).toBe('send-failed');
   });
+
+  it('带 reply_to 时用回复接口发送', async () => {
+    const { result, calls } = send('收到', 'ou_1', undefined, { reply_to: 'om_1' });
+    await expect(result).resolves.toEqual({
+      ok: true,
+      parts: 1,
+      messageId: 'om_sent',
+      replyTo: 'om_1',
+    });
+    expect(calls[0]?.args).toEqual([
+      'im',
+      '+messages-reply',
+      '--as',
+      'bot',
+      '--message-id',
+      'om_1',
+      '--text',
+      '-',
+      '--idempotency-key',
+      expect.stringMatching(/^lark-notify-/),
+    ]);
+    expect(calls[0]?.options.input).toBe('收到');
+  });
+
+  it('分段时只有首段使用回复', async () => {
+    const text = 'x'.repeat(20_000);
+    const { result, calls } = send(text, 'ou_1', [{ ok: true }, { ok: true }], {
+      reply_to: 'om_1',
+    });
+    const value = await result;
+    expect(value.ok).toBe(true);
+    expect(value.parts).toBe(2);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.args[1]).toBe('+messages-reply');
+    expect(calls[0]?.args).toContain('om_1');
+    expect(calls[1]?.args[1]).toBe('+messages-send');
+    expect(calls[1]?.args).toContain('ou_1');
+    expect(calls.map((call) => call.options.input).join('')).toBe(text);
+  });
+
+  it('回复失败返回错误且不回落为普通发送', async () => {
+    const { result, calls } = send('收到', 'ou_1', [{ ok: false }], { reply_to: 'om_gone' });
+    const value = await result;
+    expect(value.ok).toBe(false);
+    expect(value.error?.code).toBe('reply-failed');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.args[1]).toBe('+messages-reply');
+  });
+
+  it('reply_to 类型错误时拒绝发送', async () => {
+    const { result, calls } = send('收到', 'ou_1', undefined, { reply_to: 42 });
+    await expect(result).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'invalid-reply-to' },
+    });
+    await expect(send('收到', 'ou_1', undefined, { reply_to: ' ' }).result).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'invalid-reply-to' },
+    });
+    expect(calls).toEqual([]);
+  });
 });
 
 describe('buildNotifyTool', () => {
@@ -124,9 +190,13 @@ describe('buildNotifyTool', () => {
     });
     expect(tool.name).toBe('lark_notify');
     expect(tool.parameters['text']).toMatchObject({ required: true, type: 'string' });
+    expect(tool.parameters['reply_to']).toMatchObject({ required: false, type: 'string' });
     expect(typeof tool.execute).toBe('function');
     expect(tool.output.render({}, { ok: true, parts: 1 })).toEqual([
       { type: 'text', text: expect.stringContaining('已发送') },
+    ]);
+    expect(tool.output.render({}, { ok: true, parts: 1, replyTo: 'om_1' })).toEqual([
+      { type: 'text', text: expect.stringContaining('已回复') },
     ]);
   });
 });

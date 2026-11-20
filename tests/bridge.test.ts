@@ -59,21 +59,25 @@ function event(overrides: Partial<FeishuEvent> = {}): FeishuEvent {
 async function bridge(
   auth: AuthSnapshot = ready(),
   workspaceReady = true,
-  injectImpl?: () => Promise<{ sessionId: string; created: boolean }>,
+  options: {
+    injectImpl?: () => Promise<{ sessionId: string; created: boolean }>;
+    json?: () => Promise<unknown>;
+  } = {},
 ) {
   const dir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-events-'));
   const store = new StateStore(path.join(dir, 'state.json'));
-  const inject = vi.fn(injectImpl ?? (async () => ({ sessionId: 's1', created: true })));
+  const inject = vi.fn(options.injectImpl ?? (async () => ({ sessionId: 's1', created: true })));
   const logger = { info: vi.fn(), warn: vi.fn() };
+  const json = vi.fn(options.json ?? (async () => ({ messages: [] })));
   const instance = new EventBridge({
-    getCli: () => ({ spawn: vi.fn() }) as never,
+    getCli: () => ({ spawn: vi.fn(), json }) as never,
     getAuth: () => auth,
     getWorkspaceReady: () => workspaceReady,
     store,
     sessions: { inject } as never,
     logger,
   });
-  return { instance, inject, logger, store };
+  return { instance, inject, logger, store, json };
 }
 
 describe('EventBridge.start', () => {
@@ -181,6 +185,34 @@ describe('formatLarkMessage', () => {
     expect(text).toContain('<\\/lark-message>');
     expect(text).not.toContain('a</lark-message>b');
   });
+
+  it('引用回复输出 reply_to 属性与 quote 块', () => {
+    const quote = {
+      messageId: 'om_old',
+      from: 'user' as const,
+      time: '2026-11-21 00:37:00',
+      kind: 'text' as const,
+      text: '被引原文',
+      unavailable: false,
+    };
+    const text = formatLarkMessage(
+      event({ message_id: 'om_2', reply_to: 'om_old', content: '新回复' }),
+      quote,
+    );
+    expect(text).toMatch(/^<lark-message message_id="om_2" reply_to="om_old" time="/);
+    const quoteAt = text.indexOf('<quote ');
+    expect(quoteAt).toBeGreaterThan(0);
+    expect(text.indexOf('被引原文')).toBeGreaterThan(quoteAt);
+    expect(text.indexOf('新回复')).toBeGreaterThan(text.indexOf('</quote>'));
+  });
+
+  it('聊天记录只输出容器 ID', () => {
+    const text = formatLarkMessage(
+      event({ message_type: 'merge_forward', content: '[Merged forward: 3 messages]' }),
+    );
+    expect(text).toContain('<forwarded_messages message_id="om_1"/>');
+    expect(text).not.toContain('Merged forward');
+  });
 });
 
 describe('EventBridge.handleEvent', () => {
@@ -258,14 +290,12 @@ describe('EventBridge.handleEvent', () => {
     vi.useFakeTimers();
     try {
       let release: (() => void) | undefined;
-      const { instance, inject } = await bridge(
-        ready(),
-        true,
-        () =>
+      const { instance, inject } = await bridge(ready(), true, {
+        injectImpl: () =>
           new Promise((resolve) => {
             release = () => resolve({ sessionId: 's1', created: true });
           }),
-      );
+      });
       await instance.handleEvent(event({ message_id: 'om_a' }));
       await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
       expect(inject).toHaveBeenCalledTimes(1);
@@ -318,9 +348,11 @@ describe('EventBridge.handleEvent', () => {
     vi.useFakeTimers();
     try {
       let fail = true;
-      const { instance, inject, logger } = await bridge(ready(), true, async () => {
-        if (fail) throw new Error('workspace-unregistered');
-        return { sessionId: 's1', created: true };
+      const { instance, inject, logger } = await bridge(ready(), true, {
+        injectImpl: async () => {
+          if (fail) throw new Error('workspace-unregistered');
+          return { sessionId: 's1', created: true };
+        },
       });
       await instance.handleEvent(event({ message_id: 'om_a' }));
       await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
@@ -371,8 +403,10 @@ describe('EventBridge.handleEvent', () => {
   it('工作区无效时注入失败并记录，不创建会话', async () => {
     vi.useFakeTimers();
     try {
-      const { instance, inject, logger } = await bridge(ready(), false, async () => {
-        throw new Error('workspace-unregistered');
+      const { instance, inject, logger } = await bridge(ready(), false, {
+        injectImpl: async () => {
+          throw new Error('workspace-unregistered');
+        },
       });
       expect(await instance.handleEvent(event())).toBe(true);
       await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
@@ -397,5 +431,48 @@ describe('EventBridge.handleEvent', () => {
     const { instance, inject } = await bridge();
     expect(await instance.handleEvent(event({ message_id: '', id: '' }))).toBe(false);
     expect(inject).not.toHaveBeenCalled();
+  });
+
+  it('引用回复读取被引消息后只注入一次', async () => {
+    vi.useFakeTimers();
+    const { instance, inject, json } = await bridge(ready(), true, {
+      json: async () => ({
+        messages: [
+          {
+            message_id: 'om_old',
+            msg_type: 'text',
+            content: '被引原文',
+            create_time: '2026-11-21 00:37',
+            sender: { sender_type: 'user' },
+          },
+        ],
+      }),
+    });
+    expect(await instance.handleEvent(event({ reply_to: 'om_old' }))).toBe(true);
+    expect(inject).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+    expect(inject).toHaveBeenCalledTimes(1);
+    const block = inject.mock.calls[0]?.[0] ?? '';
+    expect(block).toContain('<quote message_id="om_old" from="user"');
+    expect(block).toContain('被引原文');
+    expect(json.mock.calls[0]?.[0]).toContain('user');
+    vi.useRealTimers();
+  });
+
+  it('引用读取失败仍注入并记录警告', async () => {
+    vi.useFakeTimers();
+    const { instance, inject, logger } = await bridge(ready(), true, {
+      json: async () => {
+        throw new Error('mget failed');
+      },
+    });
+    expect(await instance.handleEvent(event({ reply_to: 'om_missing' }))).toBe(true);
+    await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
+    const block = inject.mock.calls[0]?.[0] ?? '';
+    expect(block).toContain('[引用内容读取失败]');
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('cannot read quoted message om_missing'),
+    );
+    vi.useRealTimers();
   });
 });

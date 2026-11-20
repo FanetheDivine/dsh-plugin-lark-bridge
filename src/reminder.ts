@@ -11,12 +11,16 @@ import type { SessionManager } from './sessions.ts';
 import type { Context } from './types.ts';
 import { describeError, reminder } from './utils.ts';
 
-/** 提醒正文；说明块含义与回复规则。 */
+/** 提醒正文；说明块含义、回复规则与引用读取方式。 */
 export const BRIDGE_REMINDER = [
   '<lark-message> 块是用户通过飞书远程发送的消息。',
   '用户只能看到 lark_notify 发送的内容，看不到本会话的回复。',
   '- 回复飞书消息时调用 lark_notify，把要发给用户的内容放进 text。',
   '- 用户连续发来多条 <lark-message> 时只回复一次，用一次 lark_notify 覆盖全部内容。',
+  '- 填入 reply_to（某条的 message_id）可以让这条通知引用该消息。',
+  '- 回复用户时引用用户的消息，以提高对应关系的准确性。',
+  '- <quote> 是用户引用的原消息；<forwarded_messages> 只给记录 id，需要内容时用 lark-cli im +messages-mget --as user --message-ids <id> 读取。',
+  '- 用户在移动端远程与你通信，回复要简洁，不涉及细节。',
   '- 会话里的 text 块用户看不到，尽量少输出，说明性文字也放进 lark_notify。',
   '- 其他来源的用户消息按普通方式回复，不调用 lark_notify。',
 ].join('\n');
