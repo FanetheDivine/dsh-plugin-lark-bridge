@@ -104,10 +104,10 @@ description: "Task list for 独立鉴权与工作区选择流程"
 
 **Purpose**: 文档、完整质量门禁、真实宿主和 UI/UX 验收。
 
-- [ ] T025 [P] 更新 `README.md`、`docs/how-it-works.md`、`docs/known-risks.md` 和 `docs/development.md` 的终端鉴权、工作区注册校验、固定标题、路由与文件地图
-- [ ] T026 运行 `pnpm format && pnpm check` 和 `pnpm build`，修复全部问题并核对 `package.json` 与 `pnpm-lock.yaml`
-- [ ] T027 按 `specs/026-auth-workspace-flow/quickstart.md` 在真实隔离 profile 验证连接状态、工作区删除、固定标题、私聊注入、通知与中英文界面
-- [ ] T028 完成真实运行界面的 UI/UX 子代理审查，修复本次范围内问题并在 `specs/026-auth-workspace-flow/quickstart.md` 记录验证证据
+- [X] T025 [P] 更新 `README.md`、`docs/how-it-works.md`、`docs/known-risks.md` 和 `docs/development.md` 的终端鉴权、工作区注册校验、固定标题、路由与文件地图
+- [X] T026 运行 `pnpm format && pnpm check` 和 `pnpm build`，修复全部问题并核对 `package.json` 与 `pnpm-lock.yaml`
+- [X] T027 按 `specs/026-auth-workspace-flow/quickstart.md` 在真实隔离 profile 验证连接状态、工作区删除、固定标题、私聊注入、通知与中英文界面
+- [X] T028 完成真实运行界面的 UI/UX 子代理审查，修复本次范围内问题并在 `specs/026-auth-workspace-flow/quickstart.md` 记录验证证据
 
 ---
 

@@ -144,6 +144,7 @@ export interface AuthOverlayContentProps {
   readonly onEdit: (path: string) => void;
   readonly onSave: () => void;
   readonly onClose: () => void;
+  readonly onOpenSettings?: () => void;
 }
 
 /** 连接面板与工作区选择正文。 */
@@ -155,8 +156,10 @@ export function AuthOverlayContent({
   onEdit,
   onSave,
   onClose,
+  onOpenSettings,
 }: AuthOverlayContentProps) {
   const disabled = !form.available || !form.writable || form.saving;
+  const saveDisabled = disabled || !form.dirty || form.invalid || form.workspaceRoot.text === '';
   return (
     <div>
       <AuthPanel t={t} controller={controller} />
@@ -174,10 +177,15 @@ export function AuthOverlayContent({
         <button type="button" style={secondaryStyle} onClick={onClose}>
           {t('auth.close')}
         </button>
+        {onOpenSettings === undefined ? null : (
+          <button type="button" style={secondaryStyle} onClick={onOpenSettings}>
+            {t('auth.openSettings')}
+          </button>
+        )}
         <button
           type="button"
-          style={primaryStyle}
-          disabled={disabled || !form.dirty || form.invalid || form.workspaceRoot.text === ''}
+          style={{ ...primaryStyle, ...(saveDisabled ? disabledButtonStyle : {}) }}
+          disabled={saveDisabled}
           onClick={onSave}
         >
           {form.saving ? t('config.saving') : t('config.saveSelection')}
@@ -236,18 +244,6 @@ export function AuthOverlay(props: AuthOverlayProps) {
       closeLabel={t('auth.close')}
       description={t('auth.description')}
       tone="warning"
-      footer={
-        <button
-          type="button"
-          style={primaryStyle}
-          onClick={() => {
-            props.openSettings();
-            dispatch({ type: 'dismiss' });
-          }}
-        >
-          {t('auth.openSettings')}
-        </button>
-      }
     >
       <AuthOverlayContent
         t={t}
@@ -263,6 +259,10 @@ export function AuthOverlay(props: AuthOverlayProps) {
           props.save();
         }}
         onClose={onClose}
+        onOpenSettings={() => {
+          props.openSettings();
+          dispatch({ type: 'dismiss' });
+        }}
       />
     </Modal>
   );
@@ -295,6 +295,14 @@ const primaryStyle: CSSProperties = {
   border: '1px solid var(--dsw-alias-brand-fill, #0969da)',
   background: 'var(--dsw-alias-brand-fill, #0969da)',
   color: 'var(--dsw-alias-label-on-brand, #fff)',
+};
+
+const disabledButtonStyle: CSSProperties = {
+  borderColor: 'var(--dsw-alias-border-l2)',
+  background: 'var(--dsw-alias-button-tool-bar-fill, transparent)',
+  color: 'var(--dsw-alias-label-secondary)',
+  cursor: 'not-allowed',
+  opacity: 0.65,
 };
 
 const failedStyle: CSSProperties = {

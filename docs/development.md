@@ -112,7 +112,9 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | `tests/plugin.test.ts` | 配置校验、热重载、工具与路由接线 |
 | `tests/cli.test.ts` | 本机命令调用、JSON 解包、stdin 与退出码 |
 | `tests/cli-process.test.ts` | Unix/Windows 进程参数、安全 token 与同步启动异常 |
-| `tests/auth.test.ts` | 四阶段检测、应用绑定、设备码授权与取消 |
+| `tests/auth.test.ts` | CLI、bot、user 独立状态、完整检测与并发复用 |
+| `tests/workspace.test.ts` | 注册解析、删除失效与异步乱序 |
+| `tests/workspace-path.test.ts` | Linux 风格路径、平台比较与 Host 转换 |
 | `tests/bridge.test.ts` | 事件过滤、去重、提醒格式化与注入 |
 | `tests/sessions.test.ts` | 工作区校验、创建/复用、标题、置顶与持久化 |
 | `tests/tools.test.ts` | 参数校验、分段发送与失败返回 |
@@ -120,7 +122,7 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | `tests/state.test.ts` | 状态读写、去重窗口与损坏恢复 |
 | `tests/config-form.test.ts` | 配置页草稿与字段集、校验、保存、恢复默认、放弃与卸载 |
 | `tests/release-archive.test.mjs` | CHANGELOG 归档计划 |
-| `tests/client.test.ts` | 前端服务声明、字典与槽位注册、弹窗与配置页渲染、CLI 缺失安装命令 |
+| `tests/client.test.ts` | 前端服务声明、字典与槽位注册、共享状态控制器、连接面板、工作区选择与弹窗 reducer |
 | `tests/client-bundle.test.ts` | `dist/client.js` 的注册契约与导出（产物测试） |
 | `tests/package-pack.test.ts` | npm 包不含 lark-cli，含发布所需文件与前端闭包工厂（产物测试） |
 | `tests/metadata.test.ts` | 插件元数据的结构、键集、禁用字符与清单声明 |
@@ -208,10 +210,12 @@ src/
 ├── config.ts               # Config schema、默认值、严格校验与热重载读取
 ├── constants.ts            # 共享常量
 ├── cli.ts                  # 本机命令与子进程
-├── auth.ts                 # 鉴权状态机与设备码授权
+├── auth.ts                 # CLI、bot、user 独立连接状态
 ├── bridge.ts               # 事件消费、过滤、去重与注入
-├── sessions.ts             # 工作区会话创建、恢复、标题与置顶
-├── state.ts                # 会话标识与去重窗口持久化
+├── workspace.ts            # 注册工作区解析与删除失效
+├── workspace-path.ts       # Linux 风格路径与 Host 原生路径转换
+├── sessions.ts             # 工作区会话创建、恢复、固定标题与置顶
+├── state.ts                # 会话标识、归一化路径与去重窗口持久化
 ├── tools.ts                # lark_notify 工具
 ├── routes.ts               # 同源 JSON 路由
 ├── errors.ts               # 可诊断错误
@@ -220,11 +224,12 @@ src/
 └── client/
     ├── index.ts            # 浏览器入口：字典、弹窗与配置页
     ├── api.ts              # 路由调用与状态类型
-    ├── auth-overlay.tsx    # shell.overlay 鉴权弹窗
-    ├── auth-panel.tsx      # 配置页鉴权面板
-    ├── cli-install-command.tsx # CLI 缺失时的只读安装命令
-    ├── config-form.ts      # 配置页草稿模型与行键常量
-    ├── config-page.tsx     # 配置页的 summary 与 page 视图
+    ├── auth-overlay.tsx    # shell.overlay 共用设置弹窗与状态 reducer
+    ├── auth-panel.tsx      # 三个连接状态与检测按钮
+    ├── terminal-command.tsx # 只读终端命令
+    ├── status-controller.ts # 共享检测、订阅与轮询
+    ├── config-form.ts      # 单工作区草稿模型与行键常量
+    ├── config-page.tsx     # 注册工作区 select 与配置页视图
     └── locales.ts          # 中英文字典与命名空间
 dist/
 ├── index.mjs               # 宿主产物

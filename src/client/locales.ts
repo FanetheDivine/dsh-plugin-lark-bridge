@@ -5,8 +5,8 @@ export const NS = 'dsh-plugin-lark-bridge';
 
 /** 中文字典。 */
 export const zh = {
-  'auth.title': '飞书连接尚未就绪',
-  'auth.description': '在终端完成对应命令，然后点击检测。界面只显示连接状态。',
+  'auth.title': '飞书桥接设置',
+  'auth.description': '完成连接检查并选择工作区。命令需要在终端执行。',
   'auth.ready': '飞书连接已就绪',
   'auth.close': '本次不再提示',
   'auth.openSettings': '打开设置',
@@ -40,9 +40,8 @@ export const zh = {
 
 /** 英文字典，键集与中文一致。 */
 export const en: Record<BridgeKey, string> = {
-  'auth.title': 'Lark connections are not ready',
-  'auth.description':
-    'Run the corresponding command in a terminal, then check again. Only connection states are shown.',
+  'auth.title': 'Lark bridge setup',
+  'auth.description': 'Check the connections and select a workspace. Run commands in a terminal.',
   'auth.ready': 'Lark connections are ready',
   'auth.close': 'Not now',
   'auth.openSettings': 'Open settings',

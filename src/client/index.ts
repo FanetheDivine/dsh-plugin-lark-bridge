@@ -19,7 +19,11 @@ export function apply(ctx: Context): void {
 
   ctx.inject(['slots', 'locale', 'configForms'], (ctx) => {
     const form = new PluginConfigForm(ctx.configForms.get(ROW_ID));
-    const controller = new StatusController({ autoStart: typeof window !== 'undefined' });
+    const canPoll =
+      typeof window !== 'undefined' &&
+      typeof window.setInterval === 'function' &&
+      typeof window.clearInterval === 'function';
+    const controller = new StatusController({ autoStart: canPoll });
     ctx.effect(
       () => () => {
         controller.dispose();

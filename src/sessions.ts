@@ -165,6 +165,7 @@ export class SessionManager {
   /** 恢复一个可用会话；失败返回 undefined。 */
   private async resume(sessionId: string): Promise<Agent | undefined> {
     const id = SessionId(sessionId);
+    if (this.registry().archivedSessionIds.includes(id)) return undefined;
     const live = this.ctx.agents.get(id);
     if (live !== undefined) return live;
     try {

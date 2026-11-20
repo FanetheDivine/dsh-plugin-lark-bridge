@@ -65,7 +65,9 @@ async function setup(
       return { agent, dispose: async () => undefined };
     },
   };
+  const archived: string[] = [];
   const registry = {
+    archivedSessionIds: archived,
     resolveByPath,
     create: registryCreate,
     pinSession: async (id: string) => pinned.push(id),
@@ -96,6 +98,7 @@ async function setup(
     agent,
     cwd,
     workspace,
+    archived,
     resolveByPath,
     registryCreate,
     createAgent,
@@ -193,6 +196,16 @@ describe('SessionManager', () => {
     expect(result.created).toBe(true);
     expect(created[0]?.sessionId).not.toBe('gone');
     expect((await store.load()).sessionId).toBe(result.sessionId);
+  });
+
+  it('已归档会话即使 Agent 存活也创建新会话', async () => {
+    const { sessions, created, archived } = await setup({ live: true });
+    const first = await sessions.inject('一');
+    archived.push(first.sessionId);
+    const second = await sessions.inject('二');
+    expect(second.created).toBe(true);
+    expect(second.sessionId).not.toBe(first.sessionId);
+    expect(created).toHaveLength(2);
   });
 
   it('工作区变更后新建会话', async () => {

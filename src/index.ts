@@ -24,7 +24,7 @@ export { Config } from './config.ts';
 export const name = PLUGIN_LABEL;
 
 /** 需要宿主注入的服务。 */
-export const inject = ['tools', 'agents', 'webServer'];
+export const inject = ['tools', 'agents', 'webServer', 'workspaceRegistry'];
 
 /**
  * 插件启用时调用：读取配置、装配服务、注册工具与路由、启动鉴权检查。

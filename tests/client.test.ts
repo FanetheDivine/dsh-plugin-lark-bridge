@@ -434,6 +434,12 @@ describe('工作区选择与共用弹窗', () => {
     expect(html).not.toContain('重置桥接会话');
   });
 
+  it('禁用保存按钮有明确禁用样式', () => {
+    const html = renderAuthOverlayContent(formState());
+    expect(html).toMatch(/<button\b[^>]*disabled[^>]*>保存选择<\/button>/);
+    expect(html).toContain('cursor:not-allowed');
+  });
+
   it('弹窗正文复用连接面板、选择器和显式保存按钮', () => {
     const html = renderAuthOverlayContent(formState({ dirty: true }));
     expect(html).toContain('data-dsh-lark-auth-panel');

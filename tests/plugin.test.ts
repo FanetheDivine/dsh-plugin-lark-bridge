@@ -48,7 +48,7 @@ function makeWebServer() {
 describe('模块契约', () => {
   it('导出 name / inject / apply / Config', () => {
     expect(name).toBe(PLUGIN_LABEL);
-    expect(inject).toEqual(['tools', 'agents', 'webServer']);
+    expect(inject).toEqual(['tools', 'agents', 'webServer', 'workspaceRegistry']);
     expect(typeof apply).toBe('function');
     expect(typeof Config).toBe('function');
   });
