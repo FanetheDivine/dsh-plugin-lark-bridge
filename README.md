@@ -2,16 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/dsh-plugin-lark-bridge?logo=npm&label=npm)](https://www.npmjs.com/package/dsh-plugin-lark-bridge)
 
-DSH 插件：通过 lark-cli 的 bot 身份接收飞书私聊消息，注入所选工作区的 DSH 会话；AI 可以调用工具以 bot 身份回复用户。
-
-## 功能
-
-- 飞书私聊消息以 `<lark-message message_id="…" time="…">` 块注入桥接会话，块内只有正文。
-- 桥接会话注入一条 `<system-reminder>`：说明飞书消息用 `lark_notify` 回复、连续多条合并回复；提醒被压缩覆盖后会在下一次请求前补回。
-- 桥接会话标题固定为「来自用户的飞书消息」；首次消息创建并置顶会话，之后复用。
-- CLI、bot、user 分别显示连接状态、终端命令和检测按钮。
-- 工作区只能从当前 DSH 注册列表中选择；未选择或注册失效时显示共用设置弹窗。
-- `lark_notify` 工具让 AI 以 bot 身份给已绑定用户发送消息。
+借助lark-cli，让DSH以bot身份和你交互
 
 ## 前置
 
@@ -41,56 +32,3 @@ DSH 插件：通过 lark-cli 的 bot 身份接收飞书私聊消息，注入所�
    - `im:message:send_as_bot`
 
 插件不执行安装、初始化或登录。用户登录只请求 `auth:user.id:read`，会替换同一 lark-cli 配置原有的用户授权范围。
-
-## 安装
-
-```sh
-dsh plugin add dsh-plugin-lark-bridge
-```
-
-npm 包：[dsh-plugin-lark-bridge](https://www.npmjs.com/package/dsh-plugin-lark-bridge)。
-
-插件包不包含 lark-cli。
-
-## 配置
-
-打开“设置 → 插件 → dsh-plugin-lark-bridge”：
-
-1. 查看 CLI、bot、user 的连接状态。状态未连接时，复制对应命令到终端执行，再点击该区域的检测按钮。
-2. 从“工作区”选择框中选择当前已注册的工作区并保存。
-
-插件每次加载和打开 GUI 时都会完整检测。定时刷新只读取已有状态。
-
-| 键 | 默认值 | 说明 |
-| --- | --- | --- |
-| `workspaceRoot` | 空 | 已注册工作区的 Linux 风格路径，例如 `/c/work/demo` |
-
-工作区未选择或已从注册列表删除时，插件停止监听飞书事件并显示选择弹窗。弹窗可以暂时关闭；下次打开 GUI 或出现新的失效时会再次提示。监听停止期间不补投历史消息。
-
-## 工具
-
-| 工具 | 参数 | 行为 |
-| --- | --- | --- |
-| `lark_notify` | `text` | 以 bot 身份向已绑定用户发送私聊消息；过长文本按顺序拆分 |
-
-工具只接受已绑定用户，不能指定其他接收目标。
-
-## 数据
-
-- 桥接会话标识、归一化工作区路径与去重窗口保存在 `$DSH_HOME/lark-bridge/state.json`。
-- 归档当前桥接会话后，下一条消息自动创建新会话。
-- 插件不读取或保存机器人凭据。
-
-## 限制
-
-- 只处理已绑定用户与机器人的单聊；群聊消息被忽略。
-- 一个插件实例服务一个用户与一个工作区。
-- 飞书开放平台的事件订阅与权限需要手动配置。
-- lark-cli 需要手动安装与升级，插件不检查最低版本。
-- 插件只通过 `lark-cli` 命令名调用本机程序。
-- 完整检测使用 `--verify`，需要网络；界面只显示笼统连接状态，诊断信息查看后端日志。
-- 工作区路径在插件内部统一为 Linux 风格，调用宿主 API 时转换为原生路径。
-
-## 开发
-
-见 [docs/development.md](./docs/development.md)。

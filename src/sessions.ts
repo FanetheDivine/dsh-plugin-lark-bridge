@@ -1,5 +1,5 @@
 /**
- * 桥接会话：工作区校验、创建或恢复、标题、挂载、置顶与状态持久化。
+ * 桥接会话：工作区校验、创建或恢复、新建标题、挂载、置顶与状态持久化。
  * 导出 SessionManager。
  */
 import { randomUUID } from 'node:crypto';
@@ -194,17 +194,8 @@ export class SessionManager {
     return { sessionId, agent: handle.agent };
   }
 
-  /** 确保标题与置顶状态符合配置。 */
-  private async syncMeta(
-    sessionId: string,
-    agent: Agent,
-    title: string,
-    createdTitle: string,
-  ): Promise<void> {
-    if (createdTitle !== title) {
-      appendTitle(agent.session, title);
-      await this.deps.store.patch({ title });
-    }
+  /** 置顶会话；失败只记日志。 */
+  private async pin(sessionId: string): Promise<void> {
     try {
       await this.registry().pinSession(SessionId(sessionId));
     } catch (error) {
@@ -239,7 +230,7 @@ export class SessionManager {
     ) {
       const agent = await this.resume(state.sessionId);
       if (agent !== undefined) {
-        await this.syncMeta(state.sessionId, agent, SESSION_TITLE, state.title ?? SESSION_TITLE);
+        await this.pin(state.sessionId);
         return { sessionId: state.sessionId, agent, created: false, cwd };
       }
     }

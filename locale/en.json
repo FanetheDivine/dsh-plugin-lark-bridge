@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Lark bot bridge",
-    "description": "Receives Lark direct messages as the local lark-cli bot, injects them into a DSH session as system reminders, and provides a notification tool and in-plugin authentication."
+    "description": "Receives Lark direct messages through the local lark-cli bot, injects them into a session in the selected DSH workspace, and provides a notification tool and in-plugin authentication."
   }
 }
