@@ -37,6 +37,8 @@ export interface BridgeLogger {
 export interface BridgeDeps {
   readonly getCli: () => LarkCli;
   readonly getAuth: () => AuthSnapshot;
+  /** 当前工作区是否仍是有效注册项。 */
+  readonly getWorkspaceReady: () => boolean;
   readonly store: StateStore;
   readonly sessions: SessionManager;
   readonly logger: BridgeLogger;
@@ -85,9 +87,9 @@ export class EventBridge {
     return this.child !== undefined;
   }
 
-  /** 鉴权就绪时启动；否则保持停止。 */
+  /** 鉴权与工作区均有效时启动；否则保持停止。 */
   start(): void {
-    if (this.deps.getAuth().ready !== true) return;
+    if (this.deps.getAuth().ready !== true || !this.deps.getWorkspaceReady()) return;
     this.stopped = false;
     this.spawn();
   }
@@ -102,9 +104,9 @@ export class EventBridge {
     if (child !== undefined) killChildTree(child);
   }
 
-  /** 鉴权状态变化时同步监听。 */
+  /** 鉴权或工作区状态变化时同步监听。 */
   sync(snapshot: AuthSnapshot): void {
-    if (snapshot.ready) {
+    if (snapshot.ready && this.deps.getWorkspaceReady()) {
       if (!this.running) this.start();
       return;
     }
@@ -191,7 +193,7 @@ export class EventBridge {
   /** 处理一条事件：过滤、去重、格式化并注入。 */
   async handleEvent(event: FeishuEvent): Promise<boolean> {
     const auth = this.deps.getAuth();
-    if (auth.ready !== true) return false;
+    if (auth.ready !== true || !this.deps.getWorkspaceReady()) return false;
     const owner = auth.ownerOpenId;
     if (owner === undefined || owner === '') return false;
     if (!acceptEvent(event, owner)) return false;

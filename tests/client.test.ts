@@ -4,21 +4,40 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
-import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
+import type { GlobalStandardProps, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import type { ApiResult, BridgeStatus } from '../src/client/api.ts';
-import { AuthOverlay } from '../src/client/auth-overlay.tsx';
+import {
+  AuthOverlay,
+  AuthOverlayContent,
+  type AuthOverlayProps,
+  getAuthOverlaySignature,
+  INITIAL_AUTH_OVERLAY_STATE,
+  reduceAuthOverlayState,
+} from '../src/client/auth-overlay.tsx';
 import { AuthPanelStatus } from '../src/client/auth-panel.tsx';
-import { ROW_ID, ROW_KEY } from '../src/client/config-form.ts';
-import { ConfigPage } from '../src/client/config-page.tsx';
+import {
+  type ConfigFormState,
+  type ConfigPageInjected,
+  PluginConfigForm,
+  ROW_ID,
+  ROW_KEY,
+} from '../src/client/config-form.ts';
+import { ConfigPage, type ConfigPageProps, WorkspaceSelect } from '../src/client/config-page.tsx';
 import * as clientEntry from '../src/client/index.ts';
 import { en, NS, zh } from '../src/client/locales.ts';
 import { StatusController } from '../src/client/status-controller.ts';
 import type { ConnectionState } from '../src/types.ts';
-import { type ClientServiceName, makeClientCtx } from './helpers.ts';
+import {
+  type ClientServiceName,
+  makeClientCtx,
+  makeConfigFormScope,
+  makeUseWorkspaces,
+  type WorkspaceViewInput,
+} from './helpers.ts';
 
 const { apply } = clientEntry;
 const ALL_SERVICES: ClientServiceName[] = ['slots', 'locale', 'configForms'];
@@ -58,6 +77,97 @@ function renderAuthPanel(status: BridgeStatus | undefined, busy = false): string
       onCheck: vi.fn(),
     }),
   );
+}
+
+/** 构造可直接渲染的工作区选择器。 */
+function renderWorkspaceSelect(
+  items: readonly WorkspaceViewInput[],
+  value = '',
+  disabled = false,
+): string {
+  return renderToStaticMarkup(
+    createElement(WorkspaceSelect, {
+      t: translate(zh),
+      useWorkspaces: makeUseWorkspaces(items),
+      value,
+      disabled,
+      onChange: vi.fn(),
+    }),
+  );
+}
+
+/** 读取 SSR 原生选择器的选项值与文字。 */
+function selectOptions(html: string): Array<{ value: string; label: string }> {
+  return [...html.matchAll(/<option\b([^>]*)>(.*?)<\/option>/g)].map((match) => ({
+    value: /value="([^"]*)"/.exec(match[1] ?? '')?.[1] ?? '',
+    label: match[2] ?? '',
+  }));
+}
+
+/** 构造配置表单的纯展示状态。 */
+function formState(overrides: Partial<ConfigFormState> = {}): ConfigFormState {
+  return {
+    available: true,
+    writable: true,
+    dirty: false,
+    invalid: false,
+    saving: false,
+    failed: false,
+    workspaceRoot: { text: '/d/Git/One', overridden: true, invalid: false },
+    ...overrides,
+  };
+}
+
+/** 渲染完整配置页。 */
+function renderConfigPage(): string {
+  const fake = makeConfigFormScope({
+    value: { workspaceRoot: '/d/Git/One' },
+    base: { workspaceRoot: '' },
+  });
+  const form = new PluginConfigForm(fake.scope);
+  const injected = form.inject();
+  const controller = new StatusController({ autoStart: false });
+  const useConfigForm = <S>(selector: (state: ConfigFormState) => S): S =>
+    selector(injected.hooks.configForm.getSnapshot());
+  const html = renderToStaticMarkup(
+    createElement(ConfigPage, {
+      t: translate(zh),
+      view: 'page',
+      useWorkspaces: makeUseWorkspaces([
+        { workspaceId: 'one', path: 'D:\\Git\\One', title: '项目一' },
+      ]),
+      useWorkspaceAccess: () => true,
+      useConfigForm,
+      edit: injected.edit,
+      save: injected.save,
+      discard: injected.discard,
+      resetField: injected.resetField,
+      controller,
+    } as ConfigPageProps),
+  );
+  controller.dispose();
+  form.dispose();
+  return html;
+}
+
+/** 渲染不依赖 Portal 与浏览器效果的弹窗内容。 */
+function renderAuthOverlayContent(form: ConfigFormState): string {
+  const controller = new StatusController({ autoStart: false });
+  const html = renderToStaticMarkup(
+    createElement(AuthOverlayContent, {
+      t: translate(zh),
+      controller,
+      useWorkspaces: makeUseWorkspaces([
+        { workspaceId: 'one', path: 'D:\\Git\\One', title: '项目一' },
+      ]),
+      form,
+      onEdit: vi.fn(),
+      onSave: vi.fn(),
+      onClose: vi.fn(),
+    }),
+  );
+  controller.dispose();
+  return html;
 }
 
 /** 构造成功的路由结果。 */
@@ -111,6 +221,21 @@ describe('前端入口', () => {
     expect(ctx._slotRegistrations[1]?.component).toBe(ConfigPage);
     expect(ctx._configFormRequests).toEqual([ROW_ID]);
     expect(ROW_KEY).toBe(`${ROW_ID}#${ROW_ID}`);
+
+    type SharedSlotInjected = ConfigPageInjected & {
+      readonly controller: StatusController;
+      readonly openSettings?: () => void;
+    };
+    const overlayInject = ctx._slotRegistrations[0]?.options.inject as
+      | (() => SharedSlotInjected)
+      | undefined;
+    const configInject = ctx._slotRegistrations[1]?.options.inject as
+      | (() => SharedSlotInjected)
+      | undefined;
+    const overlay = overlayInject?.();
+    const config = configInject?.();
+    expect(overlay?.hooks.configForm).toBe(config?.hooks.configForm);
+    expect(overlay?.controller).toBe(config?.controller);
   });
 
   it('卸载时释放配置表单的订阅', () => {
@@ -277,6 +402,127 @@ describe('连接状态展示', () => {
     expect(html).not.toContain('<a');
     expect(html).not.toContain('href=');
     expect(html.match(/--scope/g)).toHaveLength(1);
+  });
+});
+
+describe('工作区选择与共用弹窗', () => {
+  it('选项仅来自注册列表并归一化值与同名路径标签', () => {
+    const html = renderWorkspaceSelect([
+      { workspaceId: 'one', path: 'D:\\Git\\One', title: '项目' },
+      { workspaceId: 'two', path: 'd:/Git/Two/', title: '项目' },
+    ]);
+    const options = selectOptions(html);
+    expect(options.map((option) => option.value)).toEqual(['', '/d/Git/One', '/d/Git/Two']);
+    expect(options[1]?.label).toContain('项目 — /d/Git/One');
+    expect(options[2]?.label).toContain('项目 — /d/Git/Two');
+    expect(html).not.toContain('type="text"');
+  });
+
+  it('空注册列表显示空状态并禁用选择', () => {
+    const html = renderWorkspaceSelect([]);
+    expect(html).toContain('暂无已注册工作区');
+    expect(html).toMatch(/<select\b[^>]*disabled/);
+    expect(selectOptions(html)).toHaveLength(1);
+  });
+
+  it('配置页只保留连接面板与工作区选择', () => {
+    const html = renderConfigPage();
+    expect(html).toContain('data-dsh-lark-auth-panel');
+    expect(html).toContain('data-dsh-lark-config-workspace');
+    expect(html).not.toContain('会话标题');
+    expect(html).not.toContain('启动时检测鉴权');
+    expect(html).not.toContain('重置桥接会话');
+  });
+
+  it('弹窗正文复用连接面板、选择器和显式保存按钮', () => {
+    const html = renderAuthOverlayContent(formState({ dirty: true }));
+    expect(html).toContain('data-dsh-lark-auth-panel');
+    expect(html).toContain('data-dsh-lark-config-workspace');
+    expect(html).toContain('保存选择');
+    expect(html).not.toContain('<a');
+  });
+});
+
+describe('AuthOverlay 状态', () => {
+  it('路径归一化后生成有效签名，失效状态使用非空签名', () => {
+    const paths = ['/d/Git/One'];
+    expect(getAuthOverlaySignature(statusFor(), 'D:\\Git\\One', paths)).toBe('');
+    expect(getAuthOverlaySignature(statusFor(), '', paths)).not.toBe('');
+    expect(
+      getAuthOverlaySignature(statusFor({ user: 'disconnected' }), '/d/Git/One', paths),
+    ).not.toBe('');
+  });
+
+  it('关闭后同签名不重复打开，新的失效与再次失效会重开', () => {
+    const invalid = getAuthOverlaySignature(statusFor(), '', ['/d/Git/One']);
+    const opened = reduceAuthOverlayState(INITIAL_AUTH_OVERLAY_STATE, {
+      type: 'sync',
+      signature: invalid,
+    });
+    const dismissed = reduceAuthOverlayState(opened, { type: 'dismiss' });
+    expect(reduceAuthOverlayState(dismissed, { type: 'sync', signature: invalid }).open).toBe(
+      false,
+    );
+    expect(reduceAuthOverlayState(dismissed, { type: 'sync', signature: 'new-invalid' }).open).toBe(
+      true,
+    );
+    const valid = reduceAuthOverlayState(dismissed, { type: 'sync', signature: '' });
+    expect(reduceAuthOverlayState(valid, { type: 'sync', signature: invalid }).open).toBe(true);
+  });
+
+  it('关闭并放弃草稿时吞掉恢复旧签名的一次同步', () => {
+    const opened = reduceAuthOverlayState(INITIAL_AUTH_OVERLAY_STATE, {
+      type: 'sync',
+      signature: 'draft-valid',
+    });
+    const dismissed = reduceAuthOverlayState(opened, { type: 'discard' });
+    const settled = reduceAuthOverlayState(dismissed, {
+      type: 'sync',
+      signature: 'saved-invalid',
+    });
+    expect(settled.open).toBe(false);
+    expect(settled.signature).toBe('saved-invalid');
+    expect(reduceAuthOverlayState(settled, { type: 'sync', signature: 'next-invalid' }).open).toBe(
+      true,
+    );
+  });
+
+  it('有效草稿未保存及未发起保存的 settle 均不关闭', () => {
+    const closed = reduceAuthOverlayState(INITIAL_AUTH_OVERLAY_STATE, {
+      type: 'sync',
+      signature: '',
+    });
+    const editing = reduceAuthOverlayState(closed, { type: 'editStart' });
+    expect(editing.open).toBe(true);
+    expect(reduceAuthOverlayState(editing, { type: 'sync', signature: '' }).open).toBe(true);
+    expect(
+      reduceAuthOverlayState(editing, {
+        type: 'saveSettled',
+        saving: false,
+        dirty: false,
+        failed: false,
+      }),
+    ).toBe(editing);
+  });
+
+  it('保存中、仍脏或失败保持打开，只有保存成功关闭', () => {
+    const editing = reduceAuthOverlayState(INITIAL_AUTH_OVERLAY_STATE, { type: 'editStart' });
+    const saving = reduceAuthOverlayState(editing, { type: 'saveStart' });
+    for (const result of [
+      { saving: true, dirty: true, failed: false },
+      { saving: false, dirty: true, failed: false },
+      { saving: false, dirty: false, failed: true },
+    ]) {
+      expect(reduceAuthOverlayState(saving, { type: 'saveSettled', ...result }).open).toBe(true);
+    }
+    expect(
+      reduceAuthOverlayState(saving, {
+        type: 'saveSettled',
+        saving: false,
+        dirty: false,
+        failed: false,
+      }).open,
+    ).toBe(false);
   });
 });
 

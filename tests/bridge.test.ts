@@ -12,15 +12,32 @@ import { StateStore } from '../src/state.ts';
 /** 就绪的鉴权快照。 */
 function ready(): AuthSnapshot {
   return {
-    stage: 'ready',
+    cli: 'connected',
+    bot: 'connected',
+    user: 'connected',
     ready: true,
     appId: 'cli_x',
-    botStatus: 'ready',
     userName: '袁',
     ownerOpenId: 'ou_1',
     checkedAt: 1,
     detail: undefined,
   };
+}
+
+/** 可控事件消费者。 */
+function consumer() {
+  const spawn = vi.fn(() => {
+    const child = new EventEmitter() as EventEmitter & {
+      stdout: PassThrough;
+      stderr: PassThrough;
+      kill: () => void;
+    };
+    child.kill = vi.fn();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    return child;
+  });
+  return { spawn };
 }
 
 /** 私聊事件。 */
@@ -38,7 +55,7 @@ function event(overrides: Partial<FeishuEvent> = {}): FeishuEvent {
 }
 
 /** 构造桥。 */
-async function bridge(auth: AuthSnapshot = ready()) {
+async function bridge(auth: AuthSnapshot = ready(), workspaceReady = true) {
   const dir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-events-'));
   const store = new StateStore(path.join(dir, 'state.json'));
   const inject = vi.fn(async () => ({ sessionId: 's1', created: true }));
@@ -46,6 +63,7 @@ async function bridge(auth: AuthSnapshot = ready()) {
   const instance = new EventBridge({
     getCli: () => ({ spawn: vi.fn() }) as never,
     getAuth: () => auth,
+    getWorkspaceReady: () => workspaceReady,
     store,
     sessions: { inject } as never,
     logger,
@@ -55,21 +73,12 @@ async function bridge(auth: AuthSnapshot = ready()) {
 
 describe('EventBridge.start', () => {
   it('以 bot 身份消费事件且不指定档案', async () => {
-    const spawn = vi.fn(() => {
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: PassThrough;
-        stderr: PassThrough;
-        kill: () => void;
-      };
-      child.kill = vi.fn();
-      child.stdout = new PassThrough();
-      child.stderr = new PassThrough();
-      return child;
-    });
+    const { spawn } = consumer();
     const dir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-events-'));
     const instance = new EventBridge({
       getCli: () => ({ spawn }) as never,
       getAuth: () => ready(),
+      getWorkspaceReady: () => true,
       store: new StateStore(path.join(dir, 'state.json')),
       sessions: { inject: vi.fn() } as never,
       logger: { info: vi.fn(), warn: vi.fn() },
@@ -88,6 +97,46 @@ describe('EventBridge.start', () => {
       '--timeout',
       '0',
     ]);
+  });
+
+  it('工作区无效时 start 不启动消费者', async () => {
+    const { spawn } = consumer();
+    const dir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-events-'));
+    const instance = new EventBridge({
+      getCli: () => ({ spawn }) as never,
+      getAuth: () => ready(),
+      getWorkspaceReady: () => false,
+      store: new StateStore(path.join(dir, 'state.json')),
+      sessions: { inject: vi.fn() } as never,
+      logger: { info: vi.fn(), warn: vi.fn() },
+    });
+
+    instance.start();
+
+    expect(spawn).not.toHaveBeenCalled();
+    expect(instance.running).toBe(false);
+  });
+
+  it('工作区无效时 sync 停止消费者', async () => {
+    let workspaceReady = true;
+    const { spawn } = consumer();
+    const dir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-events-'));
+    const instance = new EventBridge({
+      getCli: () => ({ spawn }) as never,
+      getAuth: () => ready(),
+      getWorkspaceReady: () => workspaceReady,
+      store: new StateStore(path.join(dir, 'state.json')),
+      sessions: { inject: vi.fn() } as never,
+      logger: { info: vi.fn(), warn: vi.fn() },
+    });
+    instance.sync(ready());
+    expect(instance.running).toBe(true);
+
+    workspaceReady = false;
+    instance.sync(ready());
+
+    expect(instance.running).toBe(false);
+    expect(spawn).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -138,7 +187,13 @@ describe('EventBridge.handleEvent', () => {
   });
 
   it('鉴权未就绪时不处理', async () => {
-    const { instance, inject } = await bridge({ ...ready(), ready: false, stage: 'user-missing' });
+    const { instance, inject } = await bridge({ ...ready(), ready: false, user: 'disconnected' });
+    expect(await instance.handleEvent(event())).toBe(false);
+    expect(inject).not.toHaveBeenCalled();
+  });
+
+  it('工作区无效时不处理', async () => {
+    const { instance, inject } = await bridge(ready(), false);
     expect(await instance.handleEvent(event())).toBe(false);
     expect(inject).not.toHaveBeenCalled();
   });

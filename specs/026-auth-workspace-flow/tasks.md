@@ -64,17 +64,17 @@ description: "Task list for 独立鉴权与工作区选择流程"
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] 在 `tests/workspace.test.ts` 和 `tests/bridge.test.ts` 覆盖 reconcile 条件、目标删除同步停止、无关删除、volatile 立即同步和 generation 乱序
-- [ ] T014 [P] [US2] 在 `tests/sessions.test.ts` 覆盖未注册目录拒绝、注入前再次校验、`registry.create` 与 `agents.create` 零调用
-- [ ] T015 [P] [US2] 在 `tests/config-form.test.ts` 和 `tests/client.test.ts` 覆盖单字段保存、归一化注册选项、同名路径标签、空列表、共用弹窗与失效签名重开
+- [X] T013 [P] [US2] 在 `tests/workspace.test.ts` 和 `tests/bridge.test.ts` 覆盖 reconcile 条件、目标删除同步停止、无关删除、volatile 立即同步和 generation 乱序
+- [X] T014 [P] [US2] 在 `tests/sessions.test.ts` 覆盖未注册目录拒绝、注入前再次校验、`registry.create` 与 `agents.create` 零调用
+- [X] T015 [P] [US2] 在 `tests/config-form.test.ts` 和 `tests/client.test.ts` 覆盖单字段保存、归一化注册选项、同名路径标签、空列表、共用弹窗与失效签名重开
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] 在 `src/workspace.ts` 实现 Host 原生路径转换后的注册解析、归一化当前 workspace id 缓存、`domain/changed` 删除识别和 generation 防护
-- [ ] T017 [US2] 在 `src/index.ts` 与 `src/bridge.ts` 用鉴权和有效工作区共同控制监听，配置变化与目标删除先同步停止
-- [ ] T018 [US2] 在 `src/sessions.ts` 于目录和会话边界转换 Host 原生路径，只使用 `resolveByPath` 返回的注册工作区，删除自动创建注册项并在 followup 前复核
-- [ ] T019 [US2] 在 `src/client/config-form.ts` 将表单收敛为 `workspaceRoot` 单字段，读写均归一化为 `/d/Git` 形式并保留宿主只读与 override 语义
-- [ ] T020 [US2] 在 `src/client/config-page.tsx`、`src/client/auth-overlay.tsx`、`src/client/index.ts` 和 `src/client/locales.ts` 实现共享表单、归一化原生 select 值与标签、显式保存、空状态与可关闭共用弹窗
+- [X] T016 [US2] 在 `src/workspace.ts` 实现 Host 原生路径转换后的注册解析、归一化当前 workspace id 缓存、`domain/changed` 删除识别和 generation 防护
+- [X] T017 [US2] 在 `src/index.ts` 与 `src/bridge.ts` 用鉴权和有效工作区共同控制监听，配置变化与目标删除先同步停止
+- [X] T018 [US2] 在 `src/sessions.ts` 于目录和会话边界转换 Host 原生路径，只使用 `resolveByPath` 返回的注册工作区，删除自动创建注册项并在 followup 前复核
+- [X] T019 [US2] 在 `src/client/config-form.ts` 将表单收敛为 `workspaceRoot` 单字段，读写均归一化为 `/d/Git` 形式并保留宿主只读与 override 语义
+- [X] T020 [US2] 在 `src/client/config-page.tsx`、`src/client/auth-overlay.tsx`、`src/client/index.ts` 和 `src/client/locales.ts` 实现共享表单、归一化原生 select 值与标签、显式保存、空状态与可关闭共用弹窗
 
 **Checkpoint**: US2 可独立验证；无效选择不消费事件、不投递消息、不创建工作区注册。
 
