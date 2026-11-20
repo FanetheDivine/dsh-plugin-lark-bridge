@@ -83,12 +83,12 @@
 
 ### Implementation for User Story 3
 
-- [ ] T011 [US3] 重写 `README.md`：保留第 1 行标题、第 3 行 npm 徽章、第 5 行「借助lark-cli，让DSH以bot身份和你交互」、`## 前置` 及其正文、命令、列表与结尾说明逐字不变；删除功能、安装、配置、工具、数据、限制、开发章节
-- [ ] T012 [P] [US3] 更新 `docs/how-it-works.md` 会话小节：新建会话使用「飞书桥接会话」，复用会话保留已有标题
-- [ ] T013 [P] [US3] 更新 `AGENTS.md` 文档索引：README 条目改为「插件简介与前置」
-- [ ] T014 [P] [US3] 更新 `locale/zh.json` 与 `locale/en.json` 的 `meta.description`：去掉「以 system-reminder 注入」的旧描述，写当前注入方式
-- [ ] T015 [P] [US3] 更新 `docs/i18n.md` 包清单示例：加入 `"./icon": "./icon.svg"` 与 `icon.svg`
-- [ ] T016 [US3] 用 `git diff README.md` 核对「前置」章节逐字未变；运行 `pnpm test:code -- tests/metadata.test.ts` 后提交本阶段
+- [X] T011 [US3] 重写 `README.md`：保留第 1 行标题、第 3 行 npm 徽章、第 5 行「借助lark-cli，让DSH以bot身份和你交互」、`## 前置` 及其正文、命令、列表与结尾说明逐字不变；删除功能、安装、配置、工具、数据、限制、开发章节
+- [X] T012 [P] [US3] 更新 `docs/how-it-works.md` 会话小节：新建会话使用「飞书桥接会话」，复用会话保留已有标题
+- [X] T013 [P] [US3] 更新 `AGENTS.md` 文档索引：README 条目改为「插件简介与前置」
+- [X] T014 [P] [US3] 更新 `locale/zh.json` 与 `locale/en.json` 的 `meta.description`：去掉「以 system-reminder 注入」的旧描述，写当前注入方式
+- [X] T015 [P] [US3] 更新 `docs/i18n.md` 包清单示例：加入 `"./icon": "./icon.svg"` 与 `icon.svg`
+- [X] T016 [US3] 用 `git diff README.md` 核对「前置」章节逐字未变；运行 `pnpm test:code -- tests/metadata.test.ts` 后提交本阶段
 
 **Checkpoint**: README 与文档可按 US3 独立验收。
 

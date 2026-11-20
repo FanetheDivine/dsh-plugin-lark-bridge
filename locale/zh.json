@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "飞书机器人桥",
-    "description": "通过本机 lark-cli 的 bot 身份接收飞书私聊消息，以 system-reminder 注入 DSH 会话，并提供通知用户的工具与配置页鉴权。"
+    "description": "通过本机 lark-cli 的 bot 身份接收飞书私聊消息，注入所选工作区的 DSH 会话，并提供通知用户的工具与配置页鉴权。"
   }
 }

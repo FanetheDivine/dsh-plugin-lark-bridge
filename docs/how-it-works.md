@@ -11,7 +11,7 @@
 | `src/workspace.ts` | 注册工作区解析、缓存与删除失效 |
 | `src/workspace-path.ts` | Linux 风格路径、平台比较与 Host 原生路径转换 |
 | `src/bridge.ts` | 事件消费、过滤、去重与注入 |
-| `src/sessions.ts` | 工作区会话的创建、恢复、固定标题与置顶 |
+| `src/sessions.ts` | 工作区会话的创建、恢复、新建标题与置顶 |
 | `src/routes.ts` | 安全状态与完整检测的同源 JSON 路由 |
 | `src/state.ts` | 会话标识、归一化路径与去重窗口的持久化 |
 
@@ -105,11 +105,11 @@ lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 
 ## 会话
 
-状态文件保存 `sessionId`、归一化 `workspaceRoot`、固定标题与去重窗口。
+状态文件保存 `sessionId`、归一化 `workspaceRoot`、创建时的标题与去重窗口。
 
 - 路径一致且会话可恢复时复用。
 - 恢复失败、会话已归档或路径变化时新建。
-- 新建与复用都使用固定标题「来自用户的飞书消息」。
+- 新建会话使用固定标题「飞书桥接会话」；复用会话保留已有标题。
 - 新建会话挂到已注册工作区并置顶。
 - 注入使用 `createUserMessage`，`source.kind` 是 `lark-bridge`，再调用 `agent.followup`。
 - 桥接提醒是一条 `source.reminder` 为 true 的 `<system-reminder>` 用户消息。
