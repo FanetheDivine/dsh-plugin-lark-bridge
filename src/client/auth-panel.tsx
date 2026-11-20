@@ -13,6 +13,7 @@ import {
   fetchStatus,
   startLogin,
 } from './api.ts';
+import { CliInstallCommand } from './cli-install-command.tsx';
 import type { NS } from './locales.ts';
 
 /** 面板 props。 */
@@ -121,6 +122,7 @@ export function AuthPanel({ t }: AuthPanelProps) {
         </button>
       </header>
       <p style={hintStyle}>{t(`auth.stage.${stage}.hint`)}</p>
+      <CliInstallCommand t={t} stage={stage} />
       {status?.userName !== undefined && ready ? (
         <p style={metaStyle}>{t('auth.readyAccount', { name: status.userName })}</p>
       ) : null}

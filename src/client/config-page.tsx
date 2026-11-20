@@ -101,25 +101,6 @@ export function ConfigPage(props: ConfigPageProps) {
           />
         </div>
 
-        <h4 style={sectionTitleStyle}>{t('config.section.auth')}</h4>
-
-        <div style={fieldStyle}>
-          <SettingsValueField
-            id={`${id}-cli`}
-            label={t('config.larkCli.title')}
-            hint={t('config.larkCli.description')}
-            invalidLabel={t('config.larkCli.description')}
-            overriddenLabel={t('config.overridden')}
-            resetLabel={t('config.reset')}
-            text={state.larkCli.text}
-            overridden={state.larkCli.overridden}
-            invalid={state.larkCli.invalid}
-            disabled={disabled}
-            onEdit={(text) => props.edit('larkCli', text)}
-            onReset={() => props.resetField('larkCli')}
-          />
-        </div>
-
         <div style={rowStyle}>
           <div style={textStyle}>
             <span style={titleStyle}>{t('config.resetSession')}</span>

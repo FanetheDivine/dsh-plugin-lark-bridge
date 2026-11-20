@@ -9,7 +9,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AuthOverlay } from '../src/client/auth-overlay.tsx';
+import { AuthOverlay, AuthOverlayContent } from '../src/client/auth-overlay.tsx';
 import { type ConfigFormState, ROW_ID, ROW_KEY } from '../src/client/config-form.ts';
 import { ConfigPage } from '../src/client/config-page.tsx';
 import * as clientEntry from '../src/client/index.ts';
@@ -18,6 +18,8 @@ import { type ClientServiceName, makeClientCtx } from './helpers.ts';
 
 const { apply } = clientEntry;
 const ALL_SERVICES: ClientServiceName[] = ['slots', 'locale', 'configForms'];
+const INSTALL_COMMAND = 'npm install -g @larksuite/cli@latest && lark-cli config init';
+const INSTALL_COMMAND_HTML = INSTALL_COMMAND.replaceAll('&', '&amp;');
 
 /** 用字典构造翻译函数。 */
 function translate(dict: Record<string, string>): TranslateNS<typeof NS> {
@@ -38,7 +40,6 @@ function pageState(): ConfigFormState {
     failed: false,
     workspaceRoot: { text: 'D:/work', overridden: false, invalid: false },
     sessionTitle: { text: '飞书', overridden: false, invalid: false },
-    larkCli: { text: '', overridden: false, invalid: false },
     authCheckOnStartup: { text: 'true', overridden: false, invalid: false },
   };
 }
@@ -209,6 +210,31 @@ describe('字典与渲染', () => {
       expect(html).not.toContain('open_id');
       expect(html).not.toContain('档案');
       expect(html).not.toContain('profile');
+    }
+  });
+
+  it('弹窗仅在 cli-missing 显示本机安装命令', () => {
+    const cliMissing = renderToStaticMarkup(
+      createElement(AuthOverlayContent, { t: translate(zh), stage: 'cli-missing' }),
+    );
+    expect(cliMissing).toContain('<code');
+    expect(cliMissing).toContain(INSTALL_COMMAND_HTML);
+
+    const botUnavailable = renderToStaticMarkup(
+      createElement(AuthOverlayContent, { t: translate(zh), stage: 'bot-unavailable' }),
+    );
+    expect(botUnavailable).not.toContain(INSTALL_COMMAND_HTML);
+  });
+
+  it('配置页默认显示本机安装命令且无 larkCli 路径设置', () => {
+    for (const dict of [zh, en]) {
+      const html = renderConfigPage('page', dict);
+      expect(html).toContain(INSTALL_COMMAND_HTML);
+      expect(html).not.toContain('config.larkCli');
+      expect(html).not.toContain('lark-cli 路径');
+      expect(html).not.toContain('lark-cli path');
+      expect(html).not.toContain('留空自动使用插件依赖');
+      expect(html).not.toContain('Leave empty to use the bundled');
     }
   });
 

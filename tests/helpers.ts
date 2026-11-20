@@ -208,7 +208,6 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
         value: {
           workspaceRoot: '/tmp/work',
           sessionTitle: '飞书',
-          larkCli: '',
           authCheckOnStartup: true,
         },
       });

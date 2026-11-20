@@ -72,15 +72,15 @@ description: "完全使用本机 lark-cli 的实施任务"
 
 ### Tests for User Story 2
 
-- [ ] T011 [P] [US2] 更新 `tests/client.test.ts`，新增弹窗与配置页鉴权面板在 `cli-missing` 显示相同命令、其他阶段不显示、配置页无路径输入的失败测试。
-- [ ] T012 [P] [US2] 更新 `tests/config-form.test.ts`，移除 `larkCli` 草稿和保存用例，新增表单状态不包含该字段的断言。
+- [x] T011 [P] [US2] 更新 `tests/client.test.ts`，新增弹窗与配置页鉴权面板在 `cli-missing` 显示相同命令、其他阶段不显示、配置页无路径输入的失败测试。
+- [x] T012 [P] [US2] 更新 `tests/config-form.test.ts`，移除 `larkCli` 草稿和保存用例，新增表单状态不包含该字段的断言。
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] 更新 `src/client/locales.ts`，为中英文加入 `auth.installCommand` 和本机安装提示，命令固定为 `npm install -g @larksuite/cli@latest && lark-cli config init`。
-- [ ] T014 [P] [US2] 新建 `src/client/cli-install-command.tsx` 并更新 `src/client/auth-overlay.tsx`、`src/client/auth-panel.tsx`，仅在 `cli-missing` 渲染共享只读命令组件。
-- [ ] T015 [P] [US2] 更新 `src/client/config-form.ts`、`src/client/config-page.tsx`、`tests/helpers.ts`，删除 `larkCli` 表单字段、控件与测试夹具。
-- [ ] T016 [US2] 运行 `tests/client.test.ts`、`tests/config-form.test.ts`，再运行 `pnpm format && pnpm check` 验证 US2 与既有故事。
+- [x] T013 [US2] 更新 `src/client/locales.ts`，为中英文加入 `auth.installCommand` 和本机安装提示，命令固定为 `npm install -g @larksuite/cli@latest && lark-cli config init`。
+- [x] T014 [P] [US2] 新建 `src/client/cli-install-command.tsx` 并更新 `src/client/auth-overlay.tsx`、`src/client/auth-panel.tsx`，仅在 `cli-missing` 渲染共享只读命令组件。
+- [x] T015 [P] [US2] 更新 `src/client/config-form.ts`、`src/client/config-page.tsx`、`tests/helpers.ts`，删除 `larkCli` 表单字段、控件与测试夹具。
+- [x] T016 [US2] 运行 `tests/client.test.ts`、`tests/config-form.test.ts`，再运行 `pnpm format && pnpm check` 验证 US2 与既有故事。
 
 **Checkpoint**: 两个界面提示可独立验收；完成 Phase 4 后提交。
 

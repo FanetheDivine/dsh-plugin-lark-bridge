@@ -1,12 +1,13 @@
 /**
  * 全局鉴权弹窗：每次打开 GUI 读取状态，未就绪时显示可关闭的提示。
- * 导出 AuthOverlay。
+ * 导出 AuthOverlay 与 AuthOverlayContent。
  */
 import { Modal } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 
-import { type BridgeStatus, checkAuth, fetchStatus } from './api.ts';
+import { type AuthStage, type BridgeStatus, checkAuth, fetchStatus } from './api.ts';
+import { CliInstallCommand } from './cli-install-command.tsx';
 import type { NS } from './locales.ts';
 
 /** 弹窗 props。 */
@@ -14,6 +15,22 @@ export interface AuthOverlayProps {
   readonly t: TranslateNS<typeof NS>;
   /** 打开设置面板。 */
   readonly openSettings: () => void;
+}
+
+/** 弹窗正文属性。 */
+export interface AuthOverlayContentProps {
+  readonly t: TranslateNS<typeof NS>;
+  readonly stage: AuthStage;
+}
+
+/** 弹窗正文，命令只在 CLI 缺失时出现。 */
+export function AuthOverlayContent({ t, stage }: AuthOverlayContentProps) {
+  return (
+    <>
+      <p style={bodyStyle}>{t('auth.description')}</p>
+      <CliInstallCommand t={t} stage={stage} />
+    </>
+  );
 }
 
 /** 鉴权弹窗。 */
@@ -98,7 +115,7 @@ export function AuthOverlay({ t, openSettings }: AuthOverlayProps) {
         </div>
       }
     >
-      <p style={bodyStyle}>{t('auth.description')}</p>
+      <AuthOverlayContent t={t} stage={stage} />
     </Modal>
   );
 }
