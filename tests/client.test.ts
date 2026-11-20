@@ -352,17 +352,18 @@ describe('连接状态展示', () => {
     expect(html).toMatch(/已连接<\/span><button[^>]*>检测 lark-cli<\/button>/);
     expect(html).toMatch(/已连接<\/span><button[^>]*>检测机器人身份<\/button>/);
     expect(html).toMatch(/已连接<\/span><button[^>]*>检测用户身份<\/button>/);
-    expect(html).not.toContain('flex:1');
+    expect(html).not.toMatch(/<span style="[^"]*flex:1[^"]*"[^>]*>已连接<\/span>/);
   });
 
   it('三个区域各有一个检测按钮，忙碌时全部禁用', () => {
+    const detectButtons = /<button type="button" style=/g;
     const idle = renderAuthPanel(statusFor());
-    expect(idle.match(/<button\b/g)).toHaveLength(3);
+    expect(idle.match(detectButtons)).toHaveLength(3);
     expect(idle).not.toContain('disabled');
 
     const busy = renderAuthPanel(statusFor(), true);
-    expect(busy.match(/<button\b/g)).toHaveLength(3);
-    expect(busy.match(/<button\b[^>]*\bdisabled/g)).toHaveLength(3);
+    expect(busy.match(detectButtons)).toHaveLength(3);
+    expect(busy.match(/<button type="button" style="[^"]*" disabled/g)).toHaveLength(3);
   });
 
   it('分别展示安装、机器人配置与用户登录的固定终端命令', () => {
@@ -373,6 +374,15 @@ describe('连接状态展示', () => {
     expect(html).toContain(BOT_COMMAND);
     expect(html).toContain(USER_COMMAND);
     expect(html).not.toContain(`${CLI_COMMAND} &amp;&amp; ${BOT_COMMAND}`);
+  });
+
+  it('每条命令右侧有复制按钮，标签为复制命令', () => {
+    const html = renderAuthPanel(statusFor());
+    expect(html.match(/aria-label="复制命令"/g)).toHaveLength(3);
+    expect(html).toMatch(/<code[^>]*>[^<]*<\/code><button[^>]*aria-label="复制命令"/);
+    expect(html).toContain('data-dsh-lark-command-row="cli"');
+    expect(html).toContain('data-dsh-lark-command-row="bot"');
+    expect(html).toContain('data-dsh-lark-command-row="user"');
   });
 
   it('忽略 URL、原始错误与身份元数据', () => {
