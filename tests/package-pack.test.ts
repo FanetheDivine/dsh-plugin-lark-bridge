@@ -13,6 +13,11 @@ import { assertFreshDist } from './support/dist-freshness.ts';
 /** 仓库根目录（tests/ 的上一级）。 */
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+/** 发布清单中的运行时依赖。 */
+const manifest = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as {
+  dependencies?: Record<string, string>;
+};
+
 /** 打包结果的缓存：同一进程内只执行一次 npm pack。 */
 let cachedPaths: Set<string> | undefined;
 
@@ -36,6 +41,18 @@ function packedPaths(): Set<string> {
 }
 
 describe('npm 包内容（npm pack --dry-run）', () => {
+  it('清单与 tarball 均不携带 lark-cli', () => {
+    expect(manifest.dependencies?.['@larksuite/cli']).toBeUndefined();
+    const forbidden = [...packedPaths()].filter(
+      (file) =>
+        file.startsWith('node_modules/@larksuite/cli/') ||
+        /(^|\/)lark-cli(?:\.exe)?$/i.test(file) ||
+        /(^|\/)(?:\.lark-cli|lark-cli-cache)(?:\/|$)/i.test(file) ||
+        /lark-cli.*\.(?:zip|tgz|tar|gz)$/i.test(file),
+    );
+    expect(forbidden).toEqual([]);
+  }, 30_000);
+
   it('tarball 含 dist/cordis.patch.yml/locale/README.md，不含 src/tests/scripts', () => {
     const packed = packedPaths();
     expect(packed.has('dist/index.mjs')).toBe(true);

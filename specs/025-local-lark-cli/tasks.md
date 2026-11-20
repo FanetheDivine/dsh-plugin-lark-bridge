@@ -94,8 +94,8 @@ description: "完全使用本机 lark-cli 的实施任务"
 
 ### Tests for User Story 3
 
-- [ ] T017 [US3] 更新 `tests/package-pack.test.ts`，新增 `package.json` 不声明 `@larksuite/cli`、tarball 不含 CLI 程序包/二进制/缓存且保留 `dist`、`cordis.patch.yml`、`README.md` 的断言。
-- [ ] T018 [US3] 按 `specs/025-local-lark-cli/quickstart.md` 运行 `pnpm build` 与产物打包测试，检查 `package.json` 和实际 tarball 内容。
+- [x] T017 [US3] 更新 `tests/package-pack.test.ts`，新增 `package.json` 不声明 `@larksuite/cli`、tarball 不含 CLI 程序包/二进制/缓存且保留 `dist`、`cordis.patch.yml`、`README.md` 的断言。
+- [x] T018 [US3] 按 `specs/025-local-lark-cli/quickstart.md` 运行 `pnpm build` 与产物打包测试，检查 `package.json` 和实际 tarball 内容。
 
 **Checkpoint**: 发布内容可独立验收；完成 Phase 5 后提交。
 
