@@ -1,5 +1,5 @@
 /**
- * 插件面板配置页的草稿模型：工作区、标题、lark-cli 路径与鉴权开关。
+ * 插件面板配置页的草稿模型：工作区、标题与鉴权开关。
  * 导出行键、PluginConfigForm 与注入面类型。
  */
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store';
@@ -22,7 +22,6 @@ export const ROW_ID = 'dsh-plugin-lark-bridge';
 export interface ConfigFields {
   workspaceRoot: string;
   sessionTitle: string;
-  larkCli: string;
   authCheckOnStartup: boolean;
 }
 
@@ -30,7 +29,6 @@ export interface ConfigFields {
 export interface ConfigFormState extends SettingsFormShell {
   workspaceRoot: SettingsFieldState;
   sessionTitle: SettingsFieldState;
-  larkCli: SettingsFieldState;
   authCheckOnStartup: SettingsFieldState;
 }
 
@@ -62,12 +60,6 @@ const titleSpec: SettingsFieldSpec = {
   },
 };
 
-const cliSpec: SettingsFieldSpec = {
-  field: 'larkCli',
-  format: (value) => (typeof value === 'string' ? value : ''),
-  parse: (text) => ({ kind: 'set', value: text.trim() }),
-};
-
 const authCheckSpec: SettingsFieldSpec = {
   field: 'authCheckOnStartup',
   format: (value) => (value === false ? 'false' : 'true'),
@@ -82,12 +74,11 @@ export class PluginConfigForm {
 
   /** @param scope - 宿主为该行提供的配置表单。 */
   constructor(scope: SettingsFormScope<ConfigFields>) {
-    this.form = new SettingsFormModel(scope, [workspaceSpec, titleSpec, cliSpec, authCheckSpec]);
+    this.form = new SettingsFormModel(scope, [workspaceSpec, titleSpec, authCheckSpec]);
     this.state = this.form.bind(() => ({
       ...this.form.shell(),
       workspaceRoot: this.form.field('workspaceRoot'),
       sessionTitle: this.form.field('sessionTitle'),
-      larkCli: this.form.field('larkCli'),
       authCheckOnStartup: this.form.field('authCheckOnStartup'),
     }));
   }

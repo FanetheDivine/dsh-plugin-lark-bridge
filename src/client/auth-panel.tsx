@@ -1,6 +1,6 @@
 /**
  * 配置页鉴权面板：展示阶段、启动设备码授权与重新检测。
- * 导出 AuthPanel。
+ * 导出 AuthPanel 与 AuthPanelStatus。
  */
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
@@ -13,6 +13,7 @@ import {
   fetchStatus,
   startLogin,
 } from './api.ts';
+import { CliInstallCommand } from './cli-install-command.tsx';
 import type { NS } from './locales.ts';
 
 /** 面板 props。 */
@@ -25,11 +26,63 @@ function messageOf(result: ApiResult<unknown>, fallback: string): string {
   return result.ok ? '' : result.error.message === '' ? fallback : result.error.message;
 }
 
+/** 面板忙碌状态。 */
+type AuthBusy = 'login' | 'check' | 'cancel' | undefined;
+
+/** 鉴权状态展示属性。 */
+export interface AuthPanelStatusProps {
+  readonly t: TranslateNS<typeof NS>;
+  readonly status: BridgeStatus | undefined;
+  readonly error: string;
+  readonly busy: AuthBusy;
+  readonly onCheck: () => void;
+}
+
+/** 展示已获取的鉴权阶段；状态未知时只显示检测状态。 */
+export function AuthPanelStatus({ t, status, error, busy, onCheck }: AuthPanelStatusProps) {
+  const stage = status?.stage;
+  const ready = status?.ready === true;
+  const title =
+    stage === undefined
+      ? error === ''
+        ? t('auth.checking')
+        : t('auth.title')
+      : t(`auth.stage.${stage}`);
+  return (
+    <>
+      <header style={headerStyle}>
+        <span style={ready ? okDotStyle : warnDotStyle} aria-hidden="true" />
+        <span style={titleStyle}>{title}</span>
+        <button
+          type="button"
+          style={linkButtonStyle}
+          disabled={busy !== undefined}
+          onClick={onCheck}
+        >
+          {busy === 'check' ? t('auth.checking') : t('auth.retry')}
+        </button>
+      </header>
+      {stage === undefined ? null : <p style={hintStyle}>{t(`auth.stage.${stage}.hint`)}</p>}
+      {stage === undefined ? null : <CliInstallCommand t={t} stage={stage} />}
+      {status?.userName !== undefined && ready ? (
+        <p style={metaStyle}>{t('auth.readyAccount', { name: status.userName })}</p>
+      ) : null}
+      {status?.appId !== undefined ? (
+        <p style={metaStyle}>{t('auth.appIdLabel', { appId: status.appId })}</p>
+      ) : null}
+      {status?.detail !== undefined && status.detail !== '' ? (
+        <p style={errorStyle}>{t('auth.detail', { detail: status.detail })}</p>
+      ) : null}
+      {error !== '' ? <p style={errorStyle}>{t('auth.actionError', { message: error })}</p> : null}
+    </>
+  );
+}
+
 /** 鉴权面板。 */
 export function AuthPanel({ t }: AuthPanelProps) {
   const [status, setStatus] = useState<BridgeStatus | undefined>(undefined);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState<'login' | 'check' | 'cancel' | undefined>(undefined);
+  const [busy, setBusy] = useState<AuthBusy>(undefined);
   const mounted = useRef(true);
 
   const refresh = useCallback(async () => {
@@ -103,34 +156,17 @@ export function AuthPanel({ t }: AuthPanelProps) {
     }
   };
 
-  const stage = status?.stage ?? 'cli-missing';
-  const ready = status?.ready === true;
+  const stage = status?.stage;
 
   return (
     <section data-dsh-lark-auth-panel style={sectionStyle}>
-      <header style={headerStyle}>
-        <span style={ready ? okDotStyle : warnDotStyle} aria-hidden="true" />
-        <span style={titleStyle}>{t(`auth.stage.${stage}`)}</span>
-        <button
-          type="button"
-          style={linkButtonStyle}
-          disabled={busy !== undefined}
-          onClick={() => void onCheck()}
-        >
-          {busy === 'check' ? t('auth.checking') : t('auth.retry')}
-        </button>
-      </header>
-      <p style={hintStyle}>{t(`auth.stage.${stage}.hint`)}</p>
-      {status?.userName !== undefined && ready ? (
-        <p style={metaStyle}>{t('auth.readyAccount', { name: status.userName })}</p>
-      ) : null}
-      {status?.appId !== undefined ? (
-        <p style={metaStyle}>{t('auth.appIdLabel', { appId: status.appId })}</p>
-      ) : null}
-      {status?.detail !== undefined && status.detail !== '' ? (
-        <p style={errorStyle}>{t('auth.detail', { detail: status.detail })}</p>
-      ) : null}
-      {error !== '' ? <p style={errorStyle}>{t('auth.actionError', { message: error })}</p> : null}
+      <AuthPanelStatus
+        t={t}
+        status={status}
+        error={error}
+        busy={busy}
+        onCheck={() => void onCheck()}
+      />
 
       {stage === 'user-missing' ? (
         <div style={formStyle}>

@@ -106,8 +106,5 @@
     "zod": "4.6.6",
     "zustand": "^5.1.0"
   },
-  "dependencies": {
-    "@larksuite/cli": "1.0.100"
-  },
   "description": "通过 lark-cli 的 bot 身份接收飞书消息并注入 DSH 会话，同时提供通知用户的工具。"
 }

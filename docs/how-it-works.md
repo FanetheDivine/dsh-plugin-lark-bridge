@@ -8,7 +8,7 @@
 | `cordis.patch.yml` | 插件行与默认配置 |
 | `src/index.ts` | 唯一宿主入口 |
 | `src/client/index.ts` | 浏览器入口，注册字典、弹窗与配置页 |
-| `src/cli.ts` | 定位并调用 `@larksuite/cli` |
+| `src/cli.ts` | 调用本机 `lark-cli`、管理子进程并解析 JSON |
 | `src/auth.ts` | 鉴权状态机与设备码授权 |
 | `src/bridge.ts` | 事件消费、过滤、去重与注入 |
 | `src/sessions.ts` | 工作区会话的创建、恢复、标题与置顶 |
@@ -30,9 +30,9 @@
 
 ## 配置
 
-`readConfig` 展开 `.volatile()` 引用后交给 `resolveConfig` 严格校验：未知键直接抛错。旧版本的 `profile` 与 `ownerOpenId` 被接受并丢弃。
+`readConfig` 展开 `.volatile()` 引用后交给 `resolveConfig` 严格校验：未知键直接抛错。旧版本的 `profile`、`ownerOpenId` 与 `larkCli` 被接受并丢弃。
 
-保存 volatile 字段时宿主发出 `loader/volatile-update`。插件重新读取配置，按新的 `larkCli` 重建 CLI 适配，再执行一次鉴权检查。工作区与标题在下一次消息或注入时生效。
+`apply` 创建一个 `LarkCli` 单例，鉴权、事件监听与通知共用它。保存 volatile 字段时宿主发出 `loader/volatile-update`。插件重新读取配置，再执行一次鉴权检查。工作区与标题在下一次消息或注入时生效。
 
 ## 鉴权
 
@@ -47,7 +47,7 @@
 | `user-missing` | bot 就绪，但 `identities.user.openId` 缺失 |
 | `ready` | bot 就绪且 open_id 可用 |
 
-`bot-unavailable` 的失败原因写入 `detail`，界面提示用户在终端运行 `lark-cli config init`。
+`cli-missing` 时，弹窗与配置页鉴权面板通过共享组件显示安装并初始化命令。`bot-unavailable` 的失败原因写入 `detail`，界面提示用户在终端运行 `lark-cli config init`。
 
 `ready` 的 open_id 来自 `identities.user.openId`。用户 token 处于 `needs_refresh` 时 open_id 仍可用，因此不阻断桥接。
 
@@ -111,10 +111,10 @@ stdout 是 NDJSON。插件逐行解析并过滤：
 `lark_notify` 读取当前用户 open_id，按 15 000 字符分段，逐段执行：
 
 ```sh
-lark-cli im +messages-send --as bot --user-id <open_id> --text <part> --idempotency-key <key>
+lark-cli im +messages-send --as bot --user-id <open_id> --text - --idempotency-key <key>
 ```
 
-任一段失败时返回 `{ ok: false, error }`，不抛异常。
+每段正文通过 stdin 传给 `--text -`，不进入进程参数。任一段失败时返回 `{ ok: false, error }`，不抛异常。
 
 ## 生命周期
 
@@ -124,4 +124,6 @@ lark-cli im +messages-send --as bot --user-id <open_id> --text <part> --idempote
 
 ## 依赖
 
-宿主提供的 `@deepseek-ai/*` 保持 external，与运行插件的 DSH 版本一致。`@larksuite/cli` 是运行时依赖，按包目录解析 `bin/lark-cli`；二进制缺失时执行 `scripts/run.js` 触发按需下载。子进程不经过 shell。
+宿主提供的 `@deepseek-ai/*` 保持 external，与运行插件的 DSH 版本一致。插件不声明 `@larksuite/cli` 依赖，所有调用固定使用本机命令 `lark-cli`，由宿主进程环境解析。
+
+macOS 与 Linux 使用 `shell: false`。Windows 将命令与参数组成单一命令字符串并使用 `shell: true`；动态参数必须匹配 `^[A-Za-z0-9._:+-]+$`，否则在启动前返回 `unsafe-arg`。同步启动异常与进程启动错误统一返回 `spawn-failed`。

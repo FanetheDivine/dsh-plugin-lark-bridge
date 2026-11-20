@@ -16,7 +16,8 @@ export const zh = {
   'auth.appIdLabel': '机器人 App ID：{appId}',
   'auth.actionError': '操作失败：{message}',
   'auth.stage.cli-missing': '缺少 lark-cli',
-  'auth.stage.cli-missing.hint': '插件依赖 @larksuite/cli。重新安装插件或检查网络后重试。',
+  'auth.stage.cli-missing.hint': '未检测到本机 lark-cli。请在终端运行以下命令安装并初始化：',
+  'auth.installCommand': 'npm install -g @larksuite/cli@latest && lark-cli config init',
   'auth.stage.bot-unavailable': '机器人身份不可用',
   'auth.stage.bot-unavailable.hint':
     '插件使用 lark-cli 自带的机器人。在终端运行 lark-cli config init 完成配置，然后点击重新检测。',
@@ -31,7 +32,6 @@ export const zh = {
   'auth.cancel': '取消授权',
   'auth.detail': '详情：{detail}',
   'config.summary': '工作区、会话标题与飞书鉴权',
-  'config.section.auth': '鉴权',
   'config.section.session': '会话',
   'config.workspaceRoot.title': '工作区',
   'config.workspaceRoot.description':
@@ -40,8 +40,6 @@ export const zh = {
   'config.sessionTitle.title': '会话标题',
   'config.sessionTitle.description': '桥接会话显示的名称；修改后下一个消息会同步到会话。',
   'config.sessionTitle.invalid': '标题不能为空。',
-  'config.larkCli.title': 'lark-cli 路径',
-  'config.larkCli.description': '留空自动使用插件依赖的 @larksuite/cli。',
   'config.authCheckOnStartup.title': '启动时检测鉴权',
   'config.authCheckOnStartup.description': '每次打开 DSH 都检查一次；失败时显示提示弹窗。',
   'config.resetSession': '重置桥接会话',
@@ -73,7 +71,8 @@ export const en: Record<BridgeKey, string> = {
   'auth.actionError': 'Action failed: {message}',
   'auth.stage.cli-missing': 'lark-cli is missing',
   'auth.stage.cli-missing.hint':
-    'The plugin depends on @larksuite/cli. Reinstall the plugin or check the network, then retry.',
+    'No local lark-cli command was found. Run this command in a terminal to install and initialize it:',
+  'auth.installCommand': 'npm install -g @larksuite/cli@latest && lark-cli config init',
   'auth.stage.bot-unavailable': 'Bot identity is unavailable',
   'auth.stage.bot-unavailable.hint':
     'The plugin uses the bot built into lark-cli. Run lark-cli config init in a terminal to set it up, then check again.',
@@ -89,7 +88,6 @@ export const en: Record<BridgeKey, string> = {
   'auth.cancel': 'Cancel authorization',
   'auth.detail': 'Details: {detail}',
   'config.summary': 'Workspace, session title, and Lark authentication',
-  'config.section.auth': 'Authentication',
   'config.section.session': 'Session',
   'config.workspaceRoot.title': 'Workspace',
   'config.workspaceRoot.description':
@@ -99,8 +97,6 @@ export const en: Record<BridgeKey, string> = {
   'config.sessionTitle.description':
     'The bridge session name; changes apply with the next message.',
   'config.sessionTitle.invalid': 'The title must not be empty.',
-  'config.larkCli.title': 'lark-cli path',
-  'config.larkCli.description': 'Leave empty to use the bundled @larksuite/cli dependency.',
   'config.authCheckOnStartup.title': 'Check authentication on startup',
   'config.authCheckOnStartup.description':
     'Run one check whenever DSH opens and show the notice when it fails.',

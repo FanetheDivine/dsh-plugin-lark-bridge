@@ -24,14 +24,14 @@ export const inject = ['tools', 'agents', 'webServer'];
 
 /**
  * 插件启用时调用：读取配置、装配服务、注册工具与路由、启动鉴权检查。
- * 配置字段均为热重载引用，保存后按新值重建 CLI 适配并重新检测。
+ * 配置字段均为热重载引用，保存后更新配置并重新检测。
  */
 export function apply(ctx: Context, config?: unknown): void {
   let current: Readonly<PluginConfig> = readConfig(config);
   ctx.logger.info(`[${PLUGIN_LABEL}] apply`);
 
   const store = new StateStore(statePath());
-  let cli = new LarkCli(current.larkCli);
+  const cli = new LarkCli();
   let lastStage = '';
 
   const sessions = new SessionManager({
@@ -107,9 +107,7 @@ export function apply(ctx: Context, config?: unknown): void {
   ctx.on('loader/volatile-update', () => {
     try {
       const next = readConfig(config);
-      const cliChanged = next.larkCli !== current.larkCli;
       current = next;
-      if (cliChanged) cli = new LarkCli(next.larkCli);
       ctx.logger.info(`[${PLUGIN_LABEL}] config updated`);
       runCheck();
     } catch (error) {

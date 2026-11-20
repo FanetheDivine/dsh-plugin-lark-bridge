@@ -14,7 +14,6 @@ import { makeConfigFormScope } from './helpers.ts';
 const DEFAULTS: ConfigFields = {
   workspaceRoot: 'D:/work',
   sessionTitle: '飞书',
-  larkCli: '',
   authCheckOnStartup: true,
 };
 
@@ -39,7 +38,6 @@ describe('配置页草稿', () => {
     const current = state();
     expect(current.workspaceRoot.text).toBe('D:/work');
     expect(current.sessionTitle.text).toBe('飞书');
-    expect(current.larkCli.text).toBe('');
     expect(current.authCheckOnStartup.text).toBe('true');
     expect(current.dirty).toBe(false);
     expect(current.invalid).toBe(false);
@@ -62,10 +60,11 @@ describe('配置页草稿', () => {
     expect(state().invalid).toBe(true);
   });
 
-  it('状态不再包含档案名与 open_id 字段', () => {
+  it('状态不包含已移除的配置字段', () => {
     const { state } = setup();
     expect(state()).not.toHaveProperty('profile');
     expect(state()).not.toHaveProperty('ownerOpenId');
+    expect(state()).not.toHaveProperty('larkCli');
   });
 });
 
@@ -75,27 +74,25 @@ describe('配置页保存', () => {
     const actions = form.inject();
     actions.edit('workspaceRoot', '  D:/other  ');
     actions.edit('sessionTitle', '  桥  ');
-    actions.edit('larkCli', '  D:/tools/lark-cli.exe  ');
     actions.edit('authCheckOnStartup', 'false');
     await actions.save();
     expect(fake.writes).toEqual([
       [
         { op: 'set', path: ['workspaceRoot'], value: 'D:/other' },
         { op: 'set', path: ['sessionTitle'], value: '桥' },
-        { op: 'set', path: ['larkCli'], value: 'D:/tools/lark-cli.exe' },
         { op: 'set', path: ['authCheckOnStartup'], value: false },
       ],
     ]);
   });
 
   it('恢复默认提交清除操作', async () => {
-    const { fake, form, state } = setup({}, { larkCli: 'other' });
+    const { fake, form, state } = setup({}, { sessionTitle: 'other' });
     const actions = form.inject();
-    expect(state().larkCli.overridden).toBe(true);
-    actions.resetField('larkCli');
-    expect(state().larkCli.text).toBe('');
+    expect(state().sessionTitle.overridden).toBe(true);
+    actions.resetField('sessionTitle');
+    expect(state().sessionTitle.text).toBe('飞书');
     await actions.save();
-    expect(fake.writes).toEqual([[{ op: 'unset', path: ['larkCli'] }]]);
+    expect(fake.writes).toEqual([[{ op: 'unset', path: ['sessionTitle'] }]]);
   });
 
   it('放弃草稿回到宿主值', () => {

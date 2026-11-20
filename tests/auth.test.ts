@@ -27,7 +27,7 @@ function runner(steps: Step[]) {
 /** 构造管理器。 */
 function manager(steps: Step[]) {
   const fake = runner(steps);
-  const cli = new LarkCli('fake', fake.run);
+  const cli = new LarkCli(fake.run);
   const changes: string[] = [];
   const logger = { info: vi.fn(), warn: vi.fn() };
   const auth = new AuthManager({
