@@ -2,7 +2,7 @@
 // files 字段（package.json）决定分发内容：dist + cordis.patch.yml + locale/*.json + README.md；
 // src / tests / scripts 等开发文件不得进包。产物由 build 生成，过期时测试失败。
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -73,7 +73,9 @@ describe('npm 包内容（npm pack --dry-run）', () => {
     const client = readFileSync(path.join(ROOT, 'dist', 'client.js'), 'utf8');
     expect(client).toContain('window.__ModuleLoader__.load(');
     expect(client).toContain('id: "dsh-plugin-lark-bridge"');
-    expect(client).not.toContain('exports.inject');
+    expect(client).toContain('exports.inject');
     expect(client).toContain('exports.apply');
+    expect(client).toContain('dsh-plugin-lark-bridge-model-selection');
+    expect(existsSync(path.join(ROOT, 'dist', 'client.css'))).toBe(false);
   });
 });

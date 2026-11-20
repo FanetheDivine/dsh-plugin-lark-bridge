@@ -1,4 +1,4 @@
-/** 浏览器入口：注册字典、共用连接弹窗与工作区配置页。 */
+/** 浏览器入口：注册字典、共用连接弹窗与配置页。导出 inject 与 apply。 */
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
@@ -9,7 +9,11 @@ import { AuthOverlay } from './auth-overlay.tsx';
 import { PluginConfigForm, ROW_ID, ROW_KEY } from './config-form.ts';
 import { ConfigPage } from './config-page.tsx';
 import { en, NS, zh } from './locales.ts';
+import { ModelDefaults } from './model-defaults.ts';
 import { StatusController } from './status-controller.ts';
+
+/** 需要宿主注入的客户端服务。 */
+export const inject = ['slots', 'locale', 'configForms', 'remote', 'remote.session'];
 
 /** 注册共享状态、弹窗和配置页。 */
 export function apply(ctx: Context): void {
@@ -17,8 +21,11 @@ export function apply(ctx: Context): void {
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), `${NS}: dictionaries`);
   });
 
-  ctx.inject(['slots', 'locale', 'configForms'], (ctx) => {
+  ctx.inject(['slots', 'locale', 'configForms', 'remote', 'remote.session'], (ctx) => {
     const form = new PluginConfigForm(ctx.configForms.get(ROW_ID));
+    const injected = form.inject();
+    const models = new ModelDefaults(ctx, injected.hooks.configForm, injected.edit);
+    const modelT = ctx.locale.bind('model');
     const canPoll =
       typeof window !== 'undefined' &&
       typeof window.setInterval === 'function' &&
@@ -28,6 +35,7 @@ export function apply(ctx: Context): void {
       () => () => {
         controller.dispose();
         form.dispose();
+        models.dispose();
       },
       `${NS}: shared state`,
     );
@@ -51,7 +59,7 @@ export function apply(ctx: Context): void {
           id: 'lark-bridge-auth',
           order: 20,
           locale: NS,
-          inject: () => ({ ...form.inject(), controller, openSettings }),
+          inject: () => ({ ...injected, controller, openSettings }),
         },
         AuthOverlay,
       ),
@@ -62,7 +70,11 @@ export function apply(ctx: Context): void {
           name: 'plugins.row.config',
           key: ROW_KEY,
           locale: NS,
-          inject: () => ({ ...form.inject(), controller }),
+          inject: () => ({
+            ...injected,
+            controller,
+            modelDefaults: models.inject(modelT, (text) => ctx.locale.resolveText(text)),
+          }),
         },
         ConfigPage,
       ),

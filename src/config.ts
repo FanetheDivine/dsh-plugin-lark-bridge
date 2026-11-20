@@ -60,8 +60,14 @@ const CONFIG_KEYS = new Set<string>([
   'sessionPreset',
 ]);
 
-/** 逐字段校验字符串配置，返回空对象表示全部缺省。 */
-const STRING_KEYS = ['workspaceRoot', 'sessionProvider', 'sessionModel', 'sessionEffort', 'sessionPreset'] as const;
+/** 需要校验为字符串的配置键。 */
+const STRING_KEYS = [
+  'workspaceRoot',
+  'sessionProvider',
+  'sessionModel',
+  'sessionEffort',
+  'sessionPreset',
+] as const;
 
 /** 旧版本的配置键：接受并丢弃，避免升级后插件加载失败。 */
 const LEGACY_KEYS = new Set<string>([

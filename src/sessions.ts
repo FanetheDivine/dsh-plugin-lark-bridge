@@ -6,13 +6,13 @@ import { randomUUID } from 'node:crypto';
 import { stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
-import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent';
+import type { Agent, AgentOptions, ModelSelection } from '@deepseek-ai/dsh-agent';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { type Session, SessionId } from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-session-title';
 import type { Workspace, WorkspaceRegistry } from '@deepseek-ai/dsh-workspace';
 
-import type { PluginConfig } from './config.ts';
+import { modelSelectionOf, type PluginConfig } from './config.ts';
 import { SESSION_TITLE } from './constants.ts';
 import { BridgeError } from './errors.ts';
 import { LARK_SOURCE } from './message.ts';
@@ -37,6 +37,11 @@ interface DefaultModel {
     model: string;
     reasoningEffort?: AgentOptions['reasoningEffort'];
   };
+}
+
+/** 模型校验服务的最小接口。 */
+interface LlmLike {
+  resolveCallConfig(config: ModelSelection): Promise<unknown>;
 }
 
 /** 会话恢复服务的最小接口。 */
@@ -168,6 +173,39 @@ export class SessionManager {
     }
   }
 
+  /** 校验配置的模型选择；服务缺失或校验失败时返回 undefined。 */
+  private async resolveSelection(): Promise<ModelSelection | undefined> {
+    const selection = modelSelectionOf(this.deps.getConfig());
+    if (selection === undefined) return undefined;
+    const llm = this.ctx.get('llm') as LlmLike | undefined;
+    if (llm === undefined) {
+      this.deps.logger.warn(
+        'lark-bridge: llm service is unavailable; using the host default model',
+      );
+      return undefined;
+    }
+    try {
+      await llm.resolveCallConfig(selection);
+      return selection;
+    } catch (error) {
+      this.deps.logger.warn(
+        `lark-bridge: configured model is unavailable; using the host default: ${describeError(error)}`,
+      );
+      return undefined;
+    }
+  }
+
+  /** 把模型选择写入新会话；失败只记录警告。 */
+  private applySelection(agent: Agent, selection: ModelSelection): void {
+    try {
+      agent.model.select(selection);
+    } catch (error) {
+      this.deps.logger.warn(
+        `lark-bridge: cannot apply the model selection: ${describeError(error)}`,
+      );
+    }
+  }
+
   /** 新建会话，设置标题、挂到工作区并置顶。 */
   private async create(
     cwd: string,
@@ -175,6 +213,7 @@ export class SessionManager {
     workspace: Workspace,
   ): Promise<{ sessionId: string; agent: Agent }> {
     const sessionId = randomUUID();
+    const selection = await this.resolveSelection();
     const handle = await this.ctx.agents.create({
       sessionId: SessionId(sessionId),
       agentOptions: this.agentOptions(),
@@ -183,6 +222,7 @@ export class SessionManager {
         appendTitle(child.session, title);
       },
     });
+    if (selection !== undefined) this.applySelection(handle.agent, selection);
     await this.attach(sessionId, workspace);
     await this.registry().pinSession(SessionId(sessionId));
     await this.deps.store.patch({

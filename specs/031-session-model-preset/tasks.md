@@ -24,11 +24,11 @@
 
 **Purpose**: 升级宿主依赖到 `0.2.2-rc.5`，建立官方选择器所需的 CSS 构建链
 
-- [ ] T001 修改 `package.json`：17 个 dsh 依赖改为 `0.2.2-rc.5`，新增 `@deepseek-ai/dsh-agent-preset-registry`、`dsh-api-remotes`、`dsh-api-session-controller`、`dsh-client-product-analytics`、`dsh-client-ui-model-selection`、`dsh-typert-protocol` 与 `@tsdown/css@^0.22.14`，`dsh.client.inject` 增加 `@deepseek-ai/dsh-client-ui-model-selection`
-- [ ] T002 修改 `pnpm-workspace.yaml`：删除 17 条 `@0.2.2-rc.3` 记录，按新依赖集写入 23 条 `@0.2.2-rc.5` 记录
-- [ ] T003 [P] 修改 `tsdown.config.ts`：client 构建增加 `css: { fileName: 'client.css' }` 与 `onSuccess: inlineClientCss`，新增 `inlineClientCss` 注入 `dsh-plugin-lark-bridge-model-selection` 样式，`PLATFORM_MODULES` 增加 `@deepseek-ai/dsh-client-store`
-- [ ] T004 [P] 新增 `src/css.d.ts`：声明 `*.module.css`
-- [ ] T005 运行 `pnpm install` 重新解析锁文件，然后运行 `pnpm check` 确认升级后基线通过
+- [X] T001 修改 `package.json`：17 个 dsh 依赖改为 `0.2.2-rc.5`，新增 `@deepseek-ai/dsh-agent-preset-registry`、`dsh-api-remotes`、`dsh-api-session-controller`、`dsh-client-product-analytics`、`dsh-client-ui-model-selection`、`dsh-typert-protocol` 与 `@tsdown/css@^0.22.14`，`dsh.client.inject` 增加 `@deepseek-ai/dsh-client-ui-model-selection`
+- [X] T002 修改 `pnpm-workspace.yaml`：删除 17 条 `@0.2.2-rc.3` 记录，按新依赖集写入 23 条 `@0.2.2-rc.5` 记录
+- [X] T003 [P] 修改 `tsdown.config.ts`：client 构建增加 `css: { fileName: 'client.css' }` 与 `onSuccess: inlineClientCss`，新增 `inlineClientCss` 注入 `dsh-plugin-lark-bridge-model-selection` 样式，`PLATFORM_MODULES` 增加 `@deepseek-ai/dsh-client-store`
+- [X] T004 [P] 新增 `src/css.d.ts`：声明 `*.module.css`
+- [X] T005 运行 `pnpm install` 重新解析锁文件，然后运行 `pnpm check` 确认升级后基线通过
 
 **Checkpoint**: 依赖与构建链就绪，现有测试通过。
 
@@ -38,10 +38,10 @@
 
 **Purpose**: 配置字段与配置页草稿模型，两个用户故事都依赖
 
-- [ ] T006 修改 `src/config.ts`：`Config` 增加 `sessionProvider`、`sessionModel`、`sessionEffort`、`sessionPreset` 四个 volatile 字符串字段；`CONFIG_KEYS` 收录；`resolveConfig` 校验类型；导出 `modelSelectionOf(config)`：`provider` 与 `model` 同时非空才返回 `{ provider, model, reasoningEffort? }`，空白按未配置
-- [ ] T007 [P] 修改 `src/client/config-form.ts`：`ConfigFields` 增加四个字段，`FIELD_SPECS` 用文本字段；对应更新 `tests/config-form.test.ts` 的默认值、字段集断言与保存断言
-- [ ] T008 [P] 修改 `src/client/locales.ts`：新增模型与预设键（按 `contracts/config-page.md`），`LocaleNamespaceMap` 增加 `model` 命名空间，`en` 键集与 `zh` 一致
-- [ ] T009 修改 `tests/plugin.test.ts`：覆盖四个新键的解析、空白与半组配置、未知键仍报错
+- [X] T006 修改 `src/config.ts`：`Config` 增加 `sessionProvider`、`sessionModel`、`sessionEffort`、`sessionPreset` 四个 volatile 字符串字段；`CONFIG_KEYS` 收录；`resolveConfig` 校验类型；导出 `modelSelectionOf(config)`：`provider` 与 `model` 同时非空才返回 `{ provider, model, reasoningEffort? }`，空白按未配置
+- [X] T007 [P] 修改 `src/client/config-form.ts`：`ConfigFields` 增加四个字段，`FIELD_SPECS` 用文本字段；对应更新 `tests/config-form.test.ts` 的默认值、字段集断言与保存断言
+- [X] T008 [P] 修改 `src/client/locales.ts`：新增模型与预设键（按 `contracts/config-page.md`），`LocaleNamespaceMap` 增加 `model` 命名空间，`en` 键集与 `zh` 一致
+- [X] T009 修改 `tests/plugin.test.ts`：覆盖四个新键的解析、空白与半组配置、未知键仍报错
 
 **Checkpoint**: 配置读写可用，配置页草稿包含四字段。
 
@@ -55,17 +55,17 @@
 
 ### Tests for User Story 1
 
-- [ ] T010 [P] [US1] 新增 `tests/model-defaults.test.ts`：目录加载、草稿写入三个字段、已存模型不可路由显示未选择、连接重置后重新加载
-- [ ] T011 [P] [US1] 更新 `tests/client.test.ts` 与 `tests/client-bundle.test.ts`：入口 `inject` 导出、产物种子含 `dsh-client-store`、配置页渲染模型行
+- [X] T010 [P] [US1] 新增 `tests/model-defaults.test.ts`：目录加载、草稿写入三个字段、已存模型不可路由显示未选择、连接重置后重新加载
+- [X] T011 [P] [US1] 更新 `tests/client.test.ts` 与 `tests/client-bundle.test.ts`：入口 `inject` 导出、产物种子含 `dsh-client-store`、配置页渲染模型行
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] 新增 `src/client/model-defaults.ts`：复用 `ModelCatalogDirectory`，订阅目录与草稿，`select` 写入 `sessionProvider`/`sessionModel`/`sessionEffort`
-- [ ] T013 [US1] 修改 `src/client/config-page.tsx`：工作区行下方渲染模型行（官方 `ModelSelect`、provider 前缀槽）
-- [ ] T014 [US1] 修改 `src/client/index.ts`：导出 `inject = ['slots','locale','configForms','remote','remote.session']`，创建 `ModelDefaults` 并注入到配置页
-- [ ] T015 [US1] 修改 `src/sessions.ts`：`create` 读取配置选择，`llm.resolveCallConfig` 通过后于会话创建后 `agent.model.select`；缺少 `llm` 或校验失败时跳过
-- [ ] T016 [US1] 更新 `tests/sessions.test.ts`：断言 `agent.model.select` 收到配置选择、未配置时不调用、半组配置跳过
-- [ ] T017 [US1] 运行 `pnpm check`，提交本阶段
+- [X] T012 [P] [US1] 新增 `src/client/model-defaults.ts`：复用 `ModelCatalogDirectory`，订阅目录与草稿，`select` 写入 `sessionProvider`/`sessionModel`/`sessionEffort`
+- [X] T013 [US1] 修改 `src/client/config-page.tsx`：工作区行下方渲染模型行（官方 `ModelSelect`、provider 前缀槽）
+- [X] T014 [US1] 修改 `src/client/index.ts`：导出 `inject = ['slots','locale','configForms','remote','remote.session']`，创建 `ModelDefaults` 并注入到配置页
+- [X] T015 [US1] 修改 `src/sessions.ts`：`create` 读取配置选择，`llm.resolveCallConfig` 通过后于会话创建后 `agent.model.select`；缺少 `llm` 或校验失败时跳过
+- [X] T016 [US1] 更新 `tests/sessions.test.ts`：断言 `agent.model.select` 收到配置选择、未配置时不调用、半组配置跳过
+- [X] T017 [US1] 运行 `pnpm check`，提交本阶段
 
 **Checkpoint**: 模型能力可按 US1 独立验收。
 

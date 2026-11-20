@@ -1,4 +1,7 @@
-/** 配置页与共享工作区选择器：仅选择当前注册工作区。 */
+/** 配置页与共享工作区选择器：选择工作区、新建会话的模型与预设。 */
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client';
+import { ModelSelect } from '@deepseek-ai/dsh-client-ui-model-selection/src/client/ModelSelect.tsx';
+import type { ModelLabelOwner } from '@deepseek-ai/dsh-client-ui-model-selection/src/client/slots.ts';
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import {
   Button,
@@ -15,18 +18,24 @@ import type {
   TranslateNS,
 } from '@deepseek-ai/dsh-client-ui-slots';
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
-import { type CSSProperties, useId, useRef, useState } from 'react';
+import { type ComponentProps, type CSSProperties, useId, useRef, useState } from 'react';
 
 import { normalizeWorkspacePath, sameWorkspacePath } from '../workspace-path.ts';
 import { AuthPanel } from './auth-panel.tsx';
 import type { ConfigPageInjected } from './config-form.ts';
 import type { NS } from './locales.ts';
+import type { ModelDefaultsInjected } from './model-defaults.ts';
 import type { StatusController } from './status-controller.ts';
 
 /** 配置页组件 props。 */
 export type ConfigPageProps = PropsRuntime<'plugins.row.config'> &
   PropsLocale<typeof NS> &
-  InjectFace<ConfigPageInjected & { readonly controller: StatusController }>;
+  InjectFace<
+    ConfigPageInjected & {
+      readonly controller: StatusController;
+      readonly modelDefaults: ModelDefaultsInjected;
+    }
+  >;
 
 /** 运行时工作区条目；发布包的传递类型不可用时保持结构化收窄。 */
 export interface WorkspaceListItem {
@@ -144,6 +153,19 @@ export function WorkspaceSelect({
   );
 }
 
+/** 模型标签：在 trigger、根菜单与选项中显示 provider。 */
+export const renderModelSlot: ComponentProps<typeof ModelSelect>['renderSlot'] = (name, owner) => {
+  if (name === 'conversation.input.model.label') {
+    const label = owner as unknown as ModelLabelOwner;
+    return (
+      <span data-dsh-lark-provider={label.provider.id}>
+        {label.provider.name} / {label.model.name}
+      </span>
+    );
+  }
+  return null;
+};
+
 /** 表单框架文案。 */
 function formLabels(t: ConfigPageProps['t']): SettingsFormLabels {
   return {
@@ -179,6 +201,20 @@ export function ConfigPage(props: ConfigPageProps) {
           invalid={state.workspaceRoot.invalid}
           onChange={(path) => props.edit('workspaceRoot', path)}
         />
+        <div data-dsh-lark-config-model="default" style={fieldStyle}>
+          <div style={labelRowStyle}>
+            <span style={titleStyle}>{t('config.sessionModel.label')}</span>
+          </div>
+          <div style={triggerRowStyle}>
+            <ModelSelect
+              {...props.modelDefaults}
+              locked={disabled}
+              available={state.available}
+              renderSlot={renderModelSlot}
+            />
+          </div>
+          <p style={descriptionStyle}>{t('config.sessionModel.description')}</p>
+        </div>
       </SettingsForm>
     </div>
   );

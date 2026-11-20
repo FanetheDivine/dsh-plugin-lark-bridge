@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 // 前端测试：入口接线、字典、安全连接状态展示与共享状态控制器。
 import type {} from '@deepseek-ai/dsh-client-locale/client';
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store';
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
+import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/src/client/directory.ts';
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
@@ -9,6 +11,19 @@ import type { GlobalStandardProps, TranslateNS } from '@deepseek-ai/dsh-client-u
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
+
+// 官方模型选择器依赖浏览器快照，静态渲染时替换为最小桩。
+vi.mock('@deepseek-ai/dsh-client-ui-model-selection/src/client/ModelSelect.tsx', async () => {
+  const { createElement } = await import('react');
+  return {
+    ModelSelect: (props: { locked: boolean; available: boolean }) =>
+      createElement('div', {
+        'data-dsh-lark-model-select': '',
+        'data-locked': String(props.locked),
+        'data-available': String(props.available),
+      }),
+  };
+});
 
 import type { ApiResult, BridgeStatus } from '../src/client/api.ts';
 import {
@@ -35,6 +50,7 @@ import {
 } from '../src/client/config-page.tsx';
 import * as clientEntry from '../src/client/index.ts';
 import { en, NS, zh } from '../src/client/locales.ts';
+import type { ModelDefaultsInjected } from '../src/client/model-defaults.ts';
 import { StatusController } from '../src/client/status-controller.ts';
 import type { ConnectionState } from '../src/types.ts';
 import {
@@ -46,7 +62,13 @@ import {
 } from './helpers.ts';
 
 const { apply } = clientEntry;
-const ALL_SERVICES: ClientServiceName[] = ['slots', 'locale', 'configForms'];
+const ALL_SERVICES: ClientServiceName[] = [
+  'slots',
+  'locale',
+  'configForms',
+  'remote',
+  'remote.session',
+];
 const CLI_COMMAND = 'npm install -g @larksuite/cli@latest';
 const BOT_COMMAND = 'lark-cli config init';
 const USER_COMMAND = 'lark-cli auth login --scope auth:user.id:read';
@@ -112,15 +134,51 @@ function formState(overrides: Partial<ConfigFormState> = {}): ConfigFormState {
     saving: false,
     failed: false,
     workspaceRoot: { text: '/c/work/demo/One', overridden: true, invalid: false },
+    sessionProvider: { text: '', overridden: false, invalid: false },
+    sessionModel: { text: '', overridden: false, invalid: false },
+    sessionEffort: { text: '', overridden: false, invalid: false },
+    sessionPreset: { text: '', overridden: false, invalid: false },
     ...overrides,
+  };
+}
+
+/** 渲染配置页时的模型目录注入桩。 */
+function modelDefaultsStub(): ModelDefaultsInjected {
+  const directory = createSnapshotStore<ModelDirectoryState>({
+    current: null,
+    routable: null,
+    groups: [],
+    failures: [],
+    status: 'ready',
+    pending: null,
+    error: null,
+  });
+  return {
+    directory,
+    load: () => undefined,
+    select: async () => ({ ok: true, value: undefined }),
+    t: ((key: string) => key) as never,
+    resolveText: (text) => String(text),
   };
 }
 
 /** 渲染完整配置页。 */
 function renderConfigPage(): string {
   const fake = makeConfigFormScope({
-    value: { workspaceRoot: '/c/work/demo/One' },
-    base: { workspaceRoot: '' },
+    value: {
+      workspaceRoot: '/c/work/demo/One',
+      sessionProvider: '',
+      sessionModel: '',
+      sessionEffort: '',
+      sessionPreset: '',
+    },
+    base: {
+      workspaceRoot: '',
+      sessionProvider: '',
+      sessionModel: '',
+      sessionEffort: '',
+      sessionPreset: '',
+    },
   });
   const form = new PluginConfigForm(fake.scope);
   const injected = form.inject();
@@ -141,6 +199,7 @@ function renderConfigPage(): string {
       discard: injected.discard,
       resetField: injected.resetField,
       controller,
+      modelDefaults: modelDefaultsStub(),
     } as ConfigPageProps),
   );
   controller.dispose();
@@ -190,11 +249,20 @@ async function flushPromises(): Promise<void> {
 }
 
 describe('前端入口', () => {
-  it('不声明必需服务，字典与共享槽位分两组加载', () => {
-    expect('inject' in clientEntry).toBe(false);
+  it('声明客户端必需服务，字典与配置页分两组加载', () => {
+    expect(clientEntry.inject).toEqual([
+      'slots',
+      'locale',
+      'configForms',
+      'remote',
+      'remote.session',
+    ]);
     const ctx = makeClientCtx();
     apply(ctx);
-    expect(ctx._injectGroups).toEqual([['locale'], ['slots', 'locale', 'configForms']]);
+    expect(ctx._injectGroups).toEqual([
+      ['locale'],
+      ['slots', 'locale', 'configForms', 'remote', 'remote.session'],
+    ]);
   });
 
   it('注册双语字典、全局鉴权弹窗与面板配置页', () => {
@@ -223,6 +291,7 @@ describe('前端入口', () => {
     type SharedSlotInjected = ConfigPageInjected & {
       readonly controller: StatusController;
       readonly openSettings?: () => void;
+      readonly modelDefaults: ModelDefaultsInjected;
     };
     const overlayInject = ctx._slotRegistrations[0]?.options.inject as
       | (() => SharedSlotInjected)
@@ -251,8 +320,8 @@ function expectedRegistrations(services: ClientServiceName[]) {
   const has = (...names: ClientServiceName[]) => names.every((name) => services.includes(name));
   return {
     dictionary: has('locale'),
-    overlay: has('slots', 'locale', 'configForms'),
-    configPage: has('slots', 'locale', 'configForms'),
+    overlay: has('slots', 'locale', 'configForms', 'remote', 'remote.session'),
+    configPage: has('slots', 'locale', 'configForms', 'remote', 'remote.session'),
   };
 }
 
@@ -266,9 +335,10 @@ function activeRegistrations(ctx: ReturnType<typeof makeClientCtx>) {
   };
 }
 
-/** 三个服务各有或无的全部 8 种组合。 */
-const COMBINATIONS: ClientServiceName[][] = Array.from({ length: 8 }, (_, mask) =>
-  ALL_SERVICES.filter((_name, index) => (mask >> index) & 1),
+/** 每个服务各有或无的全部组合。 */
+const COMBINATIONS: ClientServiceName[][] = Array.from(
+  { length: 2 ** ALL_SERVICES.length },
+  (_, mask) => ALL_SERVICES.filter((_name, index) => (mask >> index) & 1),
 );
 
 describe('前端服务可选', () => {
@@ -291,7 +361,7 @@ describe('前端服务可选', () => {
     const ctx = makeClientCtx({ services: ['slots', 'locale'] });
     apply(ctx);
     expect(activeRegistrations(ctx).configPage).toBe(false);
-    ctx._grant('configForms');
+    ctx._grant('configForms', 'remote', 'remote.session');
     expect(activeRegistrations(ctx)).toEqual({ dictionary: true, overlay: true, configPage: true });
     expect(ctx._configFormRequests).toEqual([ROW_ID]);
   });
@@ -450,11 +520,14 @@ describe('工作区选择与共用弹窗', () => {
     expect(html).not.toContain('role="menu"');
   });
 
-  it('配置页只保留连接面板与工作区选择', () => {
+  it('配置页包含连接面板、工作区与模型行', () => {
     const html = renderConfigPage();
     expect(html).toContain('data-dsh-lark-auth-panel');
     expect(html).toContain('data-dsh-lark-config-workspace');
+    expect(html).toContain('data-dsh-lark-config-model');
+    expect(html).toContain('data-dsh-lark-model-select');
     expect(html).toContain('工作区');
+    expect(html).toContain('模型');
     expect(html).not.toContain('恢复默认');
     expect(html).not.toContain('会话标题');
     expect(html).not.toContain('启动时检测鉴权');

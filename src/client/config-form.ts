@@ -49,7 +49,12 @@ const workspaceSpec: SettingsFieldSpec = {
   },
 };
 
-const SESSION_FIELDS = ['sessionProvider', 'sessionModel', 'sessionEffort', 'sessionPreset'] as const;
+const SESSION_FIELDS = [
+  'sessionProvider',
+  'sessionModel',
+  'sessionEffort',
+  'sessionPreset',
+] as const;
 
 const FIELD_SPECS: SettingsFieldSpec[] = [
   workspaceSpec,

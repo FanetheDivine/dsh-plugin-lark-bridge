@@ -135,10 +135,16 @@ export interface ClientSlotRegistration {
 }
 
 /** 客户端服务名。 */
-export type ClientServiceName = 'slots' | 'locale' | 'configForms';
+export type ClientServiceName = 'slots' | 'locale' | 'configForms' | 'remote' | 'remote.session';
 
 /** 全部客户端服务名。 */
-const CLIENT_SERVICES: ClientServiceName[] = ['slots', 'locale', 'configForms'];
+const CLIENT_SERVICES: ClientServiceName[] = [
+  'slots',
+  'locale',
+  'configForms',
+  'remote',
+  'remote.session',
+];
 
 /** 客户端 ctx 模拟的观测字段。 */
 export interface ClientMockState {
@@ -201,6 +207,20 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
       state._activeLocales.add(entry);
       return () => state._activeLocales.delete(entry);
     },
+    bind(ns: string) {
+      return (key: string) => `${ns}.${key}`;
+    },
+    resolveText(text: unknown) {
+      return typeof text === 'string' ? text : '';
+    },
+  };
+  const remoteService = {
+    $on() {
+      return noop;
+    },
+    session: {
+      modelCatalog: async () => ({ ok: true, value: { groups: [], failures: [] } }),
+    },
   };
   const configFormsService = {
     get(entryId: string) {
@@ -209,8 +229,10 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
         status: 'ready',
         value: {
           workspaceRoot: '/tmp/work',
-          sessionTitle: '飞书',
-          authCheckOnStartup: true,
+          sessionProvider: '',
+          sessionModel: '',
+          sessionEffort: '',
+          sessionPreset: '',
         },
       });
       state._configFormScopes.push(fake);
@@ -283,6 +305,12 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
     },
     get locale() {
       return require('locale', localeService);
+    },
+    get remote() {
+      return require('remote', remoteService);
+    },
+    on() {
+      return noop;
     },
     get configForms() {
       return require('configForms', configFormsService);

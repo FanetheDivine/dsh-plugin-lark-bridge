@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { PluginConfig } from '../src/config.ts';
+import { DEFAULT_CONFIG, type PluginConfig } from '../src/config.ts';
 import { SESSION_TITLE } from '../src/constants.ts';
 import { SessionManager } from '../src/sessions.ts';
 import { StateStore } from '../src/state.ts';
@@ -12,13 +12,23 @@ import { normalizeWorkspacePath, toHostWorkspacePath } from '../src/workspace-pa
 
 /** 构造会话管理器与内部记录；工作区使用真实临时目录以适配各平台。 */
 async function setup(
-  options: { workspaceRoot?: string; live?: boolean; registered?: boolean } = {},
+  options: {
+    workspaceRoot?: string;
+    live?: boolean;
+    registered?: boolean;
+    config?: Partial<PluginConfig>;
+    llm?: 'available' | 'missing' | 'rejects';
+  } = {},
 ) {
   const home = await mkdtemp(path.join(tmpdir(), 'lark-bridge-sessions-'));
   const workspaceDir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-workspace-'));
   const workspaceRoot = normalizeWorkspacePath(workspaceDir);
   const cwd = toHostWorkspacePath(workspaceRoot);
-  const config: PluginConfig = { workspaceRoot: options.workspaceRoot ?? workspaceRoot };
+  const config: PluginConfig = {
+    ...DEFAULT_CONFIG,
+    workspaceRoot: options.workspaceRoot ?? workspaceRoot,
+    ...options.config,
+  };
   const store = new StateStore(path.join(home, 'state.json'));
 
   const appended: Array<[string, unknown]> = [];
@@ -28,9 +38,13 @@ async function setup(
   const created: Array<{ sessionId: string; meta: unknown }> = [];
   let liveAgent: unknown;
 
+  const selections: unknown[] = [];
   const agent = {
     session: {
       append: (type: string, data: unknown) => appended.push([type, data]),
+    },
+    model: {
+      select: (selection: unknown) => selections.push(selection),
     },
     followup: (message: { content: unknown; source: unknown }) => followups.push(message),
   };
@@ -70,11 +84,17 @@ async function setup(
     create: registryCreate,
     pinSession: async (id: string) => pinned.push(id),
   };
+  const resolveCallConfig = vi.fn(async () => {
+    if (options.llm === 'rejects') throw new Error('unsupported route');
+    return {};
+  });
+  const llm = options.llm === 'missing' ? undefined : { resolveCallConfig };
   const ctx = {
     agents,
     get: (name: string) => {
       if (name === 'workspaceRegistry') return registry;
       if (name === 'agentDefaultModel') return undefined;
+      if (name === 'llm') return llm;
       return undefined;
     },
   };
@@ -101,6 +121,9 @@ async function setup(
     resolveByPath,
     registryCreate,
     createAgent,
+    selections,
+    resolveCallConfig,
+    logger,
   };
 }
 
@@ -235,5 +258,71 @@ describe('SessionManager', () => {
   it('尚无会话记录时 isBridgeSession 为 false', async () => {
     const { sessions } = await setup();
     expect(await sessions.isBridgeSession({ id: 's1' } as never)).toBe(false);
+  });
+});
+
+describe('新建会话的模型配置', () => {
+  it('配置成对模型时校验并写入新会话', async () => {
+    const { sessions, selections, resolveCallConfig } = await setup({
+      config: { sessionProvider: 'deepseek', sessionModel: 'deepseek-chat', sessionEffort: 'high' },
+    });
+    await sessions.inject('hi');
+    expect(resolveCallConfig).toHaveBeenCalledWith({
+      provider: 'deepseek',
+      model: 'deepseek-chat',
+      reasoningEffort: 'high',
+    });
+    expect(selections).toEqual([
+      { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: 'high' },
+    ]);
+  });
+
+  it('未配置模型时不校验也不写入', async () => {
+    const { sessions, selections, resolveCallConfig } = await setup();
+    await sessions.inject('hi');
+    expect(resolveCallConfig).not.toHaveBeenCalled();
+    expect(selections).toEqual([]);
+  });
+
+  it('半组配置按未配置处理', async () => {
+    const { sessions, selections, resolveCallConfig } = await setup({
+      config: { sessionProvider: 'deepseek' },
+    });
+    await sessions.inject('hi');
+    expect(resolveCallConfig).not.toHaveBeenCalled();
+    expect(selections).toEqual([]);
+  });
+
+  it('模型校验失败时回退宿主默认并记录警告', async () => {
+    const { sessions, selections, logger } = await setup({
+      config: { sessionProvider: 'deepseek', sessionModel: 'missing' },
+      llm: 'rejects',
+    });
+    await expect(sessions.inject('hi')).resolves.toMatchObject({ created: true });
+    expect(selections).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('configured model is unavailable'),
+    );
+  });
+
+  it('缺少 llm 服务时跳过模型配置并记录警告', async () => {
+    const { sessions, selections, logger } = await setup({
+      config: { sessionProvider: 'deepseek', sessionModel: 'deepseek-chat' },
+      llm: 'missing',
+    });
+    await sessions.inject('hi');
+    expect(selections).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('llm service is unavailable'));
+  });
+
+  it('复用已有会话时不写入模型', async () => {
+    const { sessions, selections } = await setup({
+      live: true,
+      config: { sessionProvider: 'deepseek', sessionModel: 'deepseek-chat' },
+    });
+    await sessions.inject('一');
+    const selectionsAfterFirst = selections.length;
+    await sessions.inject('二');
+    expect(selections.length).toBe(selectionsAfterFirst);
   });
 });
