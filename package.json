@@ -5,6 +5,7 @@
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "icon": "./icon.svg",
   "keywords": [
     "dsh",
     "deepseek",
@@ -22,12 +23,14 @@
       "types": "./dist/client/index.d.ts",
       "default": "./dist/client.js"
     },
-    "./locale/*.json": "./locale/*.json"
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
   },
   "files": [
     "dist",
     "cordis.patch.yml",
     "locale/*.json",
+    "icon.svg",
     "README.md"
   ],
   "dsh": {

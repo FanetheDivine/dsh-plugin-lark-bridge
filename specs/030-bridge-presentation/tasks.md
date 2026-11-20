@@ -62,14 +62,14 @@
 
 ### Tests for User Story 2
 
-- [ ] T006 [P] [US2] 新增 `tests/icon.test.ts`：断言 `icon.svg` 存在、以 `<svg` 开头、`viewBox="0 0 36 36"`、含 `<path`、不含 `<script`、`<image>`、`<foreignObject`、`<style`、`on<name>=`；文件 ≤ 262144 字节；`package.json` 的顶层 `icon`、`exports["./icon"]`、`files` 三处声明
-- [ ] T007 [P] [US2] 扩展 `tests/package-pack.test.ts`：更新文件头注释，断言 tarball 含 `icon.svg`
+- [X] T006 [P] [US2] 新增 `tests/icon.test.ts`：断言 `icon.svg` 存在、以 `<svg` 开头、`viewBox="0 0 36 36"`、含 `<path`、不含 `<script`、`<image>`、`<foreignObject`、`<style`、`on<name>=`；文件 ≤ 262144 字节；`package.json` 的顶层 `icon`、`exports["./icon"]`、`files` 三处声明
+- [X] T007 [P] [US2] 扩展 `tests/package-pack.test.ts`：更新文件头注释，断言 tarball 含 `icon.svg`
 
 ### Implementation for User Story 2
 
-- [ ] T008 [P] [US2] 新增 `icon.svg`：飞书官方三段路径（`#00D6B9`、`#3370FF`、`#133C9A`），去掉白色圆角底板，`width="36" height="36" viewBox="0 0 36 36"`，用 `translate(7 7) scale(1.375)` 居中，加 `<title>` 与来源注释，文件 ≤ 256 KiB
-- [ ] T009 [P] [US2] 修改 `package.json`：顶层 `icon` 为 `./icon.svg`，`exports` 增加 `"./icon": "./icon.svg"`，`files` 增加 `icon.svg`
-- [ ] T010 [US2] 运行 `pnpm test:code -- tests/icon.test.ts tests/package-pack.test.ts`，确认 `npm pack --dry-run` 含图标后提交本阶段
+- [X] T008 [P] [US2] 新增 `icon.svg`：飞书官方三段路径（`#00D6B9`、`#3370FF`、`#133C9A`），去掉白色圆角底板，`width="36" height="36" viewBox="0 0 36 36"`，用 `translate(7 7) scale(1.375)` 居中，加 `<title>` 与来源注释，文件 ≤ 256 KiB
+- [X] T009 [P] [US2] 修改 `package.json`：顶层 `icon` 为 `./icon.svg`，`exports` 增加 `"./icon": "./icon.svg"`，`files` 增加 `icon.svg`
+- [X] T010 [US2] 运行 `pnpm test:code -- tests/icon.test.ts tests/package-pack.test.ts`，确认 `npm pack --dry-run` 含图标后提交本阶段
 
 **Checkpoint**: 图标可按 US2 独立验收。
 
