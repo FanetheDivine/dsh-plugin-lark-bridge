@@ -110,18 +110,19 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | 文件 | 覆盖内容 |
 | --- | --- |
 | `tests/plugin.test.ts` | 配置校验、热重载、工具与路由接线 |
-| `tests/cli.test.ts` | 可执行文件解析、JSON 解包与退出码 |
+| `tests/cli.test.ts` | 本机命令调用、JSON 解包、stdin 与退出码 |
+| `tests/cli-process.test.ts` | Unix/Windows 进程参数、安全 token 与同步启动异常 |
 | `tests/auth.test.ts` | 四阶段检测、应用绑定、设备码授权与取消 |
 | `tests/bridge.test.ts` | 事件过滤、去重、提醒格式化与注入 |
 | `tests/sessions.test.ts` | 工作区校验、创建/复用、标题、置顶与持久化 |
 | `tests/tools.test.ts` | 参数校验、分段发送与失败返回 |
 | `tests/routes.test.ts` | 同源校验、状态投影与动作路由 |
 | `tests/state.test.ts` | 状态读写、去重窗口与损坏恢复 |
-| `tests/config-form.test.ts` | 配置页草稿、字段校验、保存、恢复默认与放弃 |
+| `tests/config-form.test.ts` | 配置页草稿与字段集、校验、保存、恢复默认、放弃与卸载 |
 | `tests/release-archive.test.mjs` | CHANGELOG 归档计划 |
-| `tests/client.test.ts` | 前端服务声明、字典与槽位注册、弹窗与配置页渲染 |
+| `tests/client.test.ts` | 前端服务声明、字典与槽位注册、弹窗与配置页渲染、CLI 缺失安装命令 |
 | `tests/client-bundle.test.ts` | `dist/client.js` 的注册契约与导出（产物测试） |
-| `tests/package-pack.test.ts` | npm 包只含发布所需文件，含前端产物与元数据资源（产物测试） |
+| `tests/package-pack.test.ts` | npm 包不含 lark-cli，含发布所需文件与前端闭包工厂（产物测试） |
 | `tests/metadata.test.ts` | 插件元数据的结构、键集、禁用字符与清单声明 |
 | `tests/dependency-versions.test.ts` | `dsh-*` 依赖版本一致，并以同版本列入 `minimumReleaseAgeExclude` |
 | `tests/dist-freshness.test.ts` | 产物新鲜度判定的三种状态 |
@@ -206,7 +207,7 @@ src/
 ├── index.ts                # 打包入口，导出 name、inject、apply、Config
 ├── config.ts               # Config schema、默认值、严格校验与热重载读取
 ├── constants.ts            # 共享常量
-├── cli.ts                  # lark-cli 定位与子进程调用
+├── cli.ts                  # 本机命令与子进程
 ├── auth.ts                 # 鉴权状态机与设备码授权
 ├── bridge.ts               # 事件消费、过滤、去重与注入
 ├── sessions.ts             # 工作区会话创建、恢复、标题与置顶
@@ -221,6 +222,7 @@ src/
     ├── api.ts              # 路由调用与状态类型
     ├── auth-overlay.tsx    # shell.overlay 鉴权弹窗
     ├── auth-panel.tsx      # 配置页鉴权面板
+    ├── cli-install-command.tsx # CLI 缺失时的只读安装命令
     ├── config-form.ts      # 配置页草稿模型与行键常量
     ├── config-page.tsx     # 配置页的 summary 与 page 视图
     └── locales.ts          # 中英文字典与命名空间

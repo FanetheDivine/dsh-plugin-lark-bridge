@@ -44,3 +44,21 @@
 - 不检查最低版本；旧版程序不支持 `--text -` 时，通知返回实际命令错误。
 - 命令执行失败保留实际错误。
 - 连通性测试不在本次验证范围内。
+
+## 验证记录 2026-11-20
+
+| 项目 | 结果 | 证据 |
+| --- | --- | --- |
+| Windows 本机命令 | PASS | 新 `src/cli.ts` 实际执行 `lark-cli --version`，返回 `1.0.98` |
+| 宿主装载与产物 | PASS | DSH `0.2.2-rc.3`，隔离 profile `rdt-lark-025`；安装包与仓库 dist 哈希一致 |
+| 本机鉴权调用 | PASS | `/lark-bridge/status` 返回 `user-missing`，CLI 成功启动且 bot 就绪 |
+| 旧配置兼容 | PASS | 热更新传入旧 `larkCli` 后插件保持激活且实例不变 |
+| 私聊事件注入 | PASS | 隔离 mock CLI 向真实宿主提供事件，桥接会话持久化包含消息与 `lark-bridge` 来源 |
+| 通知工具 | PASS | 真实宿主执行 `lark_notify`，mock CLI 收到完整 stdin 正文，参数不含正文 |
+| 中文弹窗与配置页 | PASS | 两个入口显示同一命令且无路径字段；`<profile>/shots/lark-overlay.png`、`lark-config.png` |
+| 英文弹窗 | PASS | `<profile>/shots/lark-overlay-en.png` |
+| UI/UX 审查 | PASS | 修正配置页加载时误报 `cli-missing` 的问题，新增回归测试 |
+
+测试产物位于隔离 profile 的 `lark-results.json`、`lark-english-results.json` 与 `lark-mock-results.json`。中文浏览器结果见 `lark-browser-results.json` 中 C1、C2 的 PASS 记录；同文件的旧英文驱动断言已由独立英文用例取代。
+
+浏览器通过拦截状态路由构造 `cli-missing`，使用真实构建和宿主界面。消息与通知用例使用隔离 mock CLI，未向飞书发送真实消息。当前桌面 profile 未修改。暗色主题未单独截图。

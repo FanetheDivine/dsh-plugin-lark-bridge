@@ -105,11 +105,11 @@ description: "完全使用本机 lark-cli 的实施任务"
 
 **Purpose**: 同步文档，完成真实宿主与界面审查。
 
-- [ ] T019 [P] 更新 `README.md`：说明本机安装与升级、终端一致调用、无专用路径配置、无最低版本检查和 `cli-missing` 命令。
-- [ ] T020 [P] 更新 `docs/how-it-works.md` 与 `docs/known-risks.md`：记录直接命令、Windows 受约束 shell、stdin 正文、旧键兼容和环境刷新风险。
-- [ ] T021 [P] 更新 `docs/development.md`：同步 `src/client/cli-install-command.tsx`、CLI 机制和测试文件地图。
-- [ ] T022 按 `specs/025-local-lark-cli/quickstart.md` 在真实 DSH 宿主验证中英文弹窗与配置页、私聊注入和通知；执行一次 UI/UX 子代理审查，修复已证实的问题并记录结果。
-- [ ] T023 按 `specs/025-local-lark-cli/quickstart.md` 运行 `pnpm format && pnpm check && pnpm build`，复核 `git diff` 与全部验收条件。
+- [x] T019 [P] 更新 `README.md`：说明本机安装与升级、终端一致调用、无专用路径配置、无最低版本检查和 `cli-missing` 命令。
+- [x] T020 [P] 更新 `docs/how-it-works.md` 与 `docs/known-risks.md`：记录直接命令、Windows 受约束 shell、stdin 正文、旧键兼容和环境刷新风险。
+- [x] T021 [P] 更新 `docs/development.md`：同步 `src/client/cli-install-command.tsx`、CLI 机制和测试文件地图。
+- [x] T022 按 `specs/025-local-lark-cli/quickstart.md` 在真实 DSH 宿主验证中英文弹窗与配置页、私聊注入和通知；执行一次 UI/UX 子代理审查，修复已证实的问题并记录结果。
+- [x] T023 按 `specs/025-local-lark-cli/quickstart.md` 运行 `pnpm format && pnpm check && pnpm build`，复核 `git diff` 与全部验收条件。
 
 **Commit**: 完成 Phase 6 后提交文档、验证修正与结果。
 

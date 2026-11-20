@@ -9,7 +9,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { BridgeStatus } from '../src/client/api.ts';
 import { AuthOverlay, AuthOverlayContent } from '../src/client/auth-overlay.tsx';
+import { AuthPanelStatus } from '../src/client/auth-panel.tsx';
 import { type ConfigFormState, ROW_ID, ROW_KEY } from '../src/client/config-form.ts';
 import { ConfigPage } from '../src/client/config-page.tsx';
 import * as clientEntry from '../src/client/index.ts';
@@ -56,6 +58,20 @@ function renderConfigPage(view: 'page' | 'summary', dict: Record<string, string>
     discard: vi.fn(),
   };
   return renderToStaticMarkup(createElement(ConfigPage, props as never));
+}
+
+/** 构造指定阶段的鉴权状态。 */
+function statusFor(stage: BridgeStatus['stage']): BridgeStatus {
+  return {
+    ready: stage === 'ready',
+    stage,
+    checkedAt: 1,
+    workspaceRoot: '',
+    sessionId: null,
+    sessionWorkspace: null,
+    sessionTitle: null,
+    login: null,
+  };
 }
 
 describe('前端入口', () => {
@@ -196,7 +212,7 @@ describe('字典与渲染', () => {
 
   it('配置页渲染鉴权面板与会话字段', () => {
     const html = renderConfigPage('page', zh);
-    expect(html).toContain(zh['auth.stage.cli-missing']);
+    expect(html).toContain('data-dsh-lark-auth-panel');
     expect(html).toContain(zh['config.workspaceRoot.title']);
     expect(html).toContain(zh['config.sessionTitle.title']);
     expect(html).toContain(zh['config.resetSession']);
@@ -226,10 +242,26 @@ describe('字典与渲染', () => {
     expect(botUnavailable).not.toContain(INSTALL_COMMAND_HTML);
   });
 
-  it('配置页默认显示本机安装命令且无 larkCli 路径设置', () => {
+  it('鉴权面板仅在确认 cli-missing 后显示安装命令', () => {
+    const render = (stage: BridgeStatus['stage']) =>
+      renderToStaticMarkup(
+        createElement(AuthPanelStatus, {
+          t: translate(zh),
+          status: statusFor(stage),
+          error: '',
+          busy: undefined,
+          onCheck: vi.fn(),
+        }),
+      );
+    expect(render('cli-missing')).toContain(INSTALL_COMMAND_HTML);
+    expect(render('bot-unavailable')).not.toContain(INSTALL_COMMAND_HTML);
+  });
+
+  it('配置页加载时不显示安装命令且无 larkCli 路径设置', () => {
     for (const dict of [zh, en]) {
       const html = renderConfigPage('page', dict);
-      expect(html).toContain(INSTALL_COMMAND_HTML);
+      expect(html).toContain(dict['auth.checking']);
+      expect(html).not.toContain(INSTALL_COMMAND_HTML);
       expect(html).not.toContain('config.larkCli');
       expect(html).not.toContain('lark-cli 路径');
       expect(html).not.toContain('lark-cli path');
