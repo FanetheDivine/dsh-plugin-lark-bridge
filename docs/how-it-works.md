@@ -97,7 +97,9 @@ Windows 比较忽略大小写，POSIX 比较保持大小写敏感。调用 `work
 lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 ```
 
-插件只接受 owner open_id 的私聊，要求鉴权与工作区均有效。消息过滤、正文格式与去重窗口保持稳定。
+插件只接受 owner open_id 的私聊，要求鉴权与工作区均有效。消息过滤与去重窗口保持稳定。
+
+注入内容是一条 `<lark-message message_id="…" time="…">` 块，块内只有消息正文；非文本消息使用类型占位。块边界与属性值会转义。
 
 鉴权或工作区无效时停止事件消费者，不补投停止期间的历史消息。
 
@@ -110,6 +112,9 @@ lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 - 新建与复用都使用固定标题「来自用户的飞书消息」。
 - 新建会话挂到已注册工作区并置顶。
 - 注入使用 `createUserMessage`，`source.kind` 是 `lark-bridge`，再调用 `agent.followup`。
+- 桥接提醒是一条 `source.reminder` 为 true 的 `<system-reminder>` 用户消息。
+
+`agent/pre-step` 检查桥接会话的表层：缺少提醒时把它插到本批第一条 `<lark-message>` 之前，已有提醒时跳过。桥接会话由状态文件的 `sessionId` 识别，因此压缩覆盖提醒后，下一次模型请求前会补回。
 
 会话归档由 DSH 管理，插件没有重置入口。
 

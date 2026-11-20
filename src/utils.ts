@@ -28,10 +28,7 @@ export function formatTime(value: string | number | undefined, timeZone = 'Asia/
 
 /** 转义属性值中的 `&`、`"` 与 `<`。 */
 export function escapeAttribute(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;');
+  return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
 }
 
 /** 解析毫秒时间戳字符串；非法值返回当前时间。 */

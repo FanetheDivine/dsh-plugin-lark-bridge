@@ -183,7 +183,9 @@ describe('installReminderGuard', () => {
       content: [{ type: 'text', text: '历史摘要' }],
       source: { kind: 'user' },
     });
-    const decision = await run(sessionStub([{ type: 'user/message', data: summary }]), [larkMessage()]);
+    const decision = await run(sessionStub([{ type: 'user/message', data: summary }]), [
+      larkMessage(),
+    ]);
     expect(decision.kind).toBe('enter');
     if (decision.kind !== 'enter') return;
     expect(decision.messages).toHaveLength(2);

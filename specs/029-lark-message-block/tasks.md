@@ -24,7 +24,7 @@
 
 **Purpose**: 确认 worktree 内可运行测试与格式检查
 
-- [ ] T001 确认 worktree 工具链：在仓库根与 worktree 分别运行 `../../node_modules/.bin/vitest --version`、`../../node_modules/.bin/biome --version`，记录不依赖 `pnpm install` 的测试命令，写入本次会话的执行记录
+- [X] T001 确认 worktree 工具链：在仓库根与 worktree 分别运行 `../../node_modules/.bin/vitest --version`、`../../node_modules/.bin/biome --version`，记录不依赖 `pnpm install` 的测试命令，写入本次会话的执行记录
 
 **Checkpoint**: 工具链可用，后续任务可直接运行测试
 
@@ -36,9 +36,9 @@
 
 **⚠️ CRITICAL**: 本阶段完成前不能开始任何用户故事
 
-- [ ] T002 [P] 新建 `src/message.ts`：声明 `MessageSourceMap` 的 `'lark-bridge'` 键（`{ kind: 'lark-bridge'; reminder?: true }`），导出 `LARK_SOURCE`、`REMINDER_SOURCE`、`isLarkMessage`、`isReminderMessage`
-- [ ] T003 [P] 修改 `src/utils.ts`：`formatTime` 输出 `YYYY-MM-DD HH:mm:ss`（Asia/Shanghai，`hourCycle: 'h23'`）；新增 `escapeAttribute` 转义 `"` 与 `<`
-- [ ] T004 修改 `src/sessions.ts`：删除文件内的 `MessageSourceMap` 声明，改从 `src/message.ts` 导入来源；新增 `isBridgeSession(session)`，比较 `state.sessionId` 与 `session.id`
+- [X] T002 [P] 新建 `src/message.ts`：声明 `MessageSourceMap` 的 `'lark-bridge'` 键（`{ kind: 'lark-bridge'; reminder?: true }`），导出 `LARK_SOURCE`、`REMINDER_SOURCE`、`isLarkMessage`、`isReminderMessage`
+- [X] T003 [P] 修改 `src/utils.ts`：`formatTime` 输出 `YYYY-MM-DD HH:mm:ss`（Asia/Shanghai，`hourCycle: 'h23'`）；新增 `escapeAttribute` 转义 `"` 与 `<`
+- [X] T004 修改 `src/sessions.ts`：删除文件内的 `MessageSourceMap` 声明，改从 `src/message.ts` 导入来源；新增 `isBridgeSession(session)`，比较 `state.sessionId` 与 `session.id`
 
 **Checkpoint**: 共享模块就绪，用户故事可以开始
 
@@ -52,14 +52,14 @@
 
 ### Tests for User Story 1
 
-- [ ] T005 [P] [US1] 更新 `tests/bridge.test.ts`：断言块匹配 `^<lark-message message_id="[^"]+" time="[^"]+">`、块内只有正文、空正文用类型占位、`</lark-message>` 被转义、不含 `<system-reminder>`
-- [ ] T006 [P] [US1] 更新 `tests/sessions.test.ts`：断言 `followup` 内容只有块文本、来源是 `{ kind: 'lark-bridge' }`；新增 `isBridgeSession` 命中与未命中用例
+- [X] T005 [P] [US1] 更新 `tests/bridge.test.ts`：断言块匹配 `^<lark-message message_id="[^"]+" time="[^"]+">`、块内只有正文、空正文用类型占位、`</lark-message>` 被转义、不含 `<system-reminder>`
+- [X] T006 [P] [US1] 更新 `tests/sessions.test.ts`：断言 `followup` 内容只有块文本、来源是 `{ kind: 'lark-bridge' }`；新增 `isBridgeSession` 命中与未命中用例
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] 修改 `src/bridge.ts`：`formatFeishuReminder(event, senderName)` 改为 `formatLarkMessage(event)`，按 `message_id`、`time` 顺序输出块并转义正文
-- [ ] T008 [US1] 修改 `src/sessions.ts`：`inject(block)` 用 `LARK_SOURCE` 投递块文本；删除 `reminderMessage` 与 `reminder()` 调用
-- [ ] T009 [US1] 运行 code 测试（`../../node_modules/.bin/vitest run --project code`）并修复 US1 相关失败
+- [X] T007 [US1] 修改 `src/bridge.ts`：`formatFeishuReminder(event, senderName)` 改为 `formatLarkMessage(event)`，按 `message_id`、`time` 顺序输出块并转义正文
+- [X] T008 [US1] 修改 `src/sessions.ts`：`inject(block)` 用 `LARK_SOURCE` 投递块文本；删除 `reminderMessage` 与 `reminder()` 调用
+- [X] T009 [US1] 运行 code 测试（`../../node_modules/.bin/vitest run --project code`）并修复 US1 相关失败
 
 **Checkpoint**: User Story 1 可独立验证，块注入生效
 
@@ -73,13 +73,13 @@
 
 ### Tests for User Story 2
 
-- [ ] T010 [P] [US2] 新建 `tests/reminder.test.ts`：提醒文案含四条规则；`agent/pre-step` 在表层缺少提醒时把提醒插到第一条块之前；表层已有提醒或本批已有提醒时不插入；非桥接会话不插入；`decision.kind === 'reject'` 与空批次原样返回
+- [X] T010 [P] [US2] 新建 `tests/reminder.test.ts`：提醒文案含四条规则；`agent/pre-step` 在表层缺少提醒时把提醒插到第一条块之前；表层已有提醒或本批已有提醒时不插入；非桥接会话不插入；`decision.kind === 'reject'` 与空批次原样返回
 
 ### Implementation for User Story 2
 
-- [ ] T011 [US2] 新建 `src/reminder.ts`：`BRIDGE_REMINDER` 文案常量、`createReminderMessage()`、`installReminderGuard({ ctx, sessions, logger })`，按 [plan.md](./plan.md#4-提醒与补注srcreminderts) 的流程实现
-- [ ] T012 [US2] 修改 `src/index.ts`：构造 `SessionManager` 后调用 `installReminderGuard`，用 `ctx.effect` 释放监听
-- [ ] T013 [US2] 运行 code 测试并修复 US2 相关失败
+- [X] T011 [US2] 新建 `src/reminder.ts`：`BRIDGE_REMINDER` 文案常量、`createReminderMessage()`、`installReminderGuard({ ctx, sessions, logger })`，按 [plan.md](./plan.md#4-提醒与补注srcreminderts) 的流程实现
+- [X] T012 [US2] 修改 `src/index.ts`：构造 `SessionManager` 后调用 `installReminderGuard`，用 `ctx.effect` 释放监听
+- [X] T013 [US2] 运行 code 测试并修复 US2 相关失败
 
 **Checkpoint**: User Story 1 与 2 可独立验证，提醒随第一条块进入请求
 
@@ -93,12 +93,12 @@
 
 ### Tests for User Story 3
 
-- [ ] T014 [US3] 在 `tests/reminder.test.ts` 增加压缩场景：把表层替换为一条摘要后触发 `agent/pre-step`，提醒条数从零变为一；连续触发保持一条
+- [X] T014 [US3] 在 `tests/reminder.test.ts` 增加压缩场景：把表层替换为一条摘要后触发 `agent/pre-step`，提醒条数从零变为一；连续触发保持一条
 
 ### Implementation for User Story 3
 
-- [ ] T015 [US3] 复核 `src/reminder.ts` 的 `surfaceHasReminder`：遍历 `session.surface.nodes` 并用 `session.eventAt(seq)` 读取事件，确保替换后的表层能被正确判定；必要时修正
-- [ ] T016 [US3] 运行 code 测试并修复 US3 相关失败
+- [X] T015 [US3] 复核 `src/reminder.ts` 的 `surfaceHasReminder`：遍历 `session.surface.nodes` 并用 `session.eventAt(seq)` 读取事件，确保替换后的表层能被正确判定；必要时修正
+- [X] T016 [US3] 运行 code 测试并修复 US3 相关失败
 
 **Checkpoint**: 三个用户故事全部可独立验证
 
@@ -108,12 +108,12 @@
 
 **Purpose**: 文档同步与发布门禁
 
-- [ ] T017 [P] 更新 `README.md`：功能列表改为 `<lark-message>` 块与提醒
-- [ ] T018 [P] 更新 `docs/how-it-works.md`：消息与会话两节补充块格式与压缩后补注
-- [ ] T019 [P] 更新 `docs/known-risks.md`：补充提醒依赖模型遵守、旧会话不补提醒
-- [ ] T020 运行 `pnpm format && pnpm check`，修复格式与检查问题
-- [ ] T021 运行 `pnpm build`，确认 dist 测试通过
-- [ ] T022 更新 `CHANGELOG.md`：按分支规则在 push 前增加条目
+- [X] T017 [P] 更新 `README.md`：功能列表改为 `<lark-message>` 块与提醒
+- [X] T018 [P] 更新 `docs/how-it-works.md`：消息与会话两节补充块格式与压缩后补注
+- [X] T019 [P] 更新 `docs/known-risks.md`：补充提醒依赖模型遵守、旧会话不补提醒
+- [X] T020 运行 `pnpm format && pnpm check`，修复格式与检查问题
+- [X] T021 运行 `pnpm build`，确认 dist 测试通过
+- [X] T022 更新 `CHANGELOG.md`：按分支规则在 push 前增加条目
 - [ ] T023 按 [quickstart.md](./quickstart.md) 在真实宿主完成人工验收
 
 ---

@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
-import { SessionId, type Session } from '@deepseek-ai/dsh-session';
+import { type Session, SessionId } from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-session-title';
 import type { Workspace, WorkspaceRegistry } from '@deepseek-ai/dsh-workspace';
 
