@@ -223,7 +223,7 @@ export class EventBridge {
     if (!(await this.deps.store.markSeen(id, createdAt))) return false;
     if (createdAt < this.startedAt) {
       this.deps.logger.warn(
-        `lark-bridge: filtered ${id} created=${formatTime(createdAt)} listenerStart=${formatTime(this.startedAt)}`,
+        `lark-bridge: filtered ${id} created=${formatTime(createdAt)} received=${formatTime(receivedAt)} listenerStart=${formatTime(this.startedAt)}`,
       );
       return false;
     }
@@ -251,7 +251,9 @@ export class EventBridge {
       while (this.queue.length > 0) {
         const batch = this.queue.splice(0).sort((a, b) => a.createdAt - b.createdAt);
         const text = batch.map((item) => item.block).join('\n\n');
-        const ids = batch.map((item) => item.id).join(',');
+        const ids = batch
+          .map((item) => `${item.id}@${formatTime(item.createdAt)}/${formatTime(item.receivedAt)}`)
+          .join(',');
         try {
           const result = await this.deps.sessions.inject(text);
           this.deps.logger.info(

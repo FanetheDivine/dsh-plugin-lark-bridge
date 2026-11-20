@@ -303,9 +303,11 @@ describe('EventBridge.handleEvent', () => {
       );
       await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
       expect(inject).not.toHaveBeenCalled();
-      expect(
-        logger.warn.mock.calls.some((call) => String(call[0]).includes('filtered om_old')),
-      ).toBe(true);
+      const filtered = logger.warn.mock.calls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes('filtered om_old'));
+      expect(filtered).toMatch(/created=\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/);
+      expect(filtered).toMatch(/received=\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/);
       instance.stop();
     } finally {
       vi.useRealTimers();
@@ -322,9 +324,11 @@ describe('EventBridge.handleEvent', () => {
       });
       await instance.handleEvent(event({ message_id: 'om_a' }));
       await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
-      expect(
-        logger.warn.mock.calls.some((call) => String(call[0]).includes('failed 1 message')),
-      ).toBe(true);
+      const failed = logger.warn.mock.calls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes('failed 1 message'));
+      expect(failed).toContain('om_a@');
+      expect(failed).toMatch(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\/\d{4}-/);
       fail = false;
       await instance.handleEvent(event({ message_id: 'om_b' }));
       await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
