@@ -22,7 +22,7 @@ description: "迁移模板热更新与前端链接规则的实施任务"
 
 **Purpose**: 固定迁移范围、决策与验证方式。
 
-- [ ] T001 归档 `specs/027-template-sync/` 的规格、计划、研究、数据模型、快速验证与需求检查清单。
+- [x] T001 归档 `specs/027-template-sync/` 的规格、计划、研究、数据模型、快速验证与需求检查清单。
 
 **Commit**: 完成 Phase 1 后提交 `docs(027): 迁移模板变更规格`。
 
@@ -70,9 +70,9 @@ description: "迁移模板热更新与前端链接规则的实施任务"
 
 ### Implementation for User Story 3
 
-- [ ] T010 [US3] 在 `docs/development.md` 的「前端构建」之后新增「前端 UI 链接」小节，写明 `href` MUST 使用含协议与主机的完整 URL、原因与本仓库示例 `https://github.com/FanetheDivine/dsh-plugin-lark-bridge`。
-- [ ] T011 [P] [US3] 在 `CHANGELOG.md` 的 `Unreleased` → `Changed` 增加前端 UI 链接条目。
-- [ ] T012 [US3] 运行 `pnpm format && pnpm check`、`bash -n`、`node --check`，按 [quickstart.md](./quickstart.md) 核对文档与改动范围，勾选本阶段任务。
+- [x] T010 [US3] 在 `docs/development.md` 的「前端构建」之后新增「前端 UI 链接」小节，写明 `href` MUST 使用含协议与主机的完整 URL、原因与本仓库示例 `https://github.com/FanetheDivine/dsh-plugin-lark-bridge`。
+- [x] T011 [P] [US3] 在 `CHANGELOG.md` 的 `Unreleased` → `Changed` 增加前端 UI 链接条目。
+- [x] T012 [US3] 运行 `pnpm format && pnpm check`、`bash -n`、`node --check`，按 [quickstart.md](./quickstart.md) 核对文档与改动范围，勾选本阶段任务。
 
 **Checkpoint**: 文档规则可独立阅读；完成 Phase 4 后提交 `docs(027): 前端链接使用完整 URL`。
 
