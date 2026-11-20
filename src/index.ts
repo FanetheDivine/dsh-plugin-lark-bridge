@@ -124,7 +124,6 @@ export function apply(ctx: Context, config?: unknown): void {
 
   ctx.on('domain/changed', (change) => {
     if (!selection.invalidate(change)) return;
-    bridge.stop();
     void reconcile();
   });
 
@@ -133,7 +132,6 @@ export function apply(ctx: Context, config?: unknown): void {
       const next = readConfig(config);
       current = next;
       selection.reset();
-      bridge.stop();
       void reconcile();
       ctx.logger.info(`[${PLUGIN_LABEL}] config updated`);
       runCheck();

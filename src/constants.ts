@@ -21,6 +21,9 @@ export const SEEN_LIMIT = 500;
 /** 单条飞书文本消息的最大字符数。 */
 export const MAX_MESSAGE_CHARS = 15_000;
 
+/** 注入前的静默窗口：队列在此期间没有新消息才发起注入。 */
+export const INJECT_SILENCE_MS = 15_000;
+
 /** 监听重启的初始与最大退避。 */
 export const RESTART_MIN_MS = 2_000;
 export const RESTART_MAX_MS = 60_000;
