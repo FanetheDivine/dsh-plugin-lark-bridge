@@ -1,25 +1,14 @@
-/** 浏览器侧调用宿主 `/lark-bridge/*` 路由。导出 BridgeStatus 与 fetch 函数。 */
+/** 浏览器侧调用宿主 `/lark-bridge/*` 路由。导出安全状态与检测函数。 */
 
-/** 鉴权阶段。 */
-export type AuthStage = 'cli-missing' | 'bot-unavailable' | 'user-missing' | 'ready';
+import type { ConnectionState } from '../types.ts';
 
-/** 路由返回的状态。 */
+/** 路由返回的笼统连接状态。 */
 export interface BridgeStatus {
+  readonly cli: ConnectionState;
+  readonly bot: ConnectionState;
+  readonly user: ConnectionState;
   readonly ready: boolean;
-  readonly stage: AuthStage;
-  readonly appId?: string;
-  readonly botStatus?: string;
-  readonly userName?: string;
-  readonly ownerOpenId?: string;
   readonly checkedAt: number;
-  readonly detail?: string;
-  readonly workspaceRoot: string;
-  readonly sessionId: string | null;
-  readonly sessionWorkspace: string | null;
-  readonly sessionTitle: string | null;
-  /** 最近一次消息注入失败的原因。 */
-  readonly error?: string;
-  readonly login: { verificationUrl: string; expiresAt: number } | null;
 }
 
 /** 失败结果。 */
@@ -34,7 +23,6 @@ export interface ApiSuccess<T> {
   readonly data: T;
 }
 
-/** 一次调用结果。 */
 export type ApiResult<T> = ApiSuccess<T> | ApiFailure;
 
 /** 构造路由地址。 */
@@ -42,7 +30,7 @@ function endpoint(path: string): string {
   return `${window.location.origin}/lark-bridge/${path}`;
 }
 
-/** 发起一次 JSON 调用；网络失败映射为可显示的失败。 */
+/** 发起一次 JSON 调用；网络失败映射为内部结果。 */
 export async function callApi<T>(
   path: string,
   init: RequestInit = {},
@@ -84,27 +72,12 @@ export async function callApi<T>(
   }
 }
 
-/** 读取鉴权状态。 */
+/** 读取最近一次连接状态。 */
 export function fetchStatus(signal?: AbortSignal): Promise<ApiResult<BridgeStatus>> {
   return callApi<BridgeStatus>('status', { method: 'GET' }, signal);
 }
 
-/** 重新检测。 */
+/** 执行一次完整检测。 */
 export function checkAuth(): Promise<ApiResult<BridgeStatus>> {
   return callApi<BridgeStatus>('check', { method: 'POST', body: '{}' });
-}
-
-/** 开始设备码授权。 */
-export function startLogin(): Promise<ApiResult<{ verificationUrl: string; expiresAt: number }>> {
-  return callApi('auth/start', { method: 'POST', body: '{}' });
-}
-
-/** 取消设备码授权。 */
-export function cancelLogin(): Promise<ApiResult<BridgeStatus>> {
-  return callApi<BridgeStatus>('auth/cancel', { method: 'POST', body: '{}' });
-}
-
-/** 清除桥接会话记录。 */
-export function resetSession(): Promise<ApiResult<BridgeStatus>> {
-  return callApi<BridgeStatus>('session/reset', { method: 'POST', body: '{}' });
 }

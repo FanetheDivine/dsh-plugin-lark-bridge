@@ -39,18 +39,18 @@ description: "Task list for 独立鉴权与工作区选择流程"
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] 在 `tests/auth.test.ts` 覆盖初始 checking、CLI 不可用、命令失败、bot/user 独立组合、固定 `--verify` 和并发复用
-- [ ] T005 [P] [US1] 在 `tests/routes.test.ts` 覆盖 `GET /status` 与 `POST /check` 的安全投影、敏感字段零出现和已删除路由
-- [ ] T006 [P] [US1] 在 `tests/client.test.ts` 覆盖三个连接区域、三条命令、检测按钮、无 URL/原始错误/身份元数据与状态控制器清理
+- [X] T004 [P] [US1] 在 `tests/auth.test.ts` 覆盖初始 checking、CLI 不可用、命令失败、bot/user 独立组合、固定 `--verify` 和并发复用
+- [X] T005 [P] [US1] 在 `tests/routes.test.ts` 覆盖 `GET /status` 与 `POST /check` 的安全投影、敏感字段零出现和已删除路由
+- [X] T006 [P] [US1] 在 `tests/client.test.ts` 覆盖三个连接区域、三条命令、检测按钮、无 URL/原始错误/身份元数据与状态控制器清理
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] 在 `src/auth.ts` 实现三个独立状态、整体 ready、owner open_id 与并发完整检测，删除 LoginFlow、启动/取消授权和后台轮询
-- [ ] T008 [US1] 在 `src/routes.ts` 只注册 status/check 并投影安全状态，在 `src/client/api.ts` 删除授权与重置 API 并使用共享连接状态类型
-- [ ] T009 [US1] 在 `src/client/terminal-command.tsx`、`src/client/auth-panel.tsx` 和 `src/client/locales.ts` 实现三个状态区、只读命令与统一检测动作
-- [ ] T010 [US1] 在 `src/client/status-controller.ts` 实现加载时完整检测、共享订阅、手动检测、只读轮询与卸载清理
-- [ ] T011 [US1] 在 `src/index.ts` 接入新 AuthManager 与安全路由，启动和 volatile 更新必检测并移除授权清理
-- [ ] T012 [US1] 在 `src/client/index.ts`、`src/client/auth-overlay.tsx` 和 `src/client/config-page.tsx` 接入共享状态控制器与连接面板
+- [X] T007 [US1] 在 `src/auth.ts` 实现三个独立状态、整体 ready、owner open_id 与并发完整检测，删除 LoginFlow、启动/取消授权和后台轮询
+- [X] T008 [US1] 在 `src/routes.ts` 只注册 status/check 并投影安全状态，在 `src/client/api.ts` 删除授权与重置 API 并使用共享连接状态类型
+- [X] T009 [US1] 在 `src/client/terminal-command.tsx`、`src/client/auth-panel.tsx` 和 `src/client/locales.ts` 实现三个状态区、只读命令与统一检测动作
+- [X] T010 [US1] 在 `src/client/status-controller.ts` 实现加载时完整检测、共享订阅、手动检测、只读轮询与卸载清理
+- [X] T011 [US1] 在 `src/index.ts` 接入新 AuthManager 与安全路由，启动和 volatile 更新必检测并移除授权清理
+- [X] T012 [US1] 在 `src/client/index.ts`、`src/client/auth-overlay.tsx` 和 `src/client/config-page.tsx` 接入共享状态控制器与连接面板
 
 **Checkpoint**: US1 可独立验证；状态轮询不执行 CLI，浏览器响应不含敏感诊断。
 

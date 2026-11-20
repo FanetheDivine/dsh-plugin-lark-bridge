@@ -1,36 +1,45 @@
-/**
- * 浏览器入口：注册字典、全局鉴权弹窗与插件行配置页。
- * 导出 apply；客户端服务按功能可选。
- */
+/** 浏览器入口：注册字典、共用连接弹窗与工作区配置页。 */
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-locale/client';
-// Type-only：拉取 shell.overlay 槽位与 ctx.layout 服务声明。
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
-// Type-only：拉取 plugins.row.config 槽位声明。
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
-// Type-only：拉取 ctx.slots 服务。
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
-// Type-only：拉取 ctx.configForms 服务。
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import { AuthOverlay } from './auth-overlay.tsx';
 import { PluginConfigForm, ROW_ID, ROW_KEY } from './config-form.ts';
 import { ConfigPage } from './config-page.tsx';
 import { en, NS, zh } from './locales.ts';
+import { StatusController } from './status-controller.ts';
 
-/**
- * 插件在前端启用时调用。
- * 字典、弹窗与配置页各自等待所需服务；服务缺失时该功能不加载。
- */
+/** 注册共享状态、弹窗和配置页。 */
 export function apply(ctx: Context): void {
   ctx.inject(['locale'], (ctx) => {
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), `${NS}: dictionaries`);
   });
 
-  ctx.inject(['slots', 'locale'], (ctx) => {
+  ctx.inject(['slots', 'locale', 'configForms'], (ctx) => {
+    const form = new PluginConfigForm(ctx.configForms.get(ROW_ID));
+    const controller = new StatusController({ autoStart: typeof window !== 'undefined' });
+    ctx.effect(
+      () => () => {
+        controller.dispose();
+        form.dispose();
+      },
+      `${NS}: shared state`,
+    );
+
     const layout = ctx.get('layout') as { selectPanel(id: string): void } | undefined;
     const navigation = ctx.get('pluginNavigation') as
       | { openBundle?(name: string): void }
       | undefined;
+    const openSettings = (): void => {
+      if (navigation?.openBundle !== undefined) {
+        navigation.openBundle('dsh-plugin-lark-bridge');
+        return;
+      }
+      layout?.selectPanel('plugins');
+    };
+
     ctx.slots.inject('shell.overlay', () =>
       ctx.slots.register(
         {
@@ -38,32 +47,19 @@ export function apply(ctx: Context): void {
           id: 'lark-bridge-auth',
           order: 20,
           locale: NS,
-          inject: () => ({
-            openSettings: () => {
-              if (navigation?.openBundle !== undefined) {
-                navigation.openBundle('dsh-plugin-lark-bridge');
-                return;
-              }
-              layout?.selectPanel('plugins');
-            },
-          }),
+          inject: () => ({ ...form.inject(), controller, openSettings }),
         },
         AuthOverlay,
       ),
     );
-  });
-
-  ctx.inject(['slots', 'locale', 'configForms'], (ctx) => {
-    const form = new PluginConfigForm(ctx.configForms.get(ROW_ID));
-    ctx.effect(
-      () => () => {
-        form.dispose();
-      },
-      `${NS}: config form`,
-    );
     ctx.slots.inject('plugins.row.config', () =>
       ctx.slots.register(
-        { name: 'plugins.row.config', key: ROW_KEY, locale: NS, inject: () => form.inject() },
+        {
+          name: 'plugins.row.config',
+          key: ROW_KEY,
+          locale: NS,
+          inject: () => ({ ...form.inject(), controller }),
+        },
         ConfigPage,
       ),
     );

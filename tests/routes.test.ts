@@ -1,32 +1,45 @@
-// JSON 路由测试：状态投影、同源校验、绑定与错误映射。
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
+// JSON 路由测试：安全状态投影、来源校验与检测动作。
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AuthSnapshot } from '../src/auth.ts';
-import type { PluginConfig } from '../src/config.ts';
-import { projectStatus, type RouteDeps, registerRoutes } from '../src/routes.ts';
-import { StateStore } from '../src/state.ts';
+import { type RouteDeps, registerRoutes } from '../src/routes.ts';
 
-const CONFIG: PluginConfig = {
-  workspaceRoot: 'D:/work',
-  sessionTitle: '飞书',
-  larkCli: '',
-  authCheckOnStartup: true,
-};
-
-/** 就绪快照。 */
+/** 包含内部诊断与身份元数据的就绪快照。 */
 const SNAPSHOT: AuthSnapshot = {
-  stage: 'ready',
+  cli: 'connected',
+  bot: 'connected',
+  user: 'connected',
   ready: true,
   appId: 'cli_x',
-  botStatus: 'ready',
   userName: '袁',
   ownerOpenId: 'ou_1',
   checkedAt: 1,
-  detail: undefined,
+  detail: 'raw cli diagnostic',
 };
+
+/** 手动检测返回的新快照。 */
+const CHECKED_SNAPSHOT: AuthSnapshot = { ...SNAPSHOT, checkedAt: 2 };
+
+const SAFE_FIELDS = ['cli', 'bot', 'user', 'ready', 'checkedAt'];
+const FORBIDDEN_FIELDS = [
+  'detail',
+  'appId',
+  'userName',
+  'ownerOpenId',
+  'login',
+  'error',
+  'session',
+  'sessionId',
+  'sessionWorkspace',
+  'sessionTitle',
+  'verificationUrl',
+  'deviceCode',
+  'token',
+  'scope',
+  'stage',
+  'botStatus',
+  'workspaceRoot',
+];
 
 /** 记录注册路由的假 WebServer。 */
 function makeWebServer() {
@@ -51,6 +64,7 @@ function request(
   method: string,
   body = '',
   headers: Record<string, string> = {},
+  remoteAddress = '127.0.0.1',
 ): {
   method: string;
   headers: Record<string, string>;
@@ -60,7 +74,7 @@ function request(
   return {
     method,
     headers,
-    socket: { remoteAddress: '127.0.0.1' },
+    socket: { remoteAddress },
     async *[Symbol.asyncIterator]() {
       if (body !== '') yield Buffer.from(body);
     },
@@ -89,100 +103,106 @@ function response() {
 }
 
 /** 构造路由依赖。 */
-async function setup() {
-  const dir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-routes-'));
-  const store = new StateStore(path.join(dir, 'state.json'));
-  await store.patch({ sessionId: 's1', workspaceRoot: 'D:/work', title: '飞书' });
+function setup(connection?: RouteDeps['connection']) {
   const { webServer, routes } = makeWebServer();
-  const check = vi.fn(async () => SNAPSHOT);
-  const startLogin = vi.fn(async () => ({
-    verificationUrl: 'https://example.com/verify',
-    deviceCode: 'dev',
-    expiresAt: Date.now() + 60_000,
-  }));
+  const check = vi.fn(async () => CHECKED_SNAPSHOT);
+  const onAuthChanged = vi.fn();
   const deps: RouteDeps = {
     webServer,
-    auth: {
-      current: SNAPSHOT,
-      check,
-      startLogin,
-      cancelLogin: vi.fn(),
-      whenLoginSettled: async () => SNAPSHOT,
-      pendingLogin: undefined,
-    } as never,
-    sessions: { reset: vi.fn(async () => undefined) } as never,
-    store,
-    getConfig: () => CONFIG,
+    ...(connection === undefined ? {} : { connection }),
+    auth: { current: SNAPSHOT, check } as never,
     logger: { warn: vi.fn() },
+    onAuthChanged,
   };
   const dispose = registerRoutes(deps);
-  return { routes, dispose, deps, check, startLogin, store };
+  return { routes, dispose, check, onAuthChanged };
 }
 
-describe('projectStatus', () => {
-  it('包含鉴权、工作区与会话，不包含 secret', async () => {
-    const { deps } = await setup();
-    const status = await projectStatus(deps);
-    expect(status).toMatchObject({
-      ready: true,
-      stage: 'ready',
-      workspaceRoot: 'D:/work',
-      sessionId: 's1',
-      sessionTitle: '飞书',
-      login: null,
-    });
-    expect(JSON.stringify(status)).not.toContain('secret');
+/** 校验成功响应只含浏览器可读的笼统状态。 */
+function expectSafeStatus(body: string, snapshot: AuthSnapshot): void {
+  const reply = JSON.parse(body) as { data: Record<string, unknown> };
+  expect(reply).toEqual({
+    ok: true,
+    data: {
+      cli: snapshot.cli,
+      bot: snapshot.bot,
+      user: snapshot.user,
+      ready: snapshot.ready,
+      checkedAt: snapshot.checkedAt,
+    },
   });
-});
+  expect(Object.keys(reply.data).sort()).toEqual([...SAFE_FIELDS].sort());
+  for (const field of FORBIDDEN_FIELDS) expect(reply.data).not.toHaveProperty(field);
+}
 
-describe('registerRoutes', () => {
-  it('注册五条精确路由', async () => {
-    const { routes } = await setup();
-    expect([...routes.keys()].sort()).toEqual([
-      '/lark-bridge/auth/cancel',
-      '/lark-bridge/auth/start',
-      '/lark-bridge/check',
-      '/lark-bridge/session/reset',
-      '/lark-bridge/status',
-    ]);
+describe('registerRoutes', async () => {
+  it('只注册 status 与 check 两条路由', async () => {
+    const { routes } = setup();
+    expect([...routes.keys()].sort()).toEqual(['/lark-bridge/check', '/lark-bridge/status']);
   });
 
-  it('GET status 返回 JSON', async () => {
-    const { routes } = await setup();
+  it('GET status 返回只读安全快照', async () => {
+    const { routes, check, onAuthChanged } = setup();
     const { res, captured } = response();
     await routes.get('/lark-bridge/status')?.(request('GET'), res);
     expect(captured.status).toBe(200);
-    expect(JSON.parse(captured.body)).toMatchObject({ ok: true, data: { ready: true } });
+    expectSafeStatus(captured.body, SNAPSHOT);
     expect(captured.headers['content-type']).toContain('application/json');
+    expect(check).not.toHaveBeenCalled();
+    expect(onAuthChanged).not.toHaveBeenCalled();
   });
 
-  it('跨源请求被拒绝', async () => {
-    const { routes } = await setup();
+  it('POST check 执行检测并通知状态变化', async () => {
+    const { routes, check, onAuthChanged } = setup();
+    const { res, captured } = response();
+    await routes.get('/lark-bridge/check')?.(request('POST', '{}'), res);
+    expect(captured.status).toBe(200);
+    expect(check).toHaveBeenCalledOnce();
+    expect(check).toHaveBeenCalledWith();
+    expect(onAuthChanged).toHaveBeenCalledOnce();
+    expect(onAuthChanged).toHaveBeenCalledWith(CHECKED_SNAPSHOT);
+    expectSafeStatus(captured.body, CHECKED_SNAPSHOT);
+  });
+
+  it('拒绝非回环请求', async () => {
+    const { routes, check } = setup();
+    const { res, captured } = response();
+    await routes.get('/lark-bridge/status')?.(request('GET', '', {}, '203.0.113.10'), res);
+    expect(captured.status).toBe(403);
+    expect(check).not.toHaveBeenCalled();
+  });
+
+  it('拒绝跨源请求', async () => {
+    const { routes, check } = setup();
     const { res, captured } = response();
     await routes.get('/lark-bridge/status')?.(
       request('GET', '', { origin: 'http://evil.example' }),
       res,
     );
     expect(captured.status).toBe(403);
+    expect(check).not.toHaveBeenCalled();
   });
 
-  it('POST auth/start 返回授权链接', async () => {
-    const { routes } = await setup();
+  it('沿用宿主 connection 请求校验', async () => {
+    const requestRejection = vi.fn(() => 403);
+    const { routes, check } = setup({ requestRejection });
     const { res, captured } = response();
-    await routes.get('/lark-bridge/auth/start')?.(request('POST', '{}'), res);
-    expect(JSON.parse(captured.body)).toMatchObject({
-      ok: true,
-      data: { verificationUrl: 'https://example.com/verify' },
-    });
+    await routes.get('/lark-bridge/status')?.(request('GET'), res);
+    expect(requestRejection).toHaveBeenCalledWith({ method: 'GET', headers: {} });
+    expect(captured.status).toBe(403);
+    expect(check).not.toHaveBeenCalled();
   });
 
-  it('不提供应用绑定路由', async () => {
-    const { routes } = await setup();
-    expect(routes.has('/lark-bridge/app')).toBe(false);
-  });
-
-  it('未知路径不在注册表中', async () => {
-    const { routes } = await setup();
-    expect(routes.has('/lark-bridge/unknown')).toBe(false);
+  it('不注册授权、会话重置和未知路由', async () => {
+    const { routes } = setup();
+    for (const path of [
+      '/lark-bridge/auth/start',
+      '/lark-bridge/auth/cancel',
+      '/lark-bridge/session/reset',
+      '/lark-bridge/app',
+      '/lark-bridge/unknown',
+    ]) {
+      expect(routes.has(path)).toBe(false);
+    }
   });
 });

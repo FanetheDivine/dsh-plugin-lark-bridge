@@ -46,10 +46,10 @@ export function apply(ctx: Context, config?: unknown): void {
     getCli: () => cli,
     logger: ctx.logger,
     onChange: (snapshot: AuthSnapshot) => {
-      const stage = snapshot.ready ? 'ready' : snapshot.stage;
-      if (stage !== lastStage) {
-        lastStage = stage;
-        ctx.logger.info(`[${PLUGIN_LABEL}] auth stage: ${stage}`);
+      const state = snapshot.ready ? 'ready' : `${snapshot.cli}/${snapshot.bot}/${snapshot.user}`;
+      if (state !== lastStage) {
+        lastStage = state;
+        ctx.logger.info(`[${PLUGIN_LABEL}] auth state: ${state}`);
       }
       bridge.sync(snapshot);
     },
@@ -80,9 +80,6 @@ export function apply(ctx: Context, config?: unknown): void {
       webServer,
       ...(connection === undefined ? {} : { connection }),
       auth,
-      sessions,
-      store,
-      getConfig: () => current,
       logger: ctx.logger,
       onAuthChanged: (snapshot) => bridge.sync(snapshot),
     });
@@ -102,7 +99,7 @@ export function apply(ctx: Context, config?: unknown): void {
       });
   };
 
-  if (current.authCheckOnStartup) runCheck();
+  runCheck();
 
   ctx.on('loader/volatile-update', () => {
     try {
@@ -116,5 +113,4 @@ export function apply(ctx: Context, config?: unknown): void {
   });
 
   ctx.effect(() => () => bridge.stop(), `${PLUGIN_LABEL}: event bridge`);
-  ctx.effect(() => () => auth.cancelLogin(), `${PLUGIN_LABEL}: login`);
 }

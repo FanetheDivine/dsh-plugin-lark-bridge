@@ -1,84 +1,32 @@
-/**
- * 全局鉴权弹窗：每次打开 GUI 读取状态，未就绪时显示可关闭的提示。
- * 导出 AuthOverlay 与 AuthOverlayContent。
- */
+/** 全局连接弹窗：连接未就绪时展示三个状态区与终端命令。 */
 import { Modal } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 
-import { type AuthStage, type BridgeStatus, checkAuth, fetchStatus } from './api.ts';
-import { CliInstallCommand } from './cli-install-command.tsx';
+import { AuthPanel } from './auth-panel.tsx';
 import type { NS } from './locales.ts';
+import { type StatusController, useStatusSnapshot } from './status-controller.ts';
 
 /** 弹窗 props。 */
 export interface AuthOverlayProps {
   readonly t: TranslateNS<typeof NS>;
+  readonly controller: StatusController;
   /** 打开设置面板。 */
   readonly openSettings: () => void;
 }
 
-/** 弹窗正文属性。 */
-export interface AuthOverlayContentProps {
-  readonly t: TranslateNS<typeof NS>;
-  readonly stage: AuthStage;
-}
-
-/** 弹窗正文，命令只在 CLI 缺失时出现。 */
-export function AuthOverlayContent({ t, stage }: AuthOverlayContentProps) {
-  return (
-    <>
-      <p style={bodyStyle}>{t('auth.description')}</p>
-      <CliInstallCommand t={t} stage={stage} />
-    </>
-  );
-}
-
-/** 鉴权弹窗。 */
-export function AuthOverlay({ t, openSettings }: AuthOverlayProps) {
-  const [status, setStatus] = useState<BridgeStatus | undefined>(undefined);
+/** 连接弹窗。 */
+export function AuthOverlay({ t, controller, openSettings }: AuthOverlayProps) {
+  const { status } = useStatusSnapshot(controller);
   const [dismissed, setDismissed] = useState(false);
-  const [busy, setBusy] = useState(false);
   const lastReady = useRef<boolean | undefined>(undefined);
 
-  const refresh = useCallback(async () => {
-    const result = await fetchStatus();
-    if (!result.ok) return;
-    setStatus(result.data);
-    if (lastReady.current === true && !result.data.ready) setDismissed(false);
-    lastReady.current = result.data.ready;
-  }, []);
-
   useEffect(() => {
-    void refresh();
-    const timer = window.setInterval(() => {
-      void refresh();
-    }, 5000);
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [refresh]);
+    if (lastReady.current === true && !status.ready) setDismissed(false);
+    lastReady.current = status.ready;
+  }, [status.ready]);
 
-  if (status === undefined || status.ready || dismissed) return null;
-
-  const stage = status.stage;
-  const hint = t(`auth.stage.${stage}.hint`);
-  const detail =
-    status.detail !== undefined && status.detail !== ''
-      ? `\n${t('auth.detail', { detail: status.detail })}`
-      : '';
-
-  const onRetry = async (): Promise<void> => {
-    setBusy(true);
-    try {
-      const result = await checkAuth();
-      if (result.ok) {
-        setStatus(result.data);
-        lastReady.current = result.data.ready;
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
+  if (status.ready || dismissed) return null;
 
   return (
     <Modal
@@ -86,7 +34,7 @@ export function AuthOverlay({ t, openSettings }: AuthOverlayProps) {
       onClose={() => setDismissed(true)}
       title={t('auth.title')}
       closeLabel={t('auth.close')}
-      description={`${hint}${detail}`}
+      description={t('auth.description')}
       tone="warning"
       footer={
         <div style={footerStyle}>
@@ -94,14 +42,6 @@ export function AuthOverlay({ t, openSettings }: AuthOverlayProps) {
             {t('auth.close')}
           </button>
           <div style={spacerStyle} />
-          <button
-            type="button"
-            style={secondaryStyle}
-            disabled={busy}
-            onClick={() => void onRetry()}
-          >
-            {busy ? t('auth.checking') : t('auth.retry')}
-          </button>
           <button
             type="button"
             style={primaryStyle}
@@ -115,7 +55,7 @@ export function AuthOverlay({ t, openSettings }: AuthOverlayProps) {
         </div>
       }
     >
-      <AuthOverlayContent t={t} stage={stage} />
+      <AuthPanel t={t} controller={controller} />
     </Modal>
   );
 }
@@ -144,11 +84,4 @@ const primaryStyle: CSSProperties = {
   border: '1px solid var(--dsw-alias-brand-fill, #0969da)',
   background: 'var(--dsw-alias-brand-fill, #0969da)',
   color: 'var(--dsw-alias-label-on-brand, #fff)',
-};
-
-const bodyStyle: CSSProperties = {
-  margin: '0 0 6px',
-  fontSize: 12,
-  lineHeight: '18px',
-  color: 'var(--dsw-alias-label-secondary)',
 };

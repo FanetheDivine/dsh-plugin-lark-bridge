@@ -2,12 +2,29 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { LarkCli } from '../src/cli.ts';
 
 import { Config, readConfig, resolveConfig } from '../src/config.ts';
 import { NOTIFY_TOOL_NAME, PLUGIN_LABEL } from '../src/constants.ts';
 import { apply, inject, name } from '../src/index.ts';
 import { makeCtx, volatile } from './helpers.ts';
+
+beforeEach(() => {
+  vi.spyOn(LarkCli.prototype, 'run').mockResolvedValue({ stdout: '1.0.0', stderr: '', code: 0 });
+  vi.spyOn(LarkCli.prototype, 'json').mockResolvedValue({
+    appId: 'cli_x',
+    identities: {
+      bot: { status: 'ready' },
+      user: { status: 'ready', openId: 'ou_1', userName: '测试用户' },
+    },
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 /** 最小 WebServer 假实现：记录注册的路由。 */
 function makeWebServer() {
@@ -80,7 +97,7 @@ describe('配置', () => {
 });
 
 describe('apply 接线', () => {
-  it('注册通知工具与五条路由', () => {
+  it('注册通知工具与两条路由', () => {
     process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
     const { webServer, routes } = makeWebServer();
     const ctx = makeCtx({ services: { webServer } });
@@ -91,10 +108,7 @@ describe('apply 接线', () => {
     });
     expect(ctx._registeredTools.map((tool) => tool.name)).toEqual([NOTIFY_TOOL_NAME]);
     expect(routes.map((route) => route.path).sort()).toEqual([
-      '/lark-bridge/auth/cancel',
-      '/lark-bridge/auth/start',
       '/lark-bridge/check',
-      '/lark-bridge/session/reset',
       '/lark-bridge/status',
     ]);
   });

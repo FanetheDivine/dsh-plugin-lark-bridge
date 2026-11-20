@@ -1,4 +1,4 @@
-// 前端入口接线测试：服务声明、字典与槽位注册参数、双语文案键集与渲染结果。
+// 前端测试：入口接线、字典、安全连接状态展示与共享状态控制器。
 import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
@@ -7,21 +7,24 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import type { BridgeStatus } from '../src/client/api.ts';
-import { AuthOverlay, AuthOverlayContent } from '../src/client/auth-overlay.tsx';
+import type { ApiResult, BridgeStatus } from '../src/client/api.ts';
+import { AuthOverlay } from '../src/client/auth-overlay.tsx';
 import { AuthPanelStatus } from '../src/client/auth-panel.tsx';
-import { type ConfigFormState, ROW_ID, ROW_KEY } from '../src/client/config-form.ts';
+import { ROW_ID, ROW_KEY } from '../src/client/config-form.ts';
 import { ConfigPage } from '../src/client/config-page.tsx';
 import * as clientEntry from '../src/client/index.ts';
 import { en, NS, zh } from '../src/client/locales.ts';
+import { StatusController } from '../src/client/status-controller.ts';
+import type { ConnectionState } from '../src/types.ts';
 import { type ClientServiceName, makeClientCtx } from './helpers.ts';
 
 const { apply } = clientEntry;
 const ALL_SERVICES: ClientServiceName[] = ['slots', 'locale', 'configForms'];
-const INSTALL_COMMAND = 'npm install -g @larksuite/cli@latest && lark-cli config init';
-const INSTALL_COMMAND_HTML = INSTALL_COMMAND.replaceAll('&', '&amp;');
+const CLI_COMMAND = 'npm install -g @larksuite/cli@latest';
+const BOT_COMMAND = 'lark-cli config init';
+const USER_COMMAND = 'lark-cli auth login --scope auth:user.id:read';
 
 /** 用字典构造翻译函数。 */
 function translate(dict: Record<string, string>): TranslateNS<typeof NS> {
@@ -31,59 +34,59 @@ function translate(dict: Record<string, string>): TranslateNS<typeof NS> {
     );
 }
 
-/** 配置页的草稿状态。 */
-function pageState(): ConfigFormState {
+/** 构造只含浏览器安全字段的连接状态。 */
+function statusFor(states: Partial<Pick<BridgeStatus, 'cli' | 'bot' | 'user'>> = {}): BridgeStatus {
+  const cli = states.cli ?? 'connected';
+  const bot = states.bot ?? 'connected';
+  const user = states.user ?? 'connected';
   return {
-    available: true,
-    writable: true,
-    dirty: false,
-    invalid: false,
-    saving: false,
-    failed: false,
-    workspaceRoot: { text: 'D:/work', overridden: false, invalid: false },
-    sessionTitle: { text: '飞书', overridden: false, invalid: false },
-    authCheckOnStartup: { text: 'true', overridden: false, invalid: false },
-  };
-}
-
-/** 渲染配置页。 */
-function renderConfigPage(view: 'page' | 'summary', dict: Record<string, string>): string {
-  const props = {
-    view,
-    t: translate(dict),
-    useConfigForm: <S>(select: (value: ConfigFormState) => S): S => select(pageState()),
-    edit: vi.fn(),
-    resetField: vi.fn(),
-    save: vi.fn(),
-    discard: vi.fn(),
-  };
-  return renderToStaticMarkup(createElement(ConfigPage, props as never));
-}
-
-/** 构造指定阶段的鉴权状态。 */
-function statusFor(stage: BridgeStatus['stage']): BridgeStatus {
-  return {
-    ready: stage === 'ready',
-    stage,
+    cli,
+    bot,
+    user,
+    ready: cli === 'connected' && bot === 'connected' && user === 'connected',
     checkedAt: 1,
-    workspaceRoot: '',
-    sessionId: null,
-    sessionWorkspace: null,
-    sessionTitle: null,
-    login: null,
   };
+}
+
+/** 渲染连接状态面板。 */
+function renderAuthPanel(status: BridgeStatus | undefined, busy = false): string {
+  return renderToStaticMarkup(
+    createElement(AuthPanelStatus, {
+      t: translate(zh),
+      status,
+      busy,
+      onCheck: vi.fn(),
+    }),
+  );
+}
+
+/** 构造成功的路由结果。 */
+function ok(data: BridgeStatus): ApiResult<BridgeStatus> {
+  return { ok: true, data };
+}
+
+/** 构造可手动完成的异步结果。 */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+/** 等待路由结果与控制器状态更新。 */
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 describe('前端入口', () => {
-  it('不声明必需服务，按功能分三组等待各自用到的服务', () => {
+  it('不声明必需服务，字典与共享槽位分两组加载', () => {
     expect('inject' in clientEntry).toBe(false);
     const ctx = makeClientCtx();
     apply(ctx);
-    expect(ctx._injectGroups).toEqual([
-      ['locale'],
-      ['slots', 'locale'],
-      ['slots', 'locale', 'configForms'],
-    ]);
+    expect(ctx._injectGroups).toEqual([['locale'], ['slots', 'locale', 'configForms']]);
   });
 
   it('注册双语字典、全局鉴权弹窗与面板配置页', () => {
@@ -125,7 +128,7 @@ function expectedRegistrations(services: ClientServiceName[]) {
   const has = (...names: ClientServiceName[]) => names.every((name) => services.includes(name));
   return {
     dictionary: has('locale'),
-    overlay: has('slots', 'locale'),
+    overlay: has('slots', 'locale', 'configForms'),
     configPage: has('slots', 'locale', 'configForms'),
   };
 }
@@ -177,7 +180,7 @@ describe('前端服务可选', () => {
     ctx._revoke('configForms');
     expect(activeRegistrations(ctx)).toEqual({
       dictionary: true,
-      overlay: true,
+      overlay: false,
       configPage: false,
     });
     expect(scope?.subscriberCount()).toBe(0);
@@ -198,92 +201,178 @@ describe('前端服务可选', () => {
   });
 });
 
-describe('字典与渲染', () => {
+describe('连接状态展示', () => {
+  it('BridgeStatus 只暴露三个连接状态、ready 与 checkedAt', () => {
+    expectTypeOf<BridgeStatus>().toEqualTypeOf<{
+      readonly cli: ConnectionState;
+      readonly bot: ConnectionState;
+      readonly user: ConnectionState;
+      readonly ready: boolean;
+      readonly checkedAt: number;
+    }>();
+    expect(Object.keys(statusFor()).sort()).toEqual(['bot', 'checkedAt', 'cli', 'ready', 'user']);
+  });
+
+  it('分别显示 checking、connected、disconnected 三种笼统状态', () => {
+    const html = renderAuthPanel(
+      statusFor({ cli: 'checking', bot: 'connected', user: 'disconnected' }),
+    );
+    expect(html).toContain('检测中');
+    expect(html).toContain('已连接');
+    expect(html).toContain('未连接');
+  });
+
+  it('三个区域各有一个检测按钮，忙碌时全部禁用', () => {
+    const idle = renderAuthPanel(statusFor());
+    expect(idle.match(/<button\b/g)).toHaveLength(3);
+    expect(idle).not.toContain('disabled');
+
+    const busy = renderAuthPanel(statusFor(), true);
+    expect(busy.match(/<button\b/g)).toHaveLength(3);
+    expect(busy.match(/<button\b[^>]*\bdisabled/g)).toHaveLength(3);
+  });
+
+  it('分别展示安装、机器人配置与用户登录的固定终端命令', () => {
+    const html = renderAuthPanel(
+      statusFor({ cli: 'disconnected', bot: 'disconnected', user: 'disconnected' }),
+    );
+    expect(html).toContain(CLI_COMMAND);
+    expect(html).toContain(BOT_COMMAND);
+    expect(html).toContain(USER_COMMAND);
+    expect(html).not.toContain(`${CLI_COMMAND} &amp;&amp; ${BOT_COMMAND}`);
+  });
+
+  it('忽略 URL、原始错误与身份元数据', () => {
+    const sensitiveStatus = {
+      ...statusFor({ cli: 'disconnected', bot: 'disconnected', user: 'disconnected' }),
+      appId: 'app-id-sensitive',
+      userName: 'username-sensitive',
+      ownerOpenId: 'open_id-sensitive',
+      detail: 'raw-error-sensitive',
+      verificationUrl: 'https://example.test/auth?token=token-sensitive',
+      token: 'token-sensitive',
+      scope: 'scope-sensitive',
+    } as BridgeStatus;
+    const html = renderToStaticMarkup(
+      createElement(AuthPanelStatus, {
+        t: translate(zh),
+        status: sensitiveStatus,
+        error: 'raw-error-sensitive',
+        busy: false,
+        onCheck: vi.fn(),
+      } as never),
+    );
+
+    for (const sensitive of [
+      'https://example.test/auth?token=token-sensitive',
+      'raw-error-sensitive',
+      'app-id-sensitive',
+      'username-sensitive',
+      'open_id-sensitive',
+      'token-sensitive',
+      'scope-sensitive',
+    ]) {
+      expect(html).not.toContain(sensitive);
+    }
+    expect(html).not.toContain('<a');
+    expect(html).not.toContain('href=');
+    expect(html.match(/--scope/g)).toHaveLength(1);
+  });
+});
+
+describe('字典', () => {
   it('中英字典键集一致且无空文案', () => {
     expect(Object.keys(en).sort()).toEqual(Object.keys(zh).sort());
     for (const value of [...Object.values(en), ...Object.values(zh)]) {
       expect(value.trim()).not.toBe('');
     }
   });
+});
 
-  it('配置页 summary 显示一行描述', () => {
-    expect(renderConfigPage('summary', zh)).toBe(zh['config.summary']);
+describe('StatusController', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
   });
 
-  it('配置页渲染鉴权面板与会话字段', () => {
-    const html = renderConfigPage('page', zh);
-    expect(html).toContain('data-dsh-lark-auth-panel');
-    expect(html).toContain(zh['config.workspaceRoot.title']);
-    expect(html).toContain(zh['config.sessionTitle.title']);
-    expect(html).toContain(zh['config.resetSession']);
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
-  it('配置页没有机器人凭据、档案名与 open_id 输入', () => {
-    for (const dict of [zh, en]) {
-      const html = renderConfigPage('page', dict);
-      expect(html).not.toContain('App Secret');
-      expect(html).not.toContain('type="password"');
-      expect(html).not.toContain('open_id');
-      expect(html).not.toContain('档案');
-      expect(html).not.toContain('profile');
-    }
+  it('加载时完整检测一次，定时轮询只读取状态并通知订阅者', async () => {
+    const initial = statusFor({ user: 'disconnected' });
+    const polled = statusFor();
+    const checkAuth = vi.fn(async (): Promise<ApiResult<BridgeStatus>> => ok(initial));
+    const fetchStatus = vi.fn(async (): Promise<ApiResult<BridgeStatus>> => ok(polled));
+    const controller = new StatusController({ fetchStatus, checkAuth });
+
+    expect(checkAuth).toHaveBeenCalledTimes(1);
+    expect(fetchStatus).not.toHaveBeenCalled();
+    expect(controller.getSnapshot().busy).toBe(true);
+    await flushPromises();
+    expect(controller.getSnapshot()).toMatchObject({ status: initial, busy: false });
+
+    const listener = vi.fn();
+    controller.subscribe(listener);
+    listener.mockClear();
+    await vi.advanceTimersToNextTimerAsync();
+    await flushPromises();
+
+    expect(checkAuth).toHaveBeenCalledTimes(1);
+    expect(fetchStatus).toHaveBeenCalledTimes(1);
+    expect(controller.getSnapshot()).toMatchObject({ status: polled, busy: false });
+    expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({ status: polled }));
+    controller.dispose();
   });
 
-  it('弹窗仅在 cli-missing 显示本机安装命令', () => {
-    const cliMissing = renderToStaticMarkup(
-      createElement(AuthOverlayContent, { t: translate(zh), stage: 'cli-missing' }),
+  it('并发手动检测共享同一次请求与 busy 状态', async () => {
+    const initial = statusFor({ bot: 'disconnected' });
+    const checked = statusFor();
+    const pending = deferred<ApiResult<BridgeStatus>>();
+    const checkAuth = vi
+      .fn<() => Promise<ApiResult<BridgeStatus>>>()
+      .mockResolvedValueOnce(ok(initial))
+      .mockReturnValueOnce(pending.promise);
+    const fetchStatus = vi.fn(async (): Promise<ApiResult<BridgeStatus>> => ok(initial));
+    const controller = new StatusController({ fetchStatus, checkAuth });
+    await flushPromises();
+    const listener = vi.fn();
+    controller.subscribe(listener);
+    listener.mockClear();
+
+    const first = controller.check();
+    const second = controller.check();
+    expect(checkAuth).toHaveBeenCalledTimes(2);
+    expect(controller.getSnapshot().busy).toBe(true);
+    expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({ busy: true }));
+
+    pending.resolve(ok(checked));
+    await Promise.all([first, second]);
+    await flushPromises();
+    expect(controller.getSnapshot()).toMatchObject({ status: checked, busy: false });
+    expect(listener).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: checked, busy: false }),
     );
-    expect(cliMissing).toContain('<code');
-    expect(cliMissing).toContain(INSTALL_COMMAND_HTML);
-
-    const botUnavailable = renderToStaticMarkup(
-      createElement(AuthOverlayContent, { t: translate(zh), stage: 'bot-unavailable' }),
-    );
-    expect(botUnavailable).not.toContain(INSTALL_COMMAND_HTML);
+    controller.dispose();
   });
 
-  it('鉴权面板仅在确认 cli-missing 后显示安装命令', () => {
-    const render = (stage: BridgeStatus['stage']) =>
-      renderToStaticMarkup(
-        createElement(AuthPanelStatus, {
-          t: translate(zh),
-          status: statusFor(stage),
-          error: '',
-          busy: undefined,
-          onCheck: vi.fn(),
-        }),
-      );
-    expect(render('cli-missing')).toContain(INSTALL_COMMAND_HTML);
-    expect(render('bot-unavailable')).not.toContain(INSTALL_COMMAND_HTML);
-  });
+  it('dispose 清理轮询计时器与订阅监听', async () => {
+    const pending = deferred<ApiResult<BridgeStatus>>();
+    const checkAuth = vi.fn((): Promise<ApiResult<BridgeStatus>> => pending.promise);
+    const fetchStatus = vi.fn(async (): Promise<ApiResult<BridgeStatus>> => ok(statusFor()));
+    const controller = new StatusController({ fetchStatus, checkAuth });
+    const listener = vi.fn();
+    controller.subscribe(listener);
+    listener.mockClear();
 
-  it('配置页加载时不显示安装命令且无 larkCli 路径设置', () => {
-    for (const dict of [zh, en]) {
-      const html = renderConfigPage('page', dict);
-      expect(html).toContain(dict['auth.checking']);
-      expect(html).not.toContain(INSTALL_COMMAND_HTML);
-      expect(html).not.toContain('config.larkCli');
-      expect(html).not.toContain('lark-cli 路径');
-      expect(html).not.toContain('lark-cli path');
-      expect(html).not.toContain('留空自动使用插件依赖');
-      expect(html).not.toContain('Leave empty to use the bundled');
-    }
-  });
+    expect(vi.getTimerCount()).toBe(1);
+    controller.dispose();
+    expect(vi.getTimerCount()).toBe(0);
 
-  it('bot 身份不可用时提示用 lark-cli 配置机器人', () => {
-    expect(zh['auth.stage.bot-unavailable.hint']).toContain('lark-cli config init');
-    expect(en['auth.stage.bot-unavailable.hint']).toContain('lark-cli config init');
-    expect(Object.keys(zh).filter((key) => key.startsWith('auth.stage.app-missing'))).toEqual([]);
-  });
-
-  it('弹窗在状态就绪时不渲染', () => {
-    // 组件在 SSR 中以未加载状态返回 null。
-    const html = renderToStaticMarkup(
-      createElement(AuthOverlay, {
-        t: translate(zh),
-        openSettings: () => undefined,
-      }),
-    );
-    expect(html).toBe('');
+    pending.resolve(ok(statusFor()));
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(fetchStatus).not.toHaveBeenCalled();
+    expect(listener).not.toHaveBeenCalled();
   });
 });

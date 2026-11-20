@@ -8,17 +8,18 @@ import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives';
 import { SettingsForm, SettingsValueField, Switch } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-import { type CSSProperties, useId, useState } from 'react';
+import { type CSSProperties, useId } from 'react';
 
-import { resetSession } from './api.ts';
 import { AuthPanel } from './auth-panel.tsx';
 import type { ConfigPageInjected } from './config-form.ts';
 import type { NS } from './locales.ts';
 
+import type { StatusController } from './status-controller.ts';
+
 /** 配置页组件 props。 */
 export type ConfigPageProps = PropsRuntime<'plugins.row.config'> &
   PropsLocale<typeof NS> &
-  InjectFace<ConfigPageInjected>;
+  InjectFace<ConfigPageInjected & { readonly controller: StatusController }>;
 
 /** 表单框架文案。 */
 function formLabels(t: ConfigPageProps['t']): SettingsFormLabels {
@@ -36,7 +37,6 @@ export function ConfigPage(props: ConfigPageProps) {
   const { t } = props;
   const id = useId();
   const state = props.useConfigForm((value) => value);
-  const [resetNotice, setResetNotice] = useState('');
 
   if (props.view === 'summary') return t('config.summary');
 
@@ -44,7 +44,7 @@ export function ConfigPage(props: ConfigPageProps) {
 
   return (
     <div>
-      <AuthPanel t={t} />
+      <AuthPanel t={t} controller={props.controller} />
 
       <SettingsForm
         state={state}
@@ -100,26 +100,6 @@ export function ConfigPage(props: ConfigPageProps) {
             onChange={(next) => props.edit('authCheckOnStartup', next ? 'true' : 'false')}
           />
         </div>
-
-        <div style={rowStyle}>
-          <div style={textStyle}>
-            <span style={titleStyle}>{t('config.resetSession')}</span>
-            <p style={descriptionStyle}>{t('config.resetSessionHint')}</p>
-            {resetNotice !== '' ? <p style={noticeStyle}>{resetNotice}</p> : null}
-          </div>
-          <button
-            type="button"
-            style={secondaryButtonStyle}
-            disabled={disabled}
-            onClick={() => {
-              void resetSession().then((result) => {
-                setResetNotice(result.ok ? t('config.resetDone') : result.error.message);
-              });
-            }}
-          >
-            {t('config.resetSession')}
-          </button>
-        </div>
       </SettingsForm>
     </div>
   );
@@ -165,21 +145,4 @@ const descriptionStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: '18px',
   color: 'var(--dsw-alias-label-secondary)',
-};
-
-const noticeStyle: CSSProperties = {
-  ...descriptionStyle,
-  color: 'var(--dsw-alias-label-link, #0969da)',
-};
-
-const secondaryButtonStyle: CSSProperties = {
-  flex: 'none',
-  padding: '4px 10px',
-  border: '1px solid var(--dsw-alias-border-l2)',
-  borderRadius: 'var(--dsw-radius-sm, 6px)',
-  background: 'var(--dsw-alias-button-tool-bar-fill, transparent)',
-  color: 'var(--dsw-alias-label-primary)',
-  font: 'inherit',
-  fontSize: 12,
-  cursor: 'pointer',
 };
