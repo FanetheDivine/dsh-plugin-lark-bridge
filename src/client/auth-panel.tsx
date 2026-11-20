@@ -112,7 +112,6 @@ const titleStyle: CSSProperties = {
 };
 
 const stateStyle: CSSProperties = {
-  flex: 1,
   fontSize: 12,
   color: 'var(--dsw-alias-label-secondary)',
 };

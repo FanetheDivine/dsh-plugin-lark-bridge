@@ -347,6 +347,14 @@ describe('连接状态展示', () => {
     expect(html).toContain('未连接');
   });
 
+  it('检测按钮紧跟该行状态文字，文案保留全称', () => {
+    const html = renderAuthPanel(statusFor());
+    expect(html).toMatch(/已连接<\/span><button[^>]*>检测 lark-cli<\/button>/);
+    expect(html).toMatch(/已连接<\/span><button[^>]*>检测机器人身份<\/button>/);
+    expect(html).toMatch(/已连接<\/span><button[^>]*>检测用户身份<\/button>/);
+    expect(html).not.toContain('flex:1');
+  });
+
   it('三个区域各有一个检测按钮，忙碌时全部禁用', () => {
     const idle = renderAuthPanel(statusFor());
     expect(idle.match(/<button\b/g)).toHaveLength(3);
