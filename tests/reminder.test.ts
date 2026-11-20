@@ -92,6 +92,15 @@ describe('BRIDGE_REMINDER', () => {
     expect(BRIDGE_REMINDER).toContain('其他来源的用户消息');
   });
 
+  it('说明精确回复与引用读取方式', () => {
+    expect(BRIDGE_REMINDER).toContain('reply_to');
+    expect(BRIDGE_REMINDER).toContain('引用用户的消息');
+    expect(BRIDGE_REMINDER).toContain('<quote>');
+    expect(BRIDGE_REMINDER).toContain('<forwarded_messages>');
+    expect(BRIDGE_REMINDER).toContain('+messages-mget --as user');
+    expect(BRIDGE_REMINDER).toContain('移动端');
+  });
+
   it('包装成 system-reminder 且来源带标记', () => {
     const message = createReminderMessage();
     expect(message.source).toEqual({ kind: 'lark-bridge', reminder: true });
