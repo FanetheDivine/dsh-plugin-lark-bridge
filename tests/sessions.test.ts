@@ -8,19 +8,17 @@ import type { PluginConfig } from '../src/config.ts';
 import { SESSION_TITLE } from '../src/constants.ts';
 import { SessionManager } from '../src/sessions.ts';
 import { StateStore } from '../src/state.ts';
+import { normalizeWorkspacePath, toHostWorkspacePath } from '../src/workspace-path.ts';
 
-const CONFIG: PluginConfig = {
-  workspaceRoot: '/d/Git',
-};
-const HOST_CWD = 'D:/Git';
-
-/** 构造会话管理器与内部记录。 */
+/** 构造会话管理器与内部记录；工作区使用真实临时目录以适配各平台。 */
 async function setup(
   options: { workspaceRoot?: string; live?: boolean; registered?: boolean } = {},
 ) {
   const home = await mkdtemp(path.join(tmpdir(), 'lark-bridge-sessions-'));
-  const cwd = HOST_CWD;
-  const config = { ...CONFIG, workspaceRoot: options.workspaceRoot ?? CONFIG.workspaceRoot };
+  const workspaceDir = await mkdtemp(path.join(tmpdir(), 'lark-bridge-workspace-'));
+  const workspaceRoot = normalizeWorkspacePath(workspaceDir);
+  const cwd = toHostWorkspacePath(workspaceRoot);
+  const config: PluginConfig = { workspaceRoot: options.workspaceRoot ?? workspaceRoot };
   const store = new StateStore(path.join(home, 'state.json'));
 
   const appended: Array<[string, unknown]> = [];
@@ -97,6 +95,7 @@ async function setup(
     followups,
     agent,
     cwd,
+    workspaceRoot,
     workspace,
     archived,
     resolveByPath,
@@ -112,17 +111,17 @@ describe('SessionManager', () => {
   });
 
   it('ensure 返回 Host 原生 cwd', async () => {
-    const { sessions } = await setup();
-    const result = await sessions.ensure(CONFIG.workspaceRoot);
-    expect(result).toMatchObject({ created: true, cwd: HOST_CWD });
+    const { sessions, workspaceRoot, cwd } = await setup();
+    const result = await sessions.ensure(workspaceRoot);
+    expect(result).toMatchObject({ created: true, cwd });
   });
 
   it('目录存在但未注册时拒绝注入且不创建注册项或会话', async () => {
-    const { sessions, resolveByPath, registryCreate, createAgent, followups } = await setup({
+    const { sessions, resolveByPath, registryCreate, createAgent, followups, cwd } = await setup({
       registered: false,
     });
     await expect(sessions.inject('hi')).rejects.toMatchObject({ code: 'workspace-unregistered' });
-    expect(resolveByPath).toHaveBeenCalledWith(HOST_CWD);
+    expect(resolveByPath).toHaveBeenCalledWith(cwd);
     expect(registryCreate).not.toHaveBeenCalled();
     expect(createAgent).not.toHaveBeenCalled();
     expect(followups).toHaveLength(0);
@@ -138,12 +137,13 @@ describe('SessionManager', () => {
       appended,
       followups,
       cwd,
+      workspaceRoot,
       resolveByPath,
       registryCreate,
     } = await setup();
     const result = await sessions.inject('飞书消息');
     expect(result.created).toBe(true);
-    expect(resolveByPath).toHaveBeenCalledWith(HOST_CWD);
+    expect(resolveByPath).toHaveBeenCalledWith(cwd);
     expect(created[0]?.meta).toEqual({ cwd });
     expect(appended[0]?.[0]).toBe('session/title');
     expect(appended[0]?.[1]).toMatchObject({ title: SESSION_TITLE });
@@ -151,7 +151,7 @@ describe('SessionManager', () => {
     expect(pinned).toEqual([result.sessionId]);
     expect(registryCreate).not.toHaveBeenCalled();
     expect((await store.load()).sessionId).toBe(result.sessionId);
-    expect((await store.load()).workspaceRoot).toBe(CONFIG.workspaceRoot);
+    expect((await store.load()).workspaceRoot).toBe(workspaceRoot);
     expect(followups[0]?.content).toEqual([
       { type: 'text', text: expect.stringContaining('<system-reminder>') },
     ]);
@@ -159,12 +159,12 @@ describe('SessionManager', () => {
   });
 
   it('followup 前再次解析工作区，注销后拒绝注入', async () => {
-    const { sessions, workspace, resolveByPath, registryCreate, followups } = await setup();
+    const { sessions, workspace, resolveByPath, registryCreate, followups, cwd } = await setup();
     resolveByPath.mockResolvedValueOnce(workspace).mockResolvedValueOnce(undefined);
     await expect(sessions.inject('hi')).rejects.toMatchObject({ code: 'workspace-unregistered' });
     expect(resolveByPath).toHaveBeenCalledTimes(2);
-    expect(resolveByPath).toHaveBeenNthCalledWith(1, HOST_CWD);
-    expect(resolveByPath).toHaveBeenNthCalledWith(2, HOST_CWD);
+    expect(resolveByPath).toHaveBeenNthCalledWith(1, cwd);
+    expect(resolveByPath).toHaveBeenNthCalledWith(2, cwd);
     expect(registryCreate).not.toHaveBeenCalled();
     expect(followups).toHaveLength(0);
   });
@@ -186,10 +186,10 @@ describe('SessionManager', () => {
   });
 
   it('归档会话恢复失败时新建并覆盖记录', async () => {
-    const { sessions, store, created } = await setup();
+    const { sessions, store, created, workspaceRoot } = await setup();
     await store.patch({
       sessionId: 'gone',
-      workspaceRoot: CONFIG.workspaceRoot,
+      workspaceRoot,
       title: SESSION_TITLE,
     });
     const result = await sessions.inject('hi');
