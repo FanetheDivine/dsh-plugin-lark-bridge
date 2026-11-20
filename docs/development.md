@@ -129,7 +129,7 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | `tests/state.test.ts` | 状态读写、去重窗口与损坏恢复 |
 | `tests/config-form.test.ts` | 配置页草稿与字段集、校验、保存、恢复默认、放弃与卸载 |
 | `tests/release-archive.test.mjs` | CHANGELOG 归档计划 |
-| `tests/client.test.ts` | 前端服务声明、字典与槽位注册、共享状态控制器、连接面板、工作区选择与弹窗 reducer |
+| `tests/client.test.ts` | 前端服务声明、字典与槽位注册、共享状态控制器、连接面板、工作区下拉与弹窗 reducer（jsdom） |
 | `tests/client-bundle.test.ts` | `dist/client.js` 的注册契约与导出（产物测试） |
 | `tests/package-pack.test.ts` | npm 包不含 lark-cli，含发布所需文件与前端闭包工厂（产物测试） |
 | `tests/metadata.test.ts` | 插件元数据的结构、键集、禁用字符与清单声明 |
@@ -233,10 +233,10 @@ src/
     ├── api.ts              # 路由调用与状态类型
     ├── auth-overlay.tsx    # shell.overlay 共用设置弹窗与状态 reducer
     ├── auth-panel.tsx      # 三个连接状态与检测按钮
-    ├── terminal-command.tsx # 只读终端命令
+    ├── terminal-command.tsx # 只读终端命令与复制按钮
     ├── status-controller.ts # 共享检测、订阅与轮询
     ├── config-form.ts      # 单工作区草稿模型与行键常量
-    ├── config-page.tsx     # 注册工作区 select 与配置页视图
+    ├── config-page.tsx     # 注册工作区下拉（宿主 Menu）与配置页视图
     └── locales.ts          # 中英文字典与命名空间
 dist/
 ├── index.mjs               # 宿主产物
