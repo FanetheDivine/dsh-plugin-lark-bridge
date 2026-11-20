@@ -53,10 +53,10 @@ description: "迁移模板热更新与前端链接规则的实施任务"
 
 ### Implementation for User Story 2
 
-- [ ] T006 [US2] 更新 `.dsh/skills/real-device-test/SKILL.md`：阶段 0 说明构建是迭代动作；阶段 1 说明链接安装与 HMR 补丁；A1 文案与 T003 一致；新增「迭代：重建后在运行实例中查看效果」小节，验证步骤使用 `src/tools.ts` 的 `lark_notify` 与 `requests.jsonl`；阶段 5 改为先写报告再删除 profile。
-- [ ] T007 [P] [US2] 在 `.dsh/skills/real-device-test/references/pitfalls.md` 新增「热更新」表，覆盖安装方式、HMR 配置、构建产物、前端延迟、点目录与补丁改动。
-- [ ] T008 [P] [US2] 在 `.dsh/skills/real-device-test/references/cases.md` 新增热更新验证步骤与报告结构；步骤绑定 `lark_notify` 与 `requests.jsonl`。
-- [ ] T009 [US2] 与模板 `fe93cd0` 做 diff 核对，确认未适配项只有约定的验证段；运行 `pnpm check`，勾选本阶段任务。
+- [x] T006 [US2] 更新 `.dsh/skills/real-device-test/SKILL.md`：阶段 0 说明构建是迭代动作；阶段 1 说明链接安装与 HMR 补丁；A1 文案与 T003 一致；新增「迭代：重建后在运行实例中查看效果」小节，验证步骤使用 `src/tools.ts` 的 `lark_notify` 与 `requests.jsonl`；阶段 5 改为先写报告再删除 profile。
+- [x] T007 [P] [US2] 在 `.dsh/skills/real-device-test/references/pitfalls.md` 新增「热更新」表，覆盖安装方式、HMR 配置、构建产物、前端延迟、点目录与补丁改动。
+- [x] T008 [P] [US2] 在 `.dsh/skills/real-device-test/references/cases.md` 新增热更新验证步骤与报告结构；步骤绑定 `lark_notify` 与 `requests.jsonl`。
+- [x] T009 [US2] 与模板 `fe93cd0` 做 diff 核对，确认未适配项只有约定的验证段；运行 `pnpm check`，勾选本阶段任务。
 
 **Checkpoint**: skill 文档可独立指导迭代；完成 Phase 3 后提交 `docs(027): skill 迭代说明与热更新排错`。
 
