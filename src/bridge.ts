@@ -52,6 +52,13 @@ interface QueuedMessage {
   readonly block: string;
 }
 
+/** 把队列条目拼成日志用的 `id@创建时间/到达时间` 列表。 */
+function describeQueue(items: readonly QueuedMessage[]): string {
+  return items
+    .map((item) => `${item.id}@${formatTime(item.createdAt)}/${formatTime(item.receivedAt)}`)
+    .join(',');
+}
+
 /** 把一条飞书消息渲染为 `<lark-message>` 块。 */
 export function formatLarkMessage(event: FeishuEvent): string {
   const time = formatTime(parseTimestamp(event.timestamp ?? event.create_time));
@@ -113,7 +120,9 @@ export class EventBridge {
     if (this.silenceTimer !== undefined) clearTimeout(this.silenceTimer);
     this.silenceTimer = undefined;
     if (this.queue.length > 0) {
-      this.deps.logger.warn(`lark-bridge: dropped ${this.queue.length} queued message(s) on stop`);
+      this.deps.logger.warn(
+        `lark-bridge: dropped ${this.queue.length} queued message(s) [${describeQueue(this.queue)}] on stop`,
+      );
       this.queue.length = 0;
     }
     const child = this.child;

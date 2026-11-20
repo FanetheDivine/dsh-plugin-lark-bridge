@@ -341,11 +341,15 @@ describe('EventBridge.handleEvent', () => {
   it('停止时清空队列与计时器', async () => {
     vi.useFakeTimers();
     try {
-      const { instance, inject } = await bridge();
+      const { instance, inject, logger } = await bridge();
       await instance.handleEvent(event({ message_id: 'om_a' }));
       instance.stop();
       await vi.advanceTimersByTimeAsync(INJECT_SILENCE_MS);
       expect(inject).not.toHaveBeenCalled();
+      const dropped = logger.warn.mock.calls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes('dropped 1 queued message'));
+      expect(dropped).toContain('om_a@');
     } finally {
       vi.useRealTimers();
     }
