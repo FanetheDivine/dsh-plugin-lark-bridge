@@ -45,6 +45,17 @@ function firstMessage(value: unknown): Record<string, unknown> | undefined {
   return isRecord(first) ? first : undefined;
 }
 
+/** mget 已格式化的时间文本（`YYYY-MM-DD HH:mm[:ss]`）。 */
+const MGET_TIME = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?$/;
+
+/** 归一时间：mget 已在本机时区格式化，直接沿用；其他形式交给 formatTime。 */
+function quoteTime(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const text = value.trim();
+  if (MGET_TIME.test(text)) return text.length === 16 ? `${text}:00` : text;
+  return formatTime(text);
+}
+
 /**
  * 把一条 mget 消息转成引用模型。
  * @param messageId - 被引消息标识。
@@ -56,7 +67,7 @@ export function toQuotedMessage(messageId: string, raw: Record<string, unknown>)
   const from: QuoteFrom = senderType === 'bot' || senderType === 'app' ? 'bot' : 'user';
   const type = String(raw['msg_type'] ?? 'text');
   const content = typeof raw['content'] === 'string' ? raw['content'].trim() : '';
-  const time = formatTime(typeof raw['create_time'] === 'string' ? raw['create_time'] : undefined);
+  const time = quoteTime(raw['create_time']);
   if (type === 'merge_forward') {
     return { messageId, from, time, kind: 'forwarded', text: '', unavailable: false };
   }

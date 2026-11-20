@@ -69,6 +69,15 @@ describe('toQuotedMessage', () => {
     expect(value.time).toBe('2026-11-21 00:37:00');
   });
 
+  it('已格式化的时间不随运行时时区换算', () => {
+    const value = toQuotedMessage('om_old', raw({ create_time: '2026-11-21 00:37:05' }));
+    expect(value.time).toBe('2026-11-21 00:37:05');
+  });
+
+  it('缺失时间返回空串', () => {
+    expect(toQuotedMessage('om_old', raw({ create_time: undefined })).time).toBe('');
+  });
+
   it('机器人发送的消息标记为 bot', () => {
     const value = toQuotedMessage('om_old', raw({ sender: { sender_type: 'bot' } }));
     expect(value.from).toBe('bot');
