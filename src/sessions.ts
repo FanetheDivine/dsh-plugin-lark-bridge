@@ -8,13 +8,14 @@ import { resolve } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
 import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
-import { SessionId } from '@deepseek-ai/dsh-session';
+import { SessionId, type Session } from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-session-title';
 import type { Workspace, WorkspaceRegistry } from '@deepseek-ai/dsh-workspace';
 
 import type { PluginConfig } from './config.ts';
 import { SESSION_TITLE } from './constants.ts';
 import { BridgeError } from './errors.ts';
+import { LARK_SOURCE } from './message.ts';
 import type { StateStore } from './state.ts';
 import { describeError, reminder } from './utils.ts';
 import {
@@ -22,15 +23,6 @@ import {
   sameWorkspacePath,
   toHostWorkspacePath,
 } from './workspace-path.ts';
-
-declare module '@deepseek-ai/dsh-llm' {
-  interface MessageSourceMap {
-    'lark-bridge': { kind: 'lark-bridge' };
-  }
-}
-
-/** 飞书来源的消息标记。 */
-const SOURCE = { kind: 'lark-bridge' } as const;
 
 /** 一次注入的结果。 */
 export interface InjectionResult {
@@ -103,7 +95,7 @@ function appendTitle(session: { append: (...args: never[]) => unknown }, title: 
 function reminderMessage(text: string) {
   return createUserMessage({
     content: [{ type: 'text', text: reminder(text) }],
-    source: SOURCE,
+    source: LARK_SOURCE,
   });
 }
 
@@ -264,11 +256,11 @@ export class SessionManager {
   }
 
   /**
-   * 把一段飞书文本注入桥接会话。
-   * @param text - 已格式化的提醒正文。
+   * 把一段飞书消息块注入桥接会话。
+   * @param block - 已格式化的 `<lark-message>` 块。
    * @returns 注入目标与会话是否新建。
    */
-  async inject(text: string): Promise<InjectionResult> {
+  async inject(block: string): Promise<InjectionResult> {
     try {
       const config = this.deps.getConfig();
       if (config.workspaceRoot === '') {
@@ -282,11 +274,21 @@ export class SessionManager {
           `工作区未注册：${normalizeWorkspacePath(cwd)}`,
         );
       }
-      agent.followup(reminderMessage(text));
+      agent.followup(reminderMessage(block));
       this.failure = undefined;
       return { sessionId, created };
     } catch (error) {
       this.fail(error);
     }
+  }
+
+  /**
+   * 判断会话是否是当前桥接会话。
+   * @param session - 宿主的会话实例。
+   * @returns 状态文件记录的就是该会话时为 true。
+   */
+  async isBridgeSession(session: Pick<Session, 'id'>): Promise<boolean> {
+    const state = await this.deps.store.load();
+    return state.sessionId !== null && state.sessionId === session.id;
   }
 }
