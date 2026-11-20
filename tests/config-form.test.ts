@@ -1,5 +1,5 @@
-// 配置页草稿模型测试：字段校验、保存写操作、恢复默认、放弃与卸载。
-import { describe, expect, it } from 'vitest';
+// 配置页草稿模型测试：单字段校验、路径归一化、保存写操作与卸载。
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
   type ConfigFields,
@@ -12,9 +12,7 @@ import { makeConfigFormScope } from './helpers.ts';
 
 /** 默认配置值。 */
 const DEFAULTS: ConfigFields = {
-  workspaceRoot: 'D:/work',
-  sessionTitle: '飞书',
-  authCheckOnStartup: true,
+  workspaceRoot: 'C:/work',
 };
 
 /** 构造表单与状态读取器。 */
@@ -33,14 +31,16 @@ describe('配置页常量', () => {
 });
 
 describe('配置页草稿', () => {
-  it('草稿来自宿主值，起初不脏也没有非法值', () => {
-    const { state } = setup();
+  it('只包含工作区字段，读取时归一化为 Linux 风格路径', () => {
+    const { state } = setup({ workspaceRoot: 'C:\\work\\demo\\Lark' });
     const current = state();
-    expect(current.workspaceRoot.text).toBe('D:/work');
-    expect(current.sessionTitle.text).toBe('飞书');
-    expect(current.authCheckOnStartup.text).toBe('true');
+    expect(current.workspaceRoot.text).toBe('/c/work/demo/Lark');
     expect(current.dirty).toBe(false);
     expect(current.invalid).toBe(false);
+    expectTypeOf<ConfigFields>().toEqualTypeOf<{ workspaceRoot: string }>();
+    expectTypeOf<keyof ConfigFormState>().toEqualTypeOf<
+      'available' | 'writable' | 'dirty' | 'invalid' | 'saving' | 'failed' | 'workspaceRoot'
+    >();
   });
 
   it('命名空间未下发时不渲染控件', () => {
@@ -50,14 +50,14 @@ describe('配置页草稿', () => {
     expect(current.available).toBe(false);
   });
 
-  it('相对工作区与空白标题被拒绝', () => {
-    const { form, state } = setup();
+  it('相对工作区路径被拒绝', async () => {
+    const { fake, form, state } = setup();
     const actions = form.inject();
     actions.edit('workspaceRoot', 'relative/path');
-    actions.edit('sessionTitle', '   ');
     expect(state().workspaceRoot.invalid).toBe(true);
-    expect(state().sessionTitle.invalid).toBe(true);
     expect(state().invalid).toBe(true);
+    await actions.save();
+    expect(fake.writes).toEqual([]);
   });
 
   it('状态不包含已移除的配置字段', () => {
@@ -65,51 +65,47 @@ describe('配置页草稿', () => {
     expect(state()).not.toHaveProperty('profile');
     expect(state()).not.toHaveProperty('ownerOpenId');
     expect(state()).not.toHaveProperty('larkCli');
+    expect(state()).not.toHaveProperty('sessionTitle');
+    expect(state()).not.toHaveProperty('authCheckOnStartup');
   });
 });
 
 describe('配置页保存', () => {
-  it('一次写入多个字段并去掉首尾空白', async () => {
+  it('只写入工作区并保存归一化路径', async () => {
     const { fake, form } = setup();
     const actions = form.inject();
-    actions.edit('workspaceRoot', '  D:/other  ');
-    actions.edit('sessionTitle', '  桥  ');
-    actions.edit('authCheckOnStartup', 'false');
+    actions.edit('workspaceRoot', '  C:\\work\\demo\\Other  ');
     await actions.save();
     expect(fake.writes).toEqual([
-      [
-        { op: 'set', path: ['workspaceRoot'], value: 'D:/other' },
-        { op: 'set', path: ['sessionTitle'], value: '桥' },
-        { op: 'set', path: ['authCheckOnStartup'], value: false },
-      ],
+      [{ op: 'set', path: ['workspaceRoot'], value: '/c/work/demo/Other' }],
     ]);
   });
 
-  it('恢复默认提交清除操作', async () => {
-    const { fake, form, state } = setup({}, { sessionTitle: 'other' });
+  it('恢复默认只提交工作区清除操作', async () => {
+    const { fake, form, state } = setup({}, { workspaceRoot: 'C:\\work\\demo\\Custom' });
     const actions = form.inject();
-    expect(state().sessionTitle.overridden).toBe(true);
-    actions.resetField('sessionTitle');
-    expect(state().sessionTitle.text).toBe('飞书');
+    expect(state().workspaceRoot.overridden).toBe(true);
+    actions.resetField('workspaceRoot');
+    expect(state().workspaceRoot.text).toBe('/c/work');
     await actions.save();
-    expect(fake.writes).toEqual([[{ op: 'unset', path: ['sessionTitle'] }]]);
+    expect(fake.writes).toEqual([[{ op: 'unset', path: ['workspaceRoot'] }]]);
   });
 
-  it('放弃草稿回到宿主值', () => {
-    const { form, state } = setup();
+  it('放弃草稿回到归一化的宿主值', () => {
+    const { form, state } = setup({ workspaceRoot: 'C:\\work\\demo\\Host' });
     const actions = form.inject();
-    actions.edit('sessionTitle', '临时');
+    actions.edit('workspaceRoot', '/tmp/draft');
     expect(state().dirty).toBe(true);
     actions.discard();
     expect(state().dirty).toBe(false);
-    expect(state().sessionTitle.text).toBe('飞书');
+    expect(state().workspaceRoot.text).toBe('/c/work/demo/Host');
   });
 
   it('只读部署不写入', async () => {
     const fake = makeConfigFormScope<ConfigFields>({ value: DEFAULTS, writable: false });
     const form = new PluginConfigForm(fake.scope);
     const actions = form.inject();
-    actions.edit('sessionTitle', '临时');
+    actions.edit('workspaceRoot', '/tmp/draft');
     await actions.save();
     expect(fake.writes).toEqual([]);
   });
@@ -120,7 +116,7 @@ describe('配置页卸载', () => {
     const { fake, form, state } = setup();
     const before = state();
     form.dispose();
-    fake.publish({ value: { ...DEFAULTS, sessionTitle: 'gone' } });
+    fake.publish({ value: { workspaceRoot: '/tmp/gone' } });
     expect(state()).toBe(before);
   });
 });

@@ -10,12 +10,18 @@ import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { SessionId } from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-session-title';
-import type { WorkspaceRegistry } from '@deepseek-ai/dsh-workspace';
+import type { Workspace, WorkspaceRegistry } from '@deepseek-ai/dsh-workspace';
 
 import type { PluginConfig } from './config.ts';
+import { SESSION_TITLE } from './constants.ts';
 import { BridgeError } from './errors.ts';
 import type { StateStore } from './state.ts';
-import { describeError, reminder, samePath } from './utils.ts';
+import { describeError, reminder } from './utils.ts';
+import {
+  normalizeWorkspacePath,
+  sameWorkspacePath,
+  toHostWorkspacePath,
+} from './workspace-path.ts';
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -150,10 +156,8 @@ export class SessionManager {
     };
   }
 
-  /** 把会话挂到其 cwd 对应的工作区。 */
-  private async attach(sessionId: string, cwd: string): Promise<void> {
-    const registry = this.registry();
-    const workspace = (await registry.resolveByPath(cwd)) ?? (await registry.create(cwd));
+  /** 把会话挂到已注册工作区。 */
+  private async attach(sessionId: string, workspace: Workspace): Promise<void> {
     const id = SessionId(sessionId);
     if (!workspace.sessionIds.includes(id)) await workspace.attachSession(id);
   }
@@ -161,6 +165,7 @@ export class SessionManager {
   /** 恢复一个可用会话；失败返回 undefined。 */
   private async resume(sessionId: string): Promise<Agent | undefined> {
     const id = SessionId(sessionId);
+    if (this.registry().archivedSessionIds.includes(id)) return undefined;
     const live = this.ctx.agents.get(id);
     if (live !== undefined) return live;
     try {
@@ -180,7 +185,11 @@ export class SessionManager {
   }
 
   /** 新建会话，设置标题、挂到工作区并置顶。 */
-  private async create(cwd: string, title: string): Promise<{ sessionId: string; agent: Agent }> {
+  private async create(
+    cwd: string,
+    title: string,
+    workspace: Workspace,
+  ): Promise<{ sessionId: string; agent: Agent }> {
     const sessionId = randomUUID();
     const handle = await this.ctx.agents.create({
       sessionId: SessionId(sessionId),
@@ -190,9 +199,13 @@ export class SessionManager {
         appendTitle(child.session, title);
       },
     });
-    await this.attach(sessionId, cwd);
+    await this.attach(sessionId, workspace);
     await this.registry().pinSession(SessionId(sessionId));
-    await this.deps.store.patch({ sessionId, workspaceRoot: cwd, title });
+    await this.deps.store.patch({
+      sessionId,
+      workspaceRoot: normalizeWorkspacePath(cwd),
+      title,
+    });
     this.deps.logger.info(`lark-bridge: created session ${sessionId} in ${cwd}`);
     return { sessionId, agent: handle.agent };
   }
@@ -224,28 +237,30 @@ export class SessionManager {
    */
   async ensure(
     workspaceRoot: string,
-  ): Promise<{ sessionId: string; agent: Agent; created: boolean }> {
-    const cwd = await assertWorkspace(workspaceRoot);
-    const config = this.deps.getConfig();
+  ): Promise<{ sessionId: string; agent: Agent; created: boolean; cwd: string }> {
+    const cwd = toHostWorkspacePath(workspaceRoot);
+    await assertWorkspace(cwd);
+    const workspace = await this.registry().resolveByPath(cwd);
+    if (workspace === undefined) {
+      throw new BridgeError(
+        'workspace-unregistered',
+        `工作区未注册：${normalizeWorkspacePath(cwd)}`,
+      );
+    }
     const state = await this.deps.store.load();
     if (
       state.sessionId !== null &&
       state.workspaceRoot !== null &&
-      samePath(state.workspaceRoot, cwd)
+      sameWorkspacePath(state.workspaceRoot, cwd)
     ) {
       const agent = await this.resume(state.sessionId);
       if (agent !== undefined) {
-        await this.syncMeta(
-          state.sessionId,
-          agent,
-          config.sessionTitle,
-          state.title ?? config.sessionTitle,
-        );
-        return { sessionId: state.sessionId, agent, created: false };
+        await this.syncMeta(state.sessionId, agent, SESSION_TITLE, state.title ?? SESSION_TITLE);
+        return { sessionId: state.sessionId, agent, created: false, cwd };
       }
     }
-    const created = await this.create(cwd, config.sessionTitle);
-    return { sessionId: created.sessionId, agent: created.agent, created: true };
+    const created = await this.create(cwd, SESSION_TITLE, workspace);
+    return { ...created, created: true, cwd };
   }
 
   /**
@@ -259,17 +274,19 @@ export class SessionManager {
       if (config.workspaceRoot === '') {
         throw new BridgeError('workspace-missing', '尚未配置桥接工作区');
       }
-      const { sessionId, agent, created } = await this.ensure(config.workspaceRoot);
+      const { sessionId, agent, created, cwd } = await this.ensure(config.workspaceRoot);
+      const workspace = await this.registry().resolveByPath(cwd);
+      if (workspace === undefined) {
+        throw new BridgeError(
+          'workspace-unregistered',
+          `工作区未注册：${normalizeWorkspacePath(cwd)}`,
+        );
+      }
       agent.followup(reminderMessage(text));
       this.failure = undefined;
       return { sessionId, created };
     } catch (error) {
       this.fail(error);
     }
-  }
-
-  /** 清除会话记录，下一次消息新建。 */
-  async reset(): Promise<void> {
-    await this.deps.store.resetSession();
   }
 }

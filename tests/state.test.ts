@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { SESSION_TITLE } from '../src/constants.ts';
 import { StateStore } from '../src/state.ts';
 
 /** 创建临时状态文件路径。 */
@@ -23,15 +24,36 @@ describe('StateStore', () => {
   it('写入会话并读回', async () => {
     const file = await tempFile();
     const store = new StateStore(file);
-    await store.patch({ sessionId: 's1', workspaceRoot: 'D:/work', title: '飞书' });
+    await store.patch({ sessionId: 's1', workspaceRoot: '/c/work/demo', title: SESSION_TITLE });
 
     const reloaded = new StateStore(file);
     expect(await reloaded.load()).toMatchObject({
       sessionId: 's1',
-      workspaceRoot: 'D:/work',
-      title: '飞书',
+      workspaceRoot: '/c/work/demo',
+      title: SESSION_TITLE,
     });
     expect(JSON.parse(await readFile(file, 'utf8'))).toMatchObject({ sessionId: 's1' });
+  });
+
+  it('状态路径读写均归一化为 Linux 风格', async () => {
+    const file = await tempFile();
+    const store = new StateStore(file);
+    await store.patch({ workspaceRoot: 'C:\\work\\demo\\Project\\' });
+    expect((await store.load()).workspaceRoot).toBe('/c/work/demo/Project');
+    expect(JSON.parse(await readFile(file, 'utf8')).workspaceRoot).toBe('/c/work/demo/Project');
+
+    await writeFile(
+      file,
+      JSON.stringify({
+        sessionId: 'legacy',
+        workspaceRoot: 'C:\\Legacy\\Project',
+        title: SESSION_TITLE,
+        seen: {},
+        updatedAt: '',
+      }),
+      'utf8',
+    );
+    expect((await new StateStore(file).load()).workspaceRoot).toBe('/c/Legacy/Project');
   });
 
   it('重复消息只标记一次', async () => {
@@ -53,14 +75,19 @@ describe('StateStore', () => {
     const store = new StateStore(await tempFile());
     await Promise.all([
       store.patch({ sessionId: 's1' }),
-      store.patch({ workspaceRoot: 'D:/work' }),
-      store.patch({ title: '飞书' }),
+      store.patch({ workspaceRoot: '/c/work/demo' }),
+      store.patch({ title: SESSION_TITLE }),
     ]);
     expect(await store.load()).toMatchObject({
       sessionId: 's1',
-      workspaceRoot: 'D:/work',
-      title: '飞书',
+      workspaceRoot: '/c/work/demo',
+      title: SESSION_TITLE,
     });
+  });
+
+  it('不提供公开重置方法', async () => {
+    const store = new StateStore(await tempFile());
+    expect(store).not.toHaveProperty('resetSession');
   });
 
   it('损坏文件按空状态处理', async () => {

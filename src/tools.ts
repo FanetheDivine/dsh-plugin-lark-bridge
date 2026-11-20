@@ -42,7 +42,7 @@ export async function sendNotification(deps: NotifyDeps, args: unknown): Promise
   if (owner === undefined || owner === '') {
     return {
       ok: false,
-      error: { code: 'owner-missing', message: '尚未确定已绑定用户，请先在配置页完成鉴权' },
+      error: { code: 'owner-missing', message: '尚未确定已绑定用户，请在终端登录后重新检测' },
     };
   }
   const parts = splitText(text, MAX_MESSAGE_CHARS);

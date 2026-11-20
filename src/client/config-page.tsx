@@ -1,24 +1,109 @@
-/**
- * 插件面板配置页：鉴权面板、会话设置与桥接会话重置。
- * 导出 ConfigPage。
- */
-
-// Type-only：拉取 plugins.row.config 槽位声明。
+/** 配置页与共享工作区选择器：仅选择当前注册工作区。 */
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives';
-import { SettingsForm, SettingsValueField, Switch } from '@deepseek-ai/dsh-client-ui-primitives';
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-import { type CSSProperties, useId, useState } from 'react';
+import { SettingsForm } from '@deepseek-ai/dsh-client-ui-primitives';
+import type {
+  GlobalStandardProps,
+  InjectFace,
+  PropsLocale,
+  PropsRuntime,
+  TranslateNS,
+} from '@deepseek-ai/dsh-client-ui-slots';
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
+import { type CSSProperties, useId } from 'react';
 
-import { resetSession } from './api.ts';
+import { normalizeWorkspacePath, sameWorkspacePath } from '../workspace-path.ts';
 import { AuthPanel } from './auth-panel.tsx';
 import type { ConfigPageInjected } from './config-form.ts';
 import type { NS } from './locales.ts';
+import type { StatusController } from './status-controller.ts';
 
 /** 配置页组件 props。 */
 export type ConfigPageProps = PropsRuntime<'plugins.row.config'> &
   PropsLocale<typeof NS> &
-  InjectFace<ConfigPageInjected>;
+  InjectFace<ConfigPageInjected & { readonly controller: StatusController }>;
+
+/** 运行时工作区条目；发布包的传递类型不可用时保持结构化收窄。 */
+export interface WorkspaceListItem {
+  readonly workspaceId: unknown;
+  readonly path: string;
+  readonly title: string;
+}
+
+/** 读取宿主当前工作区条目。 */
+export function useWorkspaceItems(
+  useWorkspaces: GlobalStandardProps['useWorkspaces'],
+): readonly WorkspaceListItem[] {
+  return useWorkspaces((state) => state.items) as readonly WorkspaceListItem[];
+}
+
+/** 工作区选择器属性。 */
+export interface WorkspaceSelectProps {
+  readonly t: TranslateNS<typeof NS>;
+  readonly useWorkspaces: GlobalStandardProps['useWorkspaces'];
+  readonly value: string;
+  readonly disabled: boolean;
+  readonly onChange: (path: string) => void;
+  readonly onReset?: () => void;
+  readonly overridden?: boolean;
+  readonly invalid?: boolean;
+}
+
+/** 从当前注册列表选择工作区，值与标签统一为 Linux 风格路径。 */
+export function WorkspaceSelect({
+  t,
+  useWorkspaces,
+  value,
+  disabled,
+  onChange,
+  onReset,
+  overridden = false,
+  invalid = false,
+}: WorkspaceSelectProps) {
+  const id = useId();
+  const items = useWorkspaceItems(useWorkspaces);
+  const options = items.map((item) => ({
+    id: String(item.workspaceId),
+    title: item.title,
+    path: normalizeWorkspacePath(item.path),
+  }));
+  const selected = options.find((option) => sameWorkspacePath(option.path, value));
+  return (
+    <div style={fieldStyle} data-dsh-lark-config-workspace>
+      <div style={labelRowStyle}>
+        <label htmlFor={id} style={titleStyle}>
+          {t('config.workspaceRoot.title')}
+        </label>
+        {overridden && onReset !== undefined ? (
+          <button type="button" style={linkButtonStyle} disabled={disabled} onClick={onReset}>
+            {t('config.reset')}
+          </button>
+        ) : null}
+      </div>
+      <select
+        id={id}
+        aria-label={t('config.workspaceRoot.title')}
+        style={selectStyle}
+        value={selected?.path ?? ''}
+        disabled={disabled || options.length === 0}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      >
+        <option value="">
+          {options.length === 0
+            ? t('config.workspaceRoot.empty')
+            : t('config.workspaceRoot.placeholder')}
+        </option>
+        {options.map((option) => (
+          <option key={option.id} value={option.path}>
+            {option.title} — {option.path}
+          </option>
+        ))}
+      </select>
+      <p style={descriptionStyle}>{t('config.workspaceRoot.description')}</p>
+      {invalid ? <p style={invalidStyle}>{t('config.workspaceRoot.invalid')}</p> : null}
+    </div>
+  );
+}
 
 /** 表单框架文案。 */
 function formLabels(t: ConfigPageProps['t']): SettingsFormLabels {
@@ -34,123 +119,47 @@ function formLabels(t: ConfigPageProps['t']): SettingsFormLabels {
 /** 渲染插件行配置。 */
 export function ConfigPage(props: ConfigPageProps) {
   const { t } = props;
-  const id = useId();
   const state = props.useConfigForm((value) => value);
-  const [resetNotice, setResetNotice] = useState('');
-
   if (props.view === 'summary') return t('config.summary');
 
-  const disabled = !state.writable || state.saving;
-
+  const disabled = !state.available || !state.writable || state.saving;
   return (
     <div>
-      <AuthPanel t={t} />
-
+      <AuthPanel t={t} controller={props.controller} />
       <SettingsForm
         state={state}
         labels={formLabels(t)}
         onSave={props.save}
         onDiscard={props.discard}
       >
-        <h4 style={sectionTitleStyle}>{t('config.section.session')}</h4>
-
-        <div style={fieldStyle} data-dsh-lark-config-workspace>
-          <SettingsValueField
-            id={`${id}-workspace`}
-            label={t('config.workspaceRoot.title')}
-            hint={t('config.workspaceRoot.description')}
-            invalidLabel={t('config.workspaceRoot.invalid')}
-            overriddenLabel={t('config.overridden')}
-            resetLabel={t('config.reset')}
-            text={state.workspaceRoot.text}
-            overridden={state.workspaceRoot.overridden}
-            invalid={state.workspaceRoot.invalid}
-            disabled={disabled}
-            onEdit={(text) => props.edit('workspaceRoot', text)}
-            onReset={() => props.resetField('workspaceRoot')}
-          />
-        </div>
-
-        <div style={fieldStyle}>
-          <SettingsValueField
-            id={`${id}-title`}
-            label={t('config.sessionTitle.title')}
-            hint={t('config.sessionTitle.description')}
-            invalidLabel={t('config.sessionTitle.invalid')}
-            overriddenLabel={t('config.overridden')}
-            resetLabel={t('config.reset')}
-            text={state.sessionTitle.text}
-            overridden={state.sessionTitle.overridden}
-            invalid={state.sessionTitle.invalid}
-            disabled={disabled}
-            onEdit={(text) => props.edit('sessionTitle', text)}
-            onReset={() => props.resetField('sessionTitle')}
-          />
-        </div>
-
-        <div style={rowStyle}>
-          <div style={textStyle}>
-            <span style={titleStyle}>{t('config.authCheckOnStartup.title')}</span>
-            <p style={descriptionStyle}>{t('config.authCheckOnStartup.description')}</p>
-          </div>
-          <Switch
-            checked={state.authCheckOnStartup.text !== 'false'}
-            label={t('config.authCheckOnStartup.title')}
-            disabled={disabled}
-            onChange={(next) => props.edit('authCheckOnStartup', next ? 'true' : 'false')}
-          />
-        </div>
-
-        <div style={rowStyle}>
-          <div style={textStyle}>
-            <span style={titleStyle}>{t('config.resetSession')}</span>
-            <p style={descriptionStyle}>{t('config.resetSessionHint')}</p>
-            {resetNotice !== '' ? <p style={noticeStyle}>{resetNotice}</p> : null}
-          </div>
-          <button
-            type="button"
-            style={secondaryButtonStyle}
-            disabled={disabled}
-            onClick={() => {
-              void resetSession().then((result) => {
-                setResetNotice(result.ok ? t('config.resetDone') : result.error.message);
-              });
-            }}
-          >
-            {t('config.resetSession')}
-          </button>
-        </div>
+        <WorkspaceSelect
+          t={t}
+          useWorkspaces={props.useWorkspaces}
+          value={state.workspaceRoot.text}
+          disabled={disabled}
+          invalid={state.workspaceRoot.invalid}
+          overridden={state.workspaceRoot.overridden}
+          onChange={(path) => props.edit('workspaceRoot', path)}
+          onReset={() => props.resetField('workspaceRoot')}
+        />
       </SettingsForm>
     </div>
   );
 }
 
-const sectionTitleStyle: CSSProperties = {
-  margin: '16px 0 0',
-  fontSize: 12,
-  fontWeight: 600,
-  color: 'var(--dsw-alias-label-secondary)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-};
-
-const rowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 24,
-  padding: '12px 0',
-};
-
 const fieldStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+  padding: '12px 0',
   borderTop: '0.5px solid var(--dsw-alias-border-l2)',
 };
 
-const textStyle: CSSProperties = {
+const labelRowStyle: CSSProperties = {
   display: 'flex',
-  flexDirection: 'column',
-  gap: 4,
-  minWidth: 0,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
 };
 
 const titleStyle: CSSProperties = {
@@ -160,6 +169,18 @@ const titleStyle: CSSProperties = {
   color: 'var(--dsw-alias-label-primary)',
 };
 
+const selectStyle: CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: '6px 8px',
+  border: '1px solid var(--dsw-alias-border-l2)',
+  borderRadius: 'var(--dsw-radius-sm, 6px)',
+  background: 'var(--dsw-alias-bg-primary, transparent)',
+  color: 'var(--dsw-alias-label-primary)',
+  font: 'inherit',
+  fontSize: 13,
+};
+
 const descriptionStyle: CSSProperties = {
   margin: 0,
   fontSize: 12,
@@ -167,19 +188,17 @@ const descriptionStyle: CSSProperties = {
   color: 'var(--dsw-alias-label-secondary)',
 };
 
-const noticeStyle: CSSProperties = {
+const invalidStyle: CSSProperties = {
   ...descriptionStyle,
-  color: 'var(--dsw-alias-label-link, #0969da)',
+  color: 'var(--dsw-alias-error-fill, #cf222e)',
 };
 
-const secondaryButtonStyle: CSSProperties = {
-  flex: 'none',
-  padding: '4px 10px',
-  border: '1px solid var(--dsw-alias-border-l2)',
-  borderRadius: 'var(--dsw-radius-sm, 6px)',
-  background: 'var(--dsw-alias-button-tool-bar-fill, transparent)',
-  color: 'var(--dsw-alias-label-primary)',
+const linkButtonStyle: CSSProperties = {
+  border: 'none',
+  background: 'transparent',
+  color: 'var(--dsw-alias-label-link, #0969da)',
   font: 'inherit',
   fontSize: 12,
   cursor: 'pointer',
+  padding: 0,
 };

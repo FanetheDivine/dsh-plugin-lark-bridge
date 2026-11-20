@@ -4,9 +4,5 @@
     - id: dsh-plugin-lark-bridge
       name: dsh-plugin-lark-bridge
       config:
-        # 飞书消息注入的目标工作区；必须是已存在的绝对路径。
+        # 已注册工作区的 Linux 风格路径，例如 /c/work/demo；空值要求用户选择。
         workspaceRoot: ''
-        # 桥接会话标题。
-        sessionTitle: '飞书'
-        # 每次加载检测鉴权；失败时显示弹窗。
-        authCheckOnStartup: true

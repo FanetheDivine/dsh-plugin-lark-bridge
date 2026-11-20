@@ -4,6 +4,8 @@ import type {
   SettingsFormScope,
   SettingsFormScopeSnapshot,
 } from '@deepseek-ai/dsh-client-ui-primitives';
+import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots';
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
 
 import type { Context } from '../src/types.ts';
 
@@ -311,6 +313,40 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
   return Object.assign(ctx, state) as unknown as Context & ClientMockState & typeof ctx;
 }
 
+type UseWorkspaces = GlobalStandardProps['useWorkspaces'];
+type WorkspaceSnapshot = Parameters<Parameters<UseWorkspaces>[0]>[0];
+type WorkspaceView = WorkspaceSnapshot['items'][number];
+
+/** 构造宿主工作区列表所需的最小字段。 */
+export interface WorkspaceViewInput {
+  workspaceId: string;
+  path: string;
+  title: string;
+  sessionIds?: readonly string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** 构造一个固定 ready 工作区快照的 selector hook。 */
+export function makeUseWorkspaces(items: readonly WorkspaceViewInput[] = []): UseWorkspaces {
+  const snapshot: WorkspaceSnapshot = {
+    items: items.map((item) => ({
+      workspaceId: item.workspaceId as WorkspaceView['workspaceId'],
+      path: item.path,
+      title: item.title,
+      sessionIds: (item.sessionIds ?? []) as WorkspaceView['sessionIds'],
+      createdAt: item.createdAt ?? '1970-01-01T00:00:00.000Z',
+      updatedAt: item.updatedAt ?? item.createdAt ?? '1970-01-01T00:00:00.000Z',
+    })),
+    archivedSessionIds: [],
+    pinnedSessionIds: [],
+    state: 'idle',
+    phase: 'ready',
+    error: null,
+  };
+  return <S>(selector: (state: WorkspaceSnapshot) => S): S => selector(snapshot);
+}
+
 /** 宿主配置表单的假实现：可写入快照、记录写操作。 */
 export interface FakeConfigFormScope<T> {
   scope: SettingsFormScope<T>;
@@ -333,6 +369,7 @@ export function makeConfigFormScope<T>(initial: {
   status?: 'loading' | 'ready' | 'unavailable';
   writable?: boolean;
   revision?: number | undefined;
+  mutate?: (ops: SettingsFormPathOp[]) => Promise<boolean>;
 }): FakeConfigFormScope<T> {
   let snapshot: SettingsFormScopeSnapshot<T> = {
     status: initial.status ?? 'ready',
@@ -354,8 +391,9 @@ export function makeConfigFormScope<T>(initial: {
         };
       },
       mutate: async (ops) => {
-        writes.push([...ops]);
-        return true;
+        const submitted = [...ops];
+        writes.push(submitted);
+        return initial.mutate ? initial.mutate(submitted) : true;
       },
     },
     writes,

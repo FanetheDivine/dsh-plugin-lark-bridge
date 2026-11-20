@@ -10,6 +10,9 @@ import type {} from '@deepseek-ai/cordis-plugin-loader';
 import type { Agent } from '@deepseek-ai/dsh-agent';
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
 
+/** 一个连接环节的笼统状态。 */
+export type ConnectionState = 'checking' | 'connected' | 'disconnected';
+
 /** 插件配置类型。 */
 export type { PluginConfig } from './config.ts';
 

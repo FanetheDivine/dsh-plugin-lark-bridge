@@ -6,6 +6,7 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 import { SEEN_LIMIT } from './constants.ts';
+import { normalizeWorkspacePath } from './workspace-path.ts';
 
 /** `state.json` 的内容。 */
 export interface BridgeState {
@@ -72,7 +73,12 @@ export class StateStore {
       const text = await readFile(this.file, 'utf8');
       const parsed: unknown = JSON.parse(text);
       this.cache = isState(parsed)
-        ? { ...parsed, seen: trimSeen(parsed.seen, this.limit) }
+        ? {
+            ...parsed,
+            workspaceRoot:
+              parsed.workspaceRoot === null ? null : normalizeWorkspacePath(parsed.workspaceRoot),
+            seen: trimSeen(parsed.seen, this.limit),
+          }
         : emptyState();
     } catch {
       this.cache = emptyState();
@@ -100,6 +106,9 @@ export class StateStore {
         seen: trimSeen({ ...current.seen, ...(patch.seen ?? {}) }, this.limit),
         updatedAt: new Date().toISOString(),
       };
+      if (next.workspaceRoot !== null) {
+        next.workspaceRoot = normalizeWorkspacePath(next.workspaceRoot);
+      }
       await this.write(next);
       this.cache = next;
       return next;
@@ -142,11 +151,6 @@ export class StateStore {
       this.cache = next;
       return next;
     });
-  }
-
-  /** 清除会话标识，保留下一次消息重建。 */
-  resetSession(): Promise<BridgeState> {
-    return this.patch({ sessionId: null, workspaceRoot: null, title: null });
   }
 
   /** 把写操作串到同一条队列，避免并发覆盖。 */

@@ -2,12 +2,35 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import { Config, readConfig, resolveConfig } from '../src/config.ts';
+import { LarkCli } from '../src/cli.ts';
+
+import {
+  Config,
+  DEFAULT_CONFIG,
+  type PluginConfig,
+  readConfig,
+  resolveConfig,
+} from '../src/config.ts';
 import { NOTIFY_TOOL_NAME, PLUGIN_LABEL } from '../src/constants.ts';
 import { apply, inject, name } from '../src/index.ts';
 import { makeCtx, volatile } from './helpers.ts';
+
+beforeEach(() => {
+  vi.spyOn(LarkCli.prototype, 'run').mockResolvedValue({ stdout: '1.0.0', stderr: '', code: 0 });
+  vi.spyOn(LarkCli.prototype, 'json').mockResolvedValue({
+    appId: 'cli_x',
+    identities: {
+      bot: { status: 'ready' },
+      user: { status: 'ready', openId: 'ou_1', userName: '测试用户' },
+    },
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 /** 最小 WebServer 假实现：记录注册的路由。 */
 function makeWebServer() {
@@ -25,91 +48,95 @@ function makeWebServer() {
 describe('模块契约', () => {
   it('导出 name / inject / apply / Config', () => {
     expect(name).toBe(PLUGIN_LABEL);
-    expect(inject).toEqual(['tools', 'agents', 'webServer']);
+    expect(inject).toEqual(['tools', 'agents', 'webServer', 'workspaceRegistry']);
     expect(typeof apply).toBe('function');
     expect(typeof Config).toBe('function');
   });
 });
 
 describe('配置', () => {
-  it('默认值', () => {
+  it('仅包含 workspaceRoot 默认值', () => {
     const parsed = Config({});
+    expectTypeOf<PluginConfig>().toEqualTypeOf<{ workspaceRoot: string }>();
     expect(parsed.workspaceRoot.get()).toBe('');
-    expect(parsed.sessionTitle.get()).toBe('飞书');
-    expect(parsed.authCheckOnStartup.get()).toBe(true);
-    expect(parsed).not.toHaveProperty('larkCli');
+    expect(Object.keys(parsed)).toEqual(['workspaceRoot']);
+    expect(DEFAULT_CONFIG).toEqual({ workspaceRoot: '' });
   });
 
-  it('展开热重载引用后严格校验', () => {
-    const config = {
-      workspaceRoot: volatile('D:/work'),
-      sessionTitle: volatile('桥'),
-      authCheckOnStartup: volatile(false),
-    };
-    const resolved = readConfig(config);
-    expect(resolved).toEqual({
-      workspaceRoot: 'D:/work',
-      sessionTitle: '桥',
-      authCheckOnStartup: false,
-    });
-    expect(resolved).not.toHaveProperty('larkCli');
+  it('展开热重载引用并归一化工作区路径', () => {
+    const resolved = readConfig({ workspaceRoot: volatile('C:\\work\\demo') });
+    expect(resolved).toEqual({ workspaceRoot: '/c/work/demo' });
+    expect(resolveConfig({ workspaceRoot: 'C:\\work\\demo' })).toEqual(resolved);
   });
 
-  it('容忍并丢弃旧版本的 profile、ownerOpenId 与 larkCli', () => {
+  it('容忍并丢弃全部旧配置键', () => {
     const legacy = {
       profile: 'a b',
       ownerOpenId: 'abc',
-      larkCli: 'D:/legacy/lark-cli.js',
-      sessionTitle: '桥',
+      larkCli: 'C:/legacy/lark-cli.js',
+      sessionTitle: '  ',
+      authCheckOnStartup: false,
     };
     const resolved = resolveConfig(legacy);
-    expect(resolved).toEqual(resolveConfig({ sessionTitle: '桥' }));
+    expect(resolved).toEqual(DEFAULT_CONFIG);
     expect(resolved).not.toHaveProperty('profile');
     expect(resolved).not.toHaveProperty('ownerOpenId');
     expect(resolved).not.toHaveProperty('larkCli');
+    expect(resolved).not.toHaveProperty('sessionTitle');
+    expect(resolved).not.toHaveProperty('authCheckOnStartup');
 
-    const read = readConfig({ ...legacy, larkCli: volatile('D:/legacy/other-lark-cli.js') });
+    const read = readConfig({
+      ...legacy,
+      larkCli: volatile('C:/legacy/other-lark-cli.js'),
+      sessionTitle: volatile('  '),
+      authCheckOnStartup: volatile(false),
+    });
     expect(read).toEqual(resolved);
-    expect(read).not.toHaveProperty('larkCli');
   });
 
-  it('拒绝未知键与空标题', () => {
+  it('拒绝未知键', () => {
     expect(() => resolveConfig({ bogus: 1 })).toThrow('unknown config key "bogus"');
-    expect(() => resolveConfig({ sessionTitle: '  ' })).toThrow('must not be empty');
   });
 });
 
 describe('apply 接线', () => {
-  it('注册通知工具与五条路由', () => {
+  it('注册通知工具与两条路由', () => {
     process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
     const { webServer, routes } = makeWebServer();
     const ctx = makeCtx({ services: { webServer } });
-    apply(ctx, {
-      workspaceRoot: '',
-      sessionTitle: '飞书',
-      authCheckOnStartup: false,
-    });
+    apply(ctx, { workspaceRoot: '' });
     expect(ctx._registeredTools.map((tool) => tool.name)).toEqual([NOTIFY_TOOL_NAME]);
     expect(routes.map((route) => route.path).sort()).toEqual([
-      '/lark-bridge/auth/cancel',
-      '/lark-bridge/auth/start',
       '/lark-bridge/check',
-      '/lark-bridge/session/reset',
       '/lark-bridge/status',
     ]);
+  });
+
+  it('旧 authCheckOnStartup:false 仍执行启动完整检测', async () => {
+    process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
+    const { webServer } = makeWebServer();
+    const ctx = makeCtx({ services: { webServer } });
+    apply(ctx, { authCheckOnStartup: false });
+
+    await vi.waitFor(() => {
+      expect(LarkCli.prototype.run).toHaveBeenCalledWith(['--version'], {
+        timeoutMs: 60_000,
+        allowFailure: true,
+      });
+      expect(LarkCli.prototype.json).toHaveBeenCalledWith(
+        ['auth', 'status', '--json', '--verify'],
+        { timeoutMs: 60_000 },
+      );
+    });
   });
 
   it('配置热重载读取新值并重新登记', () => {
     process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
     const { webServer } = makeWebServer();
     const ctx = makeCtx({ services: { webServer } });
-    const config = {
-      workspaceRoot: volatile(''),
-      sessionTitle: volatile('飞书'),
-      authCheckOnStartup: volatile(false),
-    };
+    const config = { workspaceRoot: volatile('C:\\work\\demo') };
     apply(ctx, config);
-    config.sessionTitle.set('另一个标题');
+    config.workspaceRoot.set('C:\\work\\demo\\next');
     ctx._emit('loader/volatile-update');
     const infos = ctx._loggerCalls
       .filter((call) => call.level === 'info')

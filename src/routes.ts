@@ -1,14 +1,11 @@
 /**
- * 浏览器与宿主之间的同源 JSON 路由：鉴权状态、设备码授权与会话重置。
+ * 浏览器与宿主之间的同源 JSON 路由：安全连接状态与完整检测。
  * 导出 registerRoutes 与 RouteDeps。
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { AuthManager, AuthSnapshot } from './auth.ts';
-import type { PluginConfig } from './config.ts';
 import { BridgeError } from './errors.ts';
-import type { SessionManager } from './sessions.ts';
-import type { StateStore } from './state.ts';
 import { describeError } from './utils.ts';
 
 /** 路由前缀。 */
@@ -34,11 +31,8 @@ export interface RouteDeps {
   readonly webServer: WebServerLike;
   readonly connection?: ConnectionLike;
   readonly auth: AuthManager;
-  readonly sessions: SessionManager;
-  readonly store: StateStore;
-  readonly getConfig: () => Readonly<PluginConfig>;
   readonly logger: { warn(message: string): void };
-  /** 授权就绪后的同步回调。 */
+  /** 完整检测后的同步回调。 */
   readonly onAuthChanged?: (snapshot: AuthSnapshot) => void;
 }
 
@@ -87,67 +81,44 @@ function rejectReason(deps: RouteDeps, req: IncomingMessage): string | undefined
   return undefined;
 }
 
-/** 把当前状态投影为可发送的 JSON。 */
-export async function projectStatus(
-  deps: Pick<RouteDeps, 'auth' | 'store' | 'getConfig' | 'sessions'>,
-): Promise<Record<string, unknown>> {
-  const config = deps.getConfig();
+/** 投影浏览器可读的笼统状态，排除内部身份与诊断信息。 */
+export function projectStatus(deps: Pick<RouteDeps, 'auth'>): Record<string, unknown> {
   const snapshot = deps.auth.current;
-  const state = await deps.store.load();
-  const flow = deps.auth.pendingLogin;
   return {
-    ...snapshot,
-    workspaceRoot: config.workspaceRoot,
-    sessionId: state.sessionId,
-    sessionWorkspace: state.workspaceRoot,
-    sessionTitle: state.title,
-    error: deps.sessions.lastError,
-    login:
-      flow === undefined
-        ? null
-        : { verificationUrl: flow.verificationUrl, expiresAt: flow.expiresAt },
+    cli: snapshot.cli,
+    bot: snapshot.bot,
+    user: snapshot.user,
+    ready: snapshot.ready,
+    checkedAt: snapshot.checkedAt,
   };
 }
 
 /** 执行路由动作并生成响应。 */
 async function handle(deps: RouteDeps, path: string, method: string): Promise<Reply> {
   if (method === 'GET' && path === `${ROUTE_PREFIX}/status`) {
-    return { ok: true, data: await projectStatus(deps) };
+    return { ok: true, data: projectStatus(deps) };
   }
   if (method !== 'POST') throw new BridgeError('method-not-allowed', '只支持 GET 与 POST');
   if (path === `${ROUTE_PREFIX}/check`) {
-    const snapshot = await deps.auth.check({ verify: true });
+    const snapshot = await deps.auth.check();
     deps.onAuthChanged?.(snapshot);
-    return { ok: true, data: await projectStatus(deps) };
-  }
-  if (path === `${ROUTE_PREFIX}/auth/start`) {
-    const flow = await deps.auth.startLogin();
-    void deps.auth.whenLoginSettled().then((snapshot) => {
-      if (snapshot !== undefined) deps.onAuthChanged?.(snapshot);
-    });
     return {
       ok: true,
-      data: { verificationUrl: flow.verificationUrl, expiresAt: flow.expiresAt },
+      data: {
+        cli: snapshot.cli,
+        bot: snapshot.bot,
+        user: snapshot.user,
+        ready: snapshot.ready,
+        checkedAt: snapshot.checkedAt,
+      },
     };
-  }
-  if (path === `${ROUTE_PREFIX}/auth/cancel`) {
-    deps.auth.cancelLogin();
-    return { ok: true, data: await projectStatus(deps) };
-  }
-  if (path === `${ROUTE_PREFIX}/session/reset`) {
-    await deps.sessions.reset();
-    return { ok: true, data: await projectStatus(deps) };
   }
   throw new BridgeError('not-found', '未知的桥接接口');
 }
 
-/**
- * 注册全部桥接路由。
- * @param deps - 服务、存储与状态来源。
- * @returns 注销全部路由的清理函数。
- */
+/** 注册桥接路由并返回清理函数。 */
 export function registerRoutes(deps: RouteDeps): () => void {
-  const paths = ['status', 'check', 'auth/start', 'auth/cancel', 'session/reset'];
+  const paths = ['status', 'check'];
   const disposers: Array<() => void> = [];
   for (const suffix of paths) {
     const path = `${ROUTE_PREFIX}/${suffix}`;

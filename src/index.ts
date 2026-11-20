@@ -2,6 +2,9 @@
  * 插件入口：导出宿主约定的 name、inject、apply 与 Config。
  * 装配鉴权、事件桥、会话、通知工具与浏览器路由。
  */
+
+import type {} from '@deepseek-ai/dsh-storage-domain';
+import type { WorkspaceRegistry } from '@deepseek-ai/dsh-workspace';
 import { AuthManager, type AuthSnapshot } from './auth.ts';
 import { EventBridge } from './bridge.ts';
 import { LarkCli } from './cli.ts';
@@ -13,6 +16,7 @@ import { StateStore } from './state.ts';
 import { buildNotifyTool } from './tools.ts';
 import type { Context } from './types.ts';
 import { describeError } from './utils.ts';
+import { WorkspaceSelection } from './workspace.ts';
 
 export { Config } from './config.ts';
 
@@ -20,7 +24,7 @@ export { Config } from './config.ts';
 export const name = PLUGIN_LABEL;
 
 /** 需要宿主注入的服务。 */
-export const inject = ['tools', 'agents', 'webServer'];
+export const inject = ['tools', 'agents', 'webServer', 'workspaceRegistry'];
 
 /**
  * 插件启用时调用：读取配置、装配服务、注册工具与路由、启动鉴权检查。
@@ -41,27 +45,41 @@ export function apply(ctx: Context, config?: unknown): void {
     logger: ctx.logger,
   });
 
+  const selection = new WorkspaceSelection({
+    getWorkspaceRoot: () => current.workspaceRoot,
+    getRegistry: () => ctx.get('workspaceRegistry') as WorkspaceRegistry | undefined,
+  });
+
   let bridge!: EventBridge;
+  let reconcile!: () => Promise<void>;
   const auth = new AuthManager({
     getCli: () => cli,
     logger: ctx.logger,
     onChange: (snapshot: AuthSnapshot) => {
-      const stage = snapshot.ready ? 'ready' : snapshot.stage;
-      if (stage !== lastStage) {
-        lastStage = stage;
-        ctx.logger.info(`[${PLUGIN_LABEL}] auth stage: ${stage}`);
+      const state = snapshot.ready ? 'ready' : `${snapshot.cli}/${snapshot.bot}/${snapshot.user}`;
+      if (state !== lastStage) {
+        lastStage = state;
+        ctx.logger.info(`[${PLUGIN_LABEL}] auth state: ${state}`);
       }
-      bridge.sync(snapshot);
+      if (!snapshot.ready) bridge.stop();
+      void reconcile();
     },
   });
 
   bridge = new EventBridge({
     getCli: () => cli,
     getAuth: () => auth.current,
+    getWorkspaceReady: () => selection.valid,
     store,
     sessions,
     logger: ctx.logger,
   });
+
+  reconcile = async (): Promise<void> => {
+    if (!auth.current.ready) bridge.stop();
+    const result = await selection.resolve();
+    if (result.current) bridge.sync(auth.current);
+  };
 
   const notifyTool = buildNotifyTool({
     getCli: () => cli,
@@ -80,11 +98,7 @@ export function apply(ctx: Context, config?: unknown): void {
       webServer,
       ...(connection === undefined ? {} : { connection }),
       auth,
-      sessions,
-      store,
-      getConfig: () => current,
       logger: ctx.logger,
-      onAuthChanged: (snapshot) => bridge.sync(snapshot),
     });
   }
   ctx.effect(() => () => disposeRoutes?.(), `${PLUGIN_LABEL}: routes`);
@@ -102,12 +116,21 @@ export function apply(ctx: Context, config?: unknown): void {
       });
   };
 
-  if (current.authCheckOnStartup) runCheck();
+  runCheck();
+
+  ctx.on('domain/changed', (change) => {
+    if (!selection.invalidate(change)) return;
+    bridge.stop();
+    void reconcile();
+  });
 
   ctx.on('loader/volatile-update', () => {
     try {
       const next = readConfig(config);
       current = next;
+      selection.reset();
+      bridge.stop();
+      void reconcile();
       ctx.logger.info(`[${PLUGIN_LABEL}] config updated`);
       runCheck();
     } catch (error) {
@@ -116,5 +139,4 @@ export function apply(ctx: Context, config?: unknown): void {
   });
 
   ctx.effect(() => () => bridge.stop(), `${PLUGIN_LABEL}: event bridge`);
-  ctx.effect(() => () => auth.cancelLogin(), `${PLUGIN_LABEL}: login`);
 }
