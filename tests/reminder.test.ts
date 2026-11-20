@@ -153,11 +153,20 @@ describe('installReminderGuard', () => {
     expect(decision.kind === 'enter' && decision.messages).toHaveLength(1);
   });
 
-  it('reject 与空批次原样返回', async () => {
+  it('reject 与第一步空批次原样返回', async () => {
     const { run, isBridgeSession } = harness();
     expect(await run(sessionStub(), [], { kind: 'reject' })).toEqual({ kind: 'reject' });
     expect(await run(sessionStub(), [], undefined, 1)).toEqual({ kind: 'enter', messages: [] });
     expect(isBridgeSession).not.toHaveBeenCalled();
+  });
+
+  it('后续步骤的空批次也补回提醒', async () => {
+    const { run } = harness();
+    const decision = await run(sessionStub(), [], undefined, 2);
+    expect(decision.kind).toBe('enter');
+    if (decision.kind !== 'enter') return;
+    expect(decision.messages).toHaveLength(1);
+    expect(decision.messages[0]?.source).toMatchObject({ reminder: true });
   });
 
   it('会话判定失败时记录警告并继续', async () => {
@@ -166,6 +175,19 @@ describe('installReminderGuard', () => {
     const decision = await run(sessionStub(), [block]);
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(decision.kind === 'enter' && decision.messages).toHaveLength(1);
+  });
+
+  it('压缩后的表层缺少提醒时补回一条', async () => {
+    const { run } = harness();
+    const summary = createUserMessage({
+      content: [{ type: 'text', text: '历史摘要' }],
+      source: { kind: 'user' },
+    });
+    const decision = await run(sessionStub([{ type: 'user/message', data: summary }]), [larkMessage()]);
+    expect(decision.kind).toBe('enter');
+    if (decision.kind !== 'enter') return;
+    expect(decision.messages).toHaveLength(2);
+    expect(decision.messages[0]?.source).toMatchObject({ reminder: true });
   });
 
   it('连续多次 pre-step 保持一条提醒', async () => {

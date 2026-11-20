@@ -51,10 +51,10 @@ export interface ReminderGuardDeps {
  * @returns 注销函数。
  */
 export function installReminderGuard(deps: ReminderGuardDeps): () => void {
-  return deps.ctx.on('agent/pre-step', async ({ agent }, next): Promise<PreStepDecision> => {
+  return deps.ctx.on('agent/pre-step', async ({ agent, step }, next): Promise<PreStepDecision> => {
     const decision = await next();
     if (decision.kind === 'reject') return decision;
-    if (decision.messages.length === 0) return decision;
+    if (step === 1 && decision.messages.length === 0) return decision;
     const session = agent.session;
     let bridge = false;
     try {
