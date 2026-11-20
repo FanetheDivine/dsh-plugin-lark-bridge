@@ -8,7 +8,9 @@ import { LarkCli } from '../src/cli.ts';
 import {
   Config,
   DEFAULT_CONFIG,
+  modelSelectionOf,
   type PluginConfig,
+  presetOf,
   readConfig,
   resolveConfig,
 } from '../src/config.ts';
@@ -54,17 +56,66 @@ describe('模块契约', () => {
 });
 
 describe('配置', () => {
-  it('仅包含 workspaceRoot 默认值', () => {
+  it('包含工作区与新建会话默认值', () => {
     const parsed = Config({});
-    expectTypeOf<PluginConfig>().toEqualTypeOf<{ workspaceRoot: string }>();
+    expectTypeOf<PluginConfig>().toEqualTypeOf<{
+      workspaceRoot: string;
+      sessionProvider: string;
+      sessionModel: string;
+      sessionEffort: string;
+      sessionPreset: string;
+    }>();
     expect(parsed.workspaceRoot.get()).toBe('');
-    expect(Object.keys(parsed)).toEqual(['workspaceRoot']);
-    expect(DEFAULT_CONFIG).toEqual({ workspaceRoot: '' });
+    expect(parsed.sessionPreset.get()).toBe('');
+    expect(Object.keys(parsed)).toEqual([
+      'workspaceRoot',
+      'sessionProvider',
+      'sessionModel',
+      'sessionEffort',
+      'sessionPreset',
+    ]);
+    expect(DEFAULT_CONFIG).toEqual({
+      workspaceRoot: '',
+      sessionProvider: '',
+      sessionModel: '',
+      sessionEffort: '',
+      sessionPreset: '',
+    });
+  });
+
+  it('读取新建会话的模型与预设配置', () => {
+    const resolved = resolveConfig({
+      sessionProvider: 'deepseek',
+      sessionModel: 'deepseek-chat',
+      sessionEffort: 'high',
+      sessionPreset: 'bridge',
+    });
+    expect(modelSelectionOf(resolved)).toEqual({
+      provider: 'deepseek',
+      model: 'deepseek-chat',
+      reasoningEffort: 'high',
+    });
+    expect(presetOf(resolved)).toBe('bridge');
+  });
+
+  it('空白与半组模型配置按未配置处理', () => {
+    const blank = resolveConfig({ sessionProvider: '  ', sessionModel: '  ' });
+    expect(modelSelectionOf(blank)).toBeUndefined();
+    expect(presetOf(resolveConfig({ sessionPreset: '  ' }))).toBe('');
+
+    const half = resolveConfig({ sessionProvider: 'deepseek', sessionEffort: 'high' });
+    expect(modelSelectionOf(half)).toBeUndefined();
+  });
+
+  it('模型配置拒绝非字符串', () => {
+    expect(() => resolveConfig({ sessionProvider: 1 })).toThrow(
+      'config sessionProvider must be a string',
+    );
   });
 
   it('展开热重载引用并归一化工作区路径', () => {
     const resolved = readConfig({ workspaceRoot: volatile('C:\\work\\demo') });
-    expect(resolved).toEqual({ workspaceRoot: '/c/work/demo' });
+    expect(resolved).toEqual({ ...DEFAULT_CONFIG, workspaceRoot: '/c/work/demo' });
     expect(resolveConfig({ workspaceRoot: 'C:\\work\\demo' })).toEqual(resolved);
   });
 
