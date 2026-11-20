@@ -30,9 +30,11 @@
 
 ## 配置
 
-`readConfig` 展开 `.volatile()` 引用后交给 `resolveConfig` 严格校验。当前只读取 `workspaceRoot`，旧 `profile`、`ownerOpenId`、`larkCli`、`sessionTitle` 与 `authCheckOnStartup` 被接受并丢弃。
+`readConfig` 展开 `.volatile()` 引用后交给 `resolveConfig` 严格校验。当前读取 `workspaceRoot`、`sessionProvider`、`sessionModel`、`sessionEffort` 与 `sessionPreset`；旧 `profile`、`ownerOpenId`、`larkCli`、`sessionTitle` 与 `authCheckOnStartup` 被接受并丢弃。
 
-保存 `workspaceRoot` 后，宿主发出 `loader/volatile-update`。插件更新配置、使旧工作区缓存失效、停止旧监听、立即重新解析，并执行一次完整鉴权检测。
+`sessionProvider` 与 `sessionModel` 同时非空才构成模型选择，`sessionEffort` 只在模型成立时生效。`sessionPreset` 为空表示跟随宿主默认预设。空白与半组配置按未配置处理。
+
+保存任一项后，宿主发出 `loader/volatile-update`。插件更新配置、使旧工作区缓存失效、停止旧监听、立即重新解析，并执行一次完整鉴权检测。
 
 ## 鉴权
 
@@ -111,6 +113,9 @@ lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 - 恢复失败、会话已归档或路径变化时新建。
 - 新建与复用都使用固定标题「来自用户的飞书消息」。
 - 新建会话挂到已注册工作区并置顶。
+- 新建会话经 `sessionController.create` 建立，配置的预设作为 `agentPreset` 传入；配置的模型先经 `llm.resolveCallConfig` 校验，再写入 `agent.model.select`。
+- 预设不在宿主名册、名册读取失败或模型校验失败时，新建会话按宿主默认运行并记录警告；飞书消息照常注入。
+- 已存在的会话保持原有模型与预设。
 - 注入使用 `createUserMessage`，`source.kind` 是 `lark-bridge`，再调用 `agent.followup`。
 - 桥接提醒是一条 `source.reminder` 为 true 的 `<system-reminder>` 用户消息。
 

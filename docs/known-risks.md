@@ -3,8 +3,18 @@
 ## 宿主版本
 
 - `@deepseek-ai/dsh-*` 处于 rc 阶段，接口可能在版本间变化。
-- 插件依赖的 `dsh-*` 版本应与运行它的 DSH 版本一致。
+- 插件依赖的 `dsh-*` 版本应与运行它的 DSH 版本一致；当前锁定 `0.2.2-rc.5`。
 - 实机测试按 `@deepseek-ai/dsh-agent` 的版本选择宿主，版本不一致时安装到 `~/.dsh-local/dsh-<版本>`，全局安装保持不变。
+
+## 官方模型选择器与预设名册
+
+配置页的模型行复用官方 `ModelSelect`，预设行读取 `remote.agentPresets`。
+
+- 选择器从 `@deepseek-ai/dsh-client-ui-model-selection/src/` 直接导入源码，宿主升级可能改变文件布局。
+- 选择器自带 CSS module，构建时经 `@tsdown/css` 注入 `dist/client.js`；产物不得残留 `dist/client.css`。
+- 浏览器产物依赖宿主静态种子模块 `@deepseek-ai/dsh-client-store`。
+- 宿主不提供预设名册时，预设选择器禁用，新建会话沿用宿主默认预设。
+- 已保存的模型或预设从宿主目录消失时，新建会话回退宿主默认，配置值保留。
 
 ## 安装 rc 依赖
 

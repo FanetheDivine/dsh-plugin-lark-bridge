@@ -121,12 +121,12 @@
 
 **Purpose**: 文档、变更记录与质量门禁
 
-- [ ] T032 [P] 更新 `docs/how-it-works.md`：配置小节列出四个字段与解析顺序；会话小节说明新建路径与降级
-- [ ] T033 [P] 更新 `docs/known-risks.md`：宿主版本升级到 rc.5、官方选择器源码子路径导入、预设名册可选
-- [ ] T034 更新 `CHANGELOG.md`：新增 `## Unreleased` 条目，记录模型、预设与依赖升级
-- [ ] T035 运行 `pnpm format && pnpm check && pnpm build`，修复全部问题
-- [ ] T036 按 `quickstart.md` 核对自动化场景与产物（CSS 内联、种子模块），确认 README 与 `locale/*.json` 无改动
-- [ ] T037 提交收尾，确认 `git status --porcelain` 干净
+- [X] T032 [P] 更新 `docs/how-it-works.md`：配置小节列出四个字段与解析顺序；会话小节说明新建路径与降级
+- [X] T033 [P] 更新 `docs/known-risks.md`：宿主版本升级到 rc.5、官方选择器源码子路径导入、预设名册可选
+- [X] T034 更新 `CHANGELOG.md`：新增 `## Unreleased` 条目，记录模型、预设与依赖升级
+- [X] T035 运行 `pnpm format && pnpm check && pnpm build`，修复全部问题
+- [X] T036 按 `quickstart.md` 核对自动化场景与产物（CSS 内联、种子模块），确认 README 与 `locale/*.json` 无改动
+- [X] T037 提交收尾，确认 `git status --porcelain` 干净
 
 ---
 
