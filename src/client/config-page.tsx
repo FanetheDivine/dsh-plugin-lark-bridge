@@ -44,8 +44,6 @@ export interface WorkspaceSelectProps {
   readonly value: string;
   readonly disabled: boolean;
   readonly onChange: (path: string) => void;
-  readonly onReset?: () => void;
-  readonly overridden?: boolean;
   readonly invalid?: boolean;
 }
 
@@ -56,8 +54,6 @@ export function WorkspaceSelect({
   value,
   disabled,
   onChange,
-  onReset,
-  overridden = false,
   invalid = false,
 }: WorkspaceSelectProps) {
   const id = useId();
@@ -74,11 +70,6 @@ export function WorkspaceSelect({
         <label htmlFor={id} style={titleStyle}>
           {t('config.workspaceRoot.title')}
         </label>
-        {overridden && onReset !== undefined ? (
-          <button type="button" style={linkButtonStyle} disabled={disabled} onClick={onReset}>
-            {t('config.reset')}
-          </button>
-        ) : null}
       </div>
       <select
         id={id}
@@ -138,9 +129,7 @@ export function ConfigPage(props: ConfigPageProps) {
           value={state.workspaceRoot.text}
           disabled={disabled}
           invalid={state.workspaceRoot.invalid}
-          overridden={state.workspaceRoot.overridden}
           onChange={(path) => props.edit('workspaceRoot', path)}
-          onReset={() => props.resetField('workspaceRoot')}
         />
       </SettingsForm>
     </div>
@@ -191,14 +180,4 @@ const descriptionStyle: CSSProperties = {
 const invalidStyle: CSSProperties = {
   ...descriptionStyle,
   color: 'var(--dsw-alias-error-fill, #cf222e)',
-};
-
-const linkButtonStyle: CSSProperties = {
-  border: 'none',
-  background: 'transparent',
-  color: 'var(--dsw-alias-label-link, #0969da)',
-  font: 'inherit',
-  fontSize: 12,
-  cursor: 'pointer',
-  padding: 0,
 };

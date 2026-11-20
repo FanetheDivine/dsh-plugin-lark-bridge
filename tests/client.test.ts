@@ -433,6 +433,8 @@ describe('工作区选择与共用弹窗', () => {
     const html = renderConfigPage();
     expect(html).toContain('data-dsh-lark-auth-panel');
     expect(html).toContain('data-dsh-lark-config-workspace');
+    expect(html).toContain('工作区');
+    expect(html).not.toContain('恢复默认');
     expect(html).not.toContain('会话标题');
     expect(html).not.toContain('启动时检测鉴权');
     expect(html).not.toContain('重置桥接会话');
@@ -449,6 +451,8 @@ describe('工作区选择与共用弹窗', () => {
     expect(html).toContain('data-dsh-lark-auth-panel');
     expect(html).toContain('data-dsh-lark-config-workspace');
     expect(html).toContain('保存选择');
+    expect(html).toContain('工作区');
+    expect(html).not.toContain('恢复默认');
     expect(html).not.toContain('<a');
   });
 });
