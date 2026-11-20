@@ -130,7 +130,7 @@ ACK 由 lark-cli 完成；插件持续读取消费者输出，注入不阻塞事
 - 恢复失败、会话已归档或路径变化时新建。
 - 新建会话使用固定标题「飞书桥接会话」；复用会话保留已有标题。
 - 新建会话挂到已注册工作区并置顶。
-- 新建会话经 `sessionController.create` 建立，配置的预设作为 `agentPreset` 传入；配置的模型先经 `llm.resolveCallConfig` 校验，再写入 `agent.model.select`。
+- 新建会话经 `sessionController.create` 建立，只传注册工作区标识与配置的预设；配置的模型先经 `llm.resolveCallConfig` 校验，再写入 `agent.model.select`。
 - 预设不在宿主名册、名册读取失败或模型校验失败时，新建会话按宿主默认运行并记录警告；飞书消息照常注入。
 - 已存在的会话保持原有模型与预设。
 - 注入使用 `createUserMessage`，`source.kind` 是 `lark-bridge`，再调用 `agent.followup`。

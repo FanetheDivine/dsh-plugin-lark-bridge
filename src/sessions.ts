@@ -53,9 +53,7 @@ interface PresetRegistryLike {
 interface SessionController {
   resolveAgent(id: SessionId): Promise<{ readonly agent: Agent } | { readonly error: unknown }>;
   create?(request: {
-    readonly sessionId: string;
     readonly workspaceId: string;
-    readonly cwd: string;
     readonly agentPreset?: string;
   }): Promise<{ readonly sessionId: string; readonly agentPreset?: string }>;
 }
@@ -247,13 +245,11 @@ export class SessionManager {
     const selection = await this.resolveSelection();
     const preset = await this.resolvePreset();
     const controller = this.ctx.get('sessionController') as SessionController | undefined;
-    let sessionId: string = randomUUID();
+    let sessionId: string;
     let agent: Agent;
     if (controller?.create !== undefined) {
       const created = await controller.create({
-        sessionId,
         workspaceId: String(workspace.id),
-        cwd,
         ...(preset === '' ? {} : { agentPreset: preset }),
       });
       sessionId = created.sessionId;
@@ -274,6 +270,7 @@ export class SessionManager {
           'lark-bridge: sessionController is unavailable; the preset was ignored',
         );
       }
+      sessionId = randomUUID();
       const handle = await this.ctx.agents.create({
         sessionId: SessionId(sessionId),
         agentOptions: this.agentOptions(),
