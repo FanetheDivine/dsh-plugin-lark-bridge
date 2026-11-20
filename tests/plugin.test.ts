@@ -2,11 +2,17 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import { LarkCli } from '../src/cli.ts';
 
-import { Config, readConfig, resolveConfig } from '../src/config.ts';
+import {
+  Config,
+  DEFAULT_CONFIG,
+  type PluginConfig,
+  readConfig,
+  resolveConfig,
+} from '../src/config.ts';
 import { NOTIFY_TOOL_NAME, PLUGIN_LABEL } from '../src/constants.ts';
 import { apply, inject, name } from '../src/index.ts';
 import { makeCtx, volatile } from './helpers.ts';
@@ -49,50 +55,47 @@ describe('模块契约', () => {
 });
 
 describe('配置', () => {
-  it('默认值', () => {
+  it('仅包含 workspaceRoot 默认值', () => {
     const parsed = Config({});
+    expectTypeOf<PluginConfig>().toEqualTypeOf<{ workspaceRoot: string }>();
     expect(parsed.workspaceRoot.get()).toBe('');
-    expect(parsed.sessionTitle.get()).toBe('飞书');
-    expect(parsed.authCheckOnStartup.get()).toBe(true);
-    expect(parsed).not.toHaveProperty('larkCli');
+    expect(Object.keys(parsed)).toEqual(['workspaceRoot']);
+    expect(DEFAULT_CONFIG).toEqual({ workspaceRoot: '' });
   });
 
-  it('展开热重载引用后严格校验', () => {
-    const config = {
-      workspaceRoot: volatile('D:/work'),
-      sessionTitle: volatile('桥'),
-      authCheckOnStartup: volatile(false),
-    };
-    const resolved = readConfig(config);
-    expect(resolved).toEqual({
-      workspaceRoot: 'D:/work',
-      sessionTitle: '桥',
-      authCheckOnStartup: false,
-    });
-    expect(resolved).not.toHaveProperty('larkCli');
+  it('展开热重载引用并归一化工作区路径', () => {
+    const resolved = readConfig({ workspaceRoot: volatile('D:\\Git') });
+    expect(resolved).toEqual({ workspaceRoot: '/d/Git' });
+    expect(resolveConfig({ workspaceRoot: 'D:\\Git' })).toEqual(resolved);
   });
 
-  it('容忍并丢弃旧版本的 profile、ownerOpenId 与 larkCli', () => {
+  it('容忍并丢弃全部旧配置键', () => {
     const legacy = {
       profile: 'a b',
       ownerOpenId: 'abc',
       larkCli: 'D:/legacy/lark-cli.js',
-      sessionTitle: '桥',
+      sessionTitle: '  ',
+      authCheckOnStartup: false,
     };
     const resolved = resolveConfig(legacy);
-    expect(resolved).toEqual(resolveConfig({ sessionTitle: '桥' }));
+    expect(resolved).toEqual(DEFAULT_CONFIG);
     expect(resolved).not.toHaveProperty('profile');
     expect(resolved).not.toHaveProperty('ownerOpenId');
     expect(resolved).not.toHaveProperty('larkCli');
+    expect(resolved).not.toHaveProperty('sessionTitle');
+    expect(resolved).not.toHaveProperty('authCheckOnStartup');
 
-    const read = readConfig({ ...legacy, larkCli: volatile('D:/legacy/other-lark-cli.js') });
+    const read = readConfig({
+      ...legacy,
+      larkCli: volatile('D:/legacy/other-lark-cli.js'),
+      sessionTitle: volatile('  '),
+      authCheckOnStartup: volatile(false),
+    });
     expect(read).toEqual(resolved);
-    expect(read).not.toHaveProperty('larkCli');
   });
 
-  it('拒绝未知键与空标题', () => {
+  it('拒绝未知键', () => {
     expect(() => resolveConfig({ bogus: 1 })).toThrow('unknown config key "bogus"');
-    expect(() => resolveConfig({ sessionTitle: '  ' })).toThrow('must not be empty');
   });
 });
 
@@ -101,11 +104,7 @@ describe('apply 接线', () => {
     process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
     const { webServer, routes } = makeWebServer();
     const ctx = makeCtx({ services: { webServer } });
-    apply(ctx, {
-      workspaceRoot: '',
-      sessionTitle: '飞书',
-      authCheckOnStartup: false,
-    });
+    apply(ctx, { workspaceRoot: '' });
     expect(ctx._registeredTools.map((tool) => tool.name)).toEqual([NOTIFY_TOOL_NAME]);
     expect(routes.map((route) => route.path).sort()).toEqual([
       '/lark-bridge/check',
@@ -113,17 +112,31 @@ describe('apply 接线', () => {
     ]);
   });
 
+  it('旧 authCheckOnStartup:false 仍执行启动完整检测', async () => {
+    process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
+    const { webServer } = makeWebServer();
+    const ctx = makeCtx({ services: { webServer } });
+    apply(ctx, { authCheckOnStartup: false });
+
+    await vi.waitFor(() => {
+      expect(LarkCli.prototype.run).toHaveBeenCalledWith(['--version'], {
+        timeoutMs: 60_000,
+        allowFailure: true,
+      });
+      expect(LarkCli.prototype.json).toHaveBeenCalledWith(
+        ['auth', 'status', '--json', '--verify'],
+        { timeoutMs: 60_000 },
+      );
+    });
+  });
+
   it('配置热重载读取新值并重新登记', () => {
     process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
     const { webServer } = makeWebServer();
     const ctx = makeCtx({ services: { webServer } });
-    const config = {
-      workspaceRoot: volatile(''),
-      sessionTitle: volatile('飞书'),
-      authCheckOnStartup: volatile(false),
-    };
+    const config = { workspaceRoot: volatile('D:\\Git') };
     apply(ctx, config);
-    config.sessionTitle.set('另一个标题');
+    config.workspaceRoot.set('D:\\Git\\next');
     ctx._emit('loader/volatile-update');
     const infos = ctx._loggerCalls
       .filter((call) => call.level === 'info')

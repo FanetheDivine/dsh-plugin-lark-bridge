@@ -6,11 +6,8 @@ export const PLUGIN_LABEL = 'dsh-plugin-lark-bridge';
 /** 工具名。 */
 export const NOTIFY_TOOL_NAME = 'lark_notify';
 
-/** 桥接会话的默认标题。 */
-export const DEFAULT_SESSION_TITLE = '飞书';
-
-/** 设备码授权请求的最小 scope。 */
-export const DEFAULT_LOGIN_SCOPE = 'auth:user.id:read';
+/** 桥接会话的固定标题。 */
+export const SESSION_TITLE = '来自用户的飞书消息';
 
 /** 状态目录名，位于 DSH home 下。 */
 export const STATE_DIR = 'lark-bridge';

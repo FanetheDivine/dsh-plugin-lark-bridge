@@ -13,6 +13,7 @@ import type {} from '@deepseek-ai/dsh-session-title';
 import type { Workspace, WorkspaceRegistry } from '@deepseek-ai/dsh-workspace';
 
 import type { PluginConfig } from './config.ts';
+import { SESSION_TITLE } from './constants.ts';
 import { BridgeError } from './errors.ts';
 import type { StateStore } from './state.ts';
 import { describeError, reminder } from './utils.ts';
@@ -245,7 +246,6 @@ export class SessionManager {
         `工作区未注册：${normalizeWorkspacePath(cwd)}`,
       );
     }
-    const config = this.deps.getConfig();
     const state = await this.deps.store.load();
     if (
       state.sessionId !== null &&
@@ -254,16 +254,11 @@ export class SessionManager {
     ) {
       const agent = await this.resume(state.sessionId);
       if (agent !== undefined) {
-        await this.syncMeta(
-          state.sessionId,
-          agent,
-          config.sessionTitle,
-          state.title ?? config.sessionTitle,
-        );
+        await this.syncMeta(state.sessionId, agent, SESSION_TITLE, state.title ?? SESSION_TITLE);
         return { sessionId: state.sessionId, agent, created: false, cwd };
       }
     }
-    const created = await this.create(cwd, config.sessionTitle, workspace);
+    const created = await this.create(cwd, SESSION_TITLE, workspace);
     return { ...created, created: true, cwd };
   }
 
@@ -292,10 +287,5 @@ export class SessionManager {
     } catch (error) {
       this.fail(error);
     }
-  }
-
-  /** 清除会话记录，下一次消息新建。 */
-  async reset(): Promise<void> {
-    await this.deps.store.resetSession();
   }
 }

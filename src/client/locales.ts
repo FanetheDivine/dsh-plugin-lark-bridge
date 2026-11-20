@@ -23,21 +23,12 @@ export const zh = {
   'auth.command.bot': 'lark-cli config init',
   'auth.command.user': 'lark-cli auth login --scope auth:user.id:read',
   'config.summary': '工作区与飞书连接',
-  'config.section.session': '会话',
   'config.workspaceRoot.title': '工作区',
   'config.workspaceRoot.description': '飞书消息注入到所选 DSH 工作区的会话。',
   'config.workspaceRoot.invalid': '请选择一个已注册的工作区。',
   'config.workspaceRoot.placeholder': '请选择工作区',
   'config.workspaceRoot.empty': '暂无已注册工作区',
   'config.saveSelection': '保存选择',
-  'config.sessionTitle.title': '会话标题',
-  'config.sessionTitle.description': '桥接会话显示的名称；修改后下一个消息会同步到会话。',
-  'config.sessionTitle.invalid': '标题不能为空。',
-  'config.authCheckOnStartup.title': '启动时检测鉴权',
-  'config.authCheckOnStartup.description': '每次打开 DSH 都检查一次；失败时显示提示弹窗。',
-  'config.resetSession': '重置桥接会话',
-  'config.resetSessionHint': '清除已记录的会话标识，下一条飞书消息会在工作区新建会话。',
-  'config.resetDone': '会话记录已清除。',
   'config.unavailable': '配置不可用。',
   'config.readOnly': '此部署以只读方式保存设置。',
   'config.saveFailed': '此部署未接受这些值，已保留以便修改。',
@@ -45,8 +36,6 @@ export const zh = {
   'config.saving': '保存中…',
   'config.overridden': '已覆盖',
   'config.reset': '恢复默认',
-  'config.currentSession': '当前会话：{session}',
-  'config.noSession': '尚未创建桥接会话。',
 } as const;
 
 /** 英文字典，键集与中文一致。 */
@@ -70,24 +59,12 @@ export const en: Record<BridgeKey, string> = {
   'auth.command.bot': 'lark-cli config init',
   'auth.command.user': 'lark-cli auth login --scope auth:user.id:read',
   'config.summary': 'Workspace and Lark connections',
-  'config.section.session': 'Session',
   'config.workspaceRoot.title': 'Workspace',
   'config.workspaceRoot.description': 'Lark messages are injected into the selected DSH workspace.',
   'config.workspaceRoot.invalid': 'Select a registered workspace.',
   'config.workspaceRoot.placeholder': 'Select a workspace',
   'config.workspaceRoot.empty': 'No registered workspaces',
   'config.saveSelection': 'Save selection',
-  'config.sessionTitle.title': 'Session title',
-  'config.sessionTitle.description':
-    'The bridge session name; changes apply with the next message.',
-  'config.sessionTitle.invalid': 'The title must not be empty.',
-  'config.authCheckOnStartup.title': 'Check authentication on startup',
-  'config.authCheckOnStartup.description':
-    'Run one check whenever DSH opens and show the notice when it fails.',
-  'config.resetSession': 'Reset bridge session',
-  'config.resetSessionHint':
-    'Clears the recorded session id; the next Lark message creates a new session in the workspace.',
-  'config.resetDone': 'The session record was cleared.',
   'config.unavailable': 'Configuration is unavailable.',
   'config.readOnly': 'This deployment stores settings read-only.',
   'config.saveFailed':
@@ -96,8 +73,6 @@ export const en: Record<BridgeKey, string> = {
   'config.saving': 'Saving…',
   'config.overridden': 'Overridden',
   'config.reset': 'Restore default',
-  'config.currentSession': 'Current session: {session}',
-  'config.noSession': 'No bridge session yet.',
 };
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

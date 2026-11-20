@@ -88,13 +88,13 @@ description: "Task list for 独立鉴权与工作区选择流程"
 
 ### Tests for User Story 3
 
-- [ ] T021 [P] [US3] 在 `tests/plugin.test.ts` 覆盖仅 `workspaceRoot` 的配置 schema、旧 `sessionTitle`/`authCheckOnStartup` 接受并忽略、未知键拒绝与必检测
-- [ ] T022 [P] [US3] 在 `tests/sessions.test.ts` 和 `tests/state.test.ts` 覆盖新建/复用固定标题、归档恢复新建和公开重置方法移除
+- [X] T021 [P] [US3] 在 `tests/plugin.test.ts` 覆盖仅 `workspaceRoot` 的配置 schema、旧 `sessionTitle`/`authCheckOnStartup` 接受并忽略、未知键拒绝与必检测
+- [X] T022 [P] [US3] 在 `tests/sessions.test.ts` 和 `tests/state.test.ts` 覆盖新建/复用固定标题、归档恢复新建和公开重置方法移除
 
 ### Implementation for User Story 3
 
-- [ ] T023 [US3] 在 `src/config.ts` 与 `cordis.patch.yml` 删除标题和启动检测字段、把两者加入旧键集合并将工作区配置归一化为 `/d/Git` 形式
-- [ ] T024 [US3] 在 `src/constants.ts`、`src/sessions.ts`、`src/state.ts` 和 `src/client/locales.ts` 固定「来自用户的飞书消息」，状态路径保存 `/d/Git` 形式并删除重置能力与废弃文案
+- [X] T023 [US3] 在 `src/config.ts` 与 `cordis.patch.yml` 删除标题和启动检测字段、把两者加入旧键集合并将工作区配置归一化为 `/d/Git` 形式
+- [X] T024 [US3] 在 `src/constants.ts`、`src/sessions.ts`、`src/state.ts` 和 `src/client/locales.ts` 固定「来自用户的飞书消息」，状态路径保存 `/d/Git` 形式并删除重置能力与废弃文案
 
 **Checkpoint**: 三个故事均通过独立测试，现有私聊、去重、置顶和通知回归保持通过。
 

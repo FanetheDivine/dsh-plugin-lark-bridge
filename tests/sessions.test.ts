@@ -5,14 +5,12 @@ import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PluginConfig } from '../src/config.ts';
+import { SESSION_TITLE } from '../src/constants.ts';
 import { SessionManager } from '../src/sessions.ts';
 import { StateStore } from '../src/state.ts';
 
 const CONFIG: PluginConfig = {
   workspaceRoot: '/d/Git',
-  sessionTitle: '飞书',
-  larkCli: '',
-  authCheckOnStartup: true,
 };
 const HOST_CWD = 'D:/Git';
 
@@ -145,7 +143,7 @@ describe('SessionManager', () => {
     expect(resolveByPath).toHaveBeenCalledWith(HOST_CWD);
     expect(created[0]?.meta).toEqual({ cwd });
     expect(appended[0]?.[0]).toBe('session/title');
-    expect(appended[0]?.[1]).toMatchObject({ title: '飞书' });
+    expect(appended[0]?.[1]).toMatchObject({ title: SESSION_TITLE });
     expect(attached).toEqual([result.sessionId]);
     expect(pinned).toEqual([result.sessionId]);
     expect(registryCreate).not.toHaveBeenCalled();
@@ -168,21 +166,29 @@ describe('SessionManager', () => {
     expect(followups).toHaveLength(0);
   });
 
-  it('已有记录且会话可恢复时复用', async () => {
-    const { sessions, store, created, followups } = await setup();
+  it('已有记录且会话可恢复时复用并同步固定标题', async () => {
+    const { sessions, store, created, appended, followups } = await setup();
     const first = await sessions.inject('一');
     expect(created).toHaveLength(1);
+    await store.patch({ title: '历史标题' });
     await sessions.inject('二');
     expect(created).toHaveLength(1);
+    expect(appended[1]?.[0]).toBe('session/title');
+    expect(appended[1]?.[1]).toMatchObject({ title: SESSION_TITLE });
     const state = await store.load();
     expect(state.sessionId).toBe(first.sessionId);
+    expect(state.title).toBe(SESSION_TITLE);
     expect(followups).toHaveLength(2);
     expect(JSON.stringify(followups[1]?.content)).toContain('二');
   });
 
-  it('恢复失败时新建并覆盖记录', async () => {
+  it('归档会话恢复失败时新建并覆盖记录', async () => {
     const { sessions, store, created } = await setup();
-    await store.patch({ sessionId: 'gone', workspaceRoot: CONFIG.workspaceRoot, title: '飞书' });
+    await store.patch({
+      sessionId: 'gone',
+      workspaceRoot: CONFIG.workspaceRoot,
+      title: SESSION_TITLE,
+    });
     const result = await sessions.inject('hi');
     expect(result.created).toBe(true);
     expect(created[0]?.sessionId).not.toBe('gone');
@@ -203,10 +209,8 @@ describe('SessionManager', () => {
     await expect(sessions.inject('hi')).rejects.toMatchObject({ code: 'workspace-missing' });
   });
 
-  it('reset 清除会话记录', async () => {
-    const { sessions, store } = await setup();
-    await sessions.inject('一');
-    await sessions.reset();
-    expect((await store.load()).sessionId).toBeNull();
+  it('不提供公开重置方法', async () => {
+    const { sessions } = await setup();
+    expect(sessions).not.toHaveProperty('reset');
   });
 });
