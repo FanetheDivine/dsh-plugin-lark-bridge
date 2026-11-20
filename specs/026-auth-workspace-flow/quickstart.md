@@ -58,11 +58,11 @@
 
 1. 注册至少两个工作区，其中一个使用重复标题。
    - select 只列出当前注册项，标题与归一化路径可区分选项。
-   - Windows 的 `D:\Git` 与 `D:/Git` 均显示为 `/d/Git`。
+   - Windows 的 `C:\work\demo` 与 `C:/work/demo` 均显示为 `/c/work/demo`。
 2. 保持 `workspaceRoot` 为空并打开 GUI。
    - 共用弹窗出现，事件消费者未启动。
 3. 从弹窗选择并保存。
-   - profile 写入 `/d/Git` 形式的归一化路径，Host 调用收到原生路径。
+   - profile 写入 `/c/work/demo` 形式的归一化路径，Host 调用收到原生路径。
    - 配置热重载后鉴权就绪时启动事件消费者。
 4. 删除已选工作区的注册，保留磁盘目录。
    - 后端停止事件消费者。

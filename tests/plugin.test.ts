@@ -64,16 +64,16 @@ describe('配置', () => {
   });
 
   it('展开热重载引用并归一化工作区路径', () => {
-    const resolved = readConfig({ workspaceRoot: volatile('D:\\Git') });
-    expect(resolved).toEqual({ workspaceRoot: '/d/Git' });
-    expect(resolveConfig({ workspaceRoot: 'D:\\Git' })).toEqual(resolved);
+    const resolved = readConfig({ workspaceRoot: volatile('C:\\work\\demo') });
+    expect(resolved).toEqual({ workspaceRoot: '/c/work/demo' });
+    expect(resolveConfig({ workspaceRoot: 'C:\\work\\demo' })).toEqual(resolved);
   });
 
   it('容忍并丢弃全部旧配置键', () => {
     const legacy = {
       profile: 'a b',
       ownerOpenId: 'abc',
-      larkCli: 'D:/legacy/lark-cli.js',
+      larkCli: 'C:/legacy/lark-cli.js',
       sessionTitle: '  ',
       authCheckOnStartup: false,
     };
@@ -87,7 +87,7 @@ describe('配置', () => {
 
     const read = readConfig({
       ...legacy,
-      larkCli: volatile('D:/legacy/other-lark-cli.js'),
+      larkCli: volatile('C:/legacy/other-lark-cli.js'),
       sessionTitle: volatile('  '),
       authCheckOnStartup: volatile(false),
     });
@@ -134,9 +134,9 @@ describe('apply 接线', () => {
     process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
     const { webServer } = makeWebServer();
     const ctx = makeCtx({ services: { webServer } });
-    const config = { workspaceRoot: volatile('D:\\Git') };
+    const config = { workspaceRoot: volatile('C:\\work\\demo') };
     apply(ctx, config);
-    config.workspaceRoot.set('D:\\Git\\next');
+    config.workspaceRoot.set('C:\\work\\demo\\next');
     ctx._emit('loader/volatile-update');
     const infos = ctx._loggerCalls
       .filter((call) => call.level === 'info')

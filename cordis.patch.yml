@@ -4,5 +4,5 @@
     - id: dsh-plugin-lark-bridge
       name: dsh-plugin-lark-bridge
       config:
-        # 已注册工作区的 Linux 风格路径，例如 /d/Git；空值要求用户选择。
+        # 已注册工作区的 Linux 风格路径，例如 /c/work/demo；空值要求用户选择。
         workspaceRoot: ''

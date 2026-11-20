@@ -113,7 +113,7 @@ function formState(overrides: Partial<ConfigFormState> = {}): ConfigFormState {
     invalid: false,
     saving: false,
     failed: false,
-    workspaceRoot: { text: '/d/Git/One', overridden: true, invalid: false },
+    workspaceRoot: { text: '/c/work/demo/One', overridden: true, invalid: false },
     ...overrides,
   };
 }
@@ -121,7 +121,7 @@ function formState(overrides: Partial<ConfigFormState> = {}): ConfigFormState {
 /** 渲染完整配置页。 */
 function renderConfigPage(): string {
   const fake = makeConfigFormScope({
-    value: { workspaceRoot: '/d/Git/One' },
+    value: { workspaceRoot: '/c/work/demo/One' },
     base: { workspaceRoot: '' },
   });
   const form = new PluginConfigForm(fake.scope);
@@ -134,7 +134,7 @@ function renderConfigPage(): string {
       t: translate(zh),
       view: 'page',
       useWorkspaces: makeUseWorkspaces([
-        { workspaceId: 'one', path: 'D:\\Git\\One', title: '项目一' },
+        { workspaceId: 'one', path: 'C:\\work\\demo\\One', title: '项目一' },
       ]),
       useWorkspaceAccess: () => true,
       useConfigForm,
@@ -158,7 +158,7 @@ function renderAuthOverlayContent(form: ConfigFormState): string {
       t: translate(zh),
       controller,
       useWorkspaces: makeUseWorkspaces([
-        { workspaceId: 'one', path: 'D:\\Git\\One', title: '项目一' },
+        { workspaceId: 'one', path: 'C:\\work\\demo\\One', title: '项目一' },
       ]),
       form,
       onEdit: vi.fn(),
@@ -408,13 +408,17 @@ describe('连接状态展示', () => {
 describe('工作区选择与共用弹窗', () => {
   it('选项仅来自注册列表并归一化值与同名路径标签', () => {
     const html = renderWorkspaceSelect([
-      { workspaceId: 'one', path: 'D:\\Git\\One', title: '项目' },
-      { workspaceId: 'two', path: 'd:/Git/Two/', title: '项目' },
+      { workspaceId: 'one', path: 'C:\\work\\demo\\One', title: '项目' },
+      { workspaceId: 'two', path: 'c:/work/demo/Two/', title: '项目' },
     ]);
     const options = selectOptions(html);
-    expect(options.map((option) => option.value)).toEqual(['', '/d/Git/One', '/d/Git/Two']);
-    expect(options[1]?.label).toContain('项目 — /d/Git/One');
-    expect(options[2]?.label).toContain('项目 — /d/Git/Two');
+    expect(options.map((option) => option.value)).toEqual([
+      '',
+      '/c/work/demo/One',
+      '/c/work/demo/Two',
+    ]);
+    expect(options[1]?.label).toContain('项目 — /c/work/demo/One');
+    expect(options[2]?.label).toContain('项目 — /c/work/demo/Two');
     expect(html).not.toContain('type="text"');
   });
 
@@ -451,16 +455,16 @@ describe('工作区选择与共用弹窗', () => {
 
 describe('AuthOverlay 状态', () => {
   it('路径归一化后生成有效签名，失效状态使用非空签名', () => {
-    const paths = ['/d/Git/One'];
-    expect(getAuthOverlaySignature(statusFor(), 'D:\\Git\\One', paths)).toBe('');
+    const paths = ['/c/work/demo/One'];
+    expect(getAuthOverlaySignature(statusFor(), 'C:\\work\\demo\\One', paths)).toBe('');
     expect(getAuthOverlaySignature(statusFor(), '', paths)).not.toBe('');
     expect(
-      getAuthOverlaySignature(statusFor({ user: 'disconnected' }), '/d/Git/One', paths),
+      getAuthOverlaySignature(statusFor({ user: 'disconnected' }), '/c/work/demo/One', paths),
     ).not.toBe('');
   });
 
   it('关闭后同签名不重复打开，新的失效与再次失效会重开', () => {
-    const invalid = getAuthOverlaySignature(statusFor(), '', ['/d/Git/One']);
+    const invalid = getAuthOverlaySignature(statusFor(), '', ['/c/work/demo/One']);
     const opened = reduceAuthOverlayState(INITIAL_AUTH_OVERLAY_STATE, {
       type: 'sync',
       signature: invalid,

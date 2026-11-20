@@ -12,7 +12,7 @@ import { makeConfigFormScope } from './helpers.ts';
 
 /** 默认配置值。 */
 const DEFAULTS: ConfigFields = {
-  workspaceRoot: 'D:/work',
+  workspaceRoot: 'C:/work',
 };
 
 /** 构造表单与状态读取器。 */
@@ -32,9 +32,9 @@ describe('配置页常量', () => {
 
 describe('配置页草稿', () => {
   it('只包含工作区字段，读取时归一化为 Linux 风格路径', () => {
-    const { state } = setup({ workspaceRoot: 'D:\\Git\\Lark' });
+    const { state } = setup({ workspaceRoot: 'C:\\work\\demo\\Lark' });
     const current = state();
-    expect(current.workspaceRoot.text).toBe('/d/Git/Lark');
+    expect(current.workspaceRoot.text).toBe('/c/work/demo/Lark');
     expect(current.dirty).toBe(false);
     expect(current.invalid).toBe(false);
     expectTypeOf<ConfigFields>().toEqualTypeOf<{ workspaceRoot: string }>();
@@ -74,29 +74,31 @@ describe('配置页保存', () => {
   it('只写入工作区并保存归一化路径', async () => {
     const { fake, form } = setup();
     const actions = form.inject();
-    actions.edit('workspaceRoot', '  D:\\Git\\Other  ');
+    actions.edit('workspaceRoot', '  C:\\work\\demo\\Other  ');
     await actions.save();
-    expect(fake.writes).toEqual([[{ op: 'set', path: ['workspaceRoot'], value: '/d/Git/Other' }]]);
+    expect(fake.writes).toEqual([
+      [{ op: 'set', path: ['workspaceRoot'], value: '/c/work/demo/Other' }],
+    ]);
   });
 
   it('恢复默认只提交工作区清除操作', async () => {
-    const { fake, form, state } = setup({}, { workspaceRoot: 'D:\\Git\\Custom' });
+    const { fake, form, state } = setup({}, { workspaceRoot: 'C:\\work\\demo\\Custom' });
     const actions = form.inject();
     expect(state().workspaceRoot.overridden).toBe(true);
     actions.resetField('workspaceRoot');
-    expect(state().workspaceRoot.text).toBe('/d/work');
+    expect(state().workspaceRoot.text).toBe('/c/work');
     await actions.save();
     expect(fake.writes).toEqual([[{ op: 'unset', path: ['workspaceRoot'] }]]);
   });
 
   it('放弃草稿回到归一化的宿主值', () => {
-    const { form, state } = setup({ workspaceRoot: 'D:\\Git\\Host' });
+    const { form, state } = setup({ workspaceRoot: 'C:\\work\\demo\\Host' });
     const actions = form.inject();
     actions.edit('workspaceRoot', '/tmp/draft');
     expect(state().dirty).toBe(true);
     actions.discard();
     expect(state().dirty).toBe(false);
-    expect(state().workspaceRoot.text).toBe('/d/Git/Host');
+    expect(state().workspaceRoot.text).toBe('/c/work/demo/Host');
   });
 
   it('只读部署不写入', async () => {

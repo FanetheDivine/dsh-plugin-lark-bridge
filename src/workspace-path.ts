@@ -5,7 +5,7 @@ function isWindowsPath(value: string): boolean {
   return /^(?:[A-Za-z]:[\\/]|\\\\|\/\/|\/[A-Za-z](?:\/|$))/.test(value);
 }
 
-/** 统一斜杠、末尾分隔符与 Windows 盘符，例如 `D:\Git` 转为 `/d/Git`。 */
+/** 统一斜杠、末尾分隔符与 Windows 盘符，例如 `C:\work\demo` 转为 `/c/work/demo`。 */
 export function normalizeWorkspacePath(value: string): string {
   const slashed = value.trim().replaceAll('\\', '/');
   if (slashed === '') return '';

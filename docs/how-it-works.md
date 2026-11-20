@@ -77,11 +77,11 @@ Client 只创建一个状态控制器和一个配置表单。弹窗与配置页�
 
 | 原始值 | 归一化值 |
 | --- | --- |
-| `D:\Git` | `/d/Git` |
-| `D:/Git` | `/d/Git` |
+| `C:\work\demo` | `/c/work/demo` |
+| `C:/work/demo` | `/c/work/demo` |
 | `/home/user/project` | `/home/user/project` |
 
-Windows 比较忽略大小写，POSIX 比较保持大小写敏感。调用 `workspaceRegistry.resolveByPath`、目录访问和会话创建前，Windows 路径转换回 `D:/Git` 形式。
+Windows 比较忽略大小写，POSIX 比较保持大小写敏感。调用 `workspaceRegistry.resolveByPath`、目录访问和会话创建前，Windows 路径转换回 `C:/work/demo` 形式。
 
 `WorkspaceSelection` 使用 `resolveByPath` 解析当前配置，目录存在但未注册时无效。每次异步解析递增序号，旧结果不能覆盖新选择。
 

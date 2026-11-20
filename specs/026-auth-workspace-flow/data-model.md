@@ -4,7 +4,7 @@
 
 | 字段 | 类型 | 默认值 | 规则 |
 | --- | --- | --- | --- |
-| `workspaceRoot` | `string` | `''` | 空值表示未选择；非空值统一为 Linux 风格 `/d/Git`，转换为 Host 原生路径后必须解析到当前已注册工作区 |
+| `workspaceRoot` | `string` | `''` | 空值表示未选择；非空值统一为 Linux 风格 `/c/work/demo`，转换为 Host 原生路径后必须解析到当前已注册工作区 |
 
 `sessionTitle` 与 `authCheckOnStartup` 从 schema、运行时配置和前端表单删除。严格配置读取把这两个键与既有 `profile`、`ownerOpenId`、`larkCli` 一样接受并忽略，其他未知键仍然报错。
 

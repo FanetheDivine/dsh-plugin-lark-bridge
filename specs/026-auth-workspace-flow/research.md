@@ -2,7 +2,7 @@
 
 ## 1. 工作区配置标识
 
-**Decision**: 保留 `workspaceRoot` 路径配置，插件内部统一使用 Linux 风格路径。Windows `D:\Git`、`D:/Git` 归一化为 `/d/Git`，select 保存归一化后的值。
+**Decision**: 保留 `workspaceRoot` 路径配置，插件内部统一使用 Linux 风格路径。Windows `C:\work\demo`、`C:/work/demo` 归一化为 `/c/work/demo`，select 保存归一化后的值。
 
 **Rationale**: 现有配置、会话状态和恢复逻辑都使用路径。统一形式消除 Windows 斜杠和盘符大小写差异，避免前端把同一注册目录误判为失效。`src/workspace-path.ts` 集中提供归一化、比较与 Host 原生路径转换；后端通过 `resolveByPath` 按注册关系验证，目录存在不能替代注册。
 
@@ -11,7 +11,7 @@
 ### Host 边界转换
 
 - 配置读取、前端表单、select 值与标签、状态文件统一使用归一化路径。
-- Windows 上 `/d/Git` 转回 `D:/Git` 后再调用 `workspaceRegistry.resolveByPath`、目录访问和会话创建。
+- Windows 上 `/c/work/demo` 转回 `C:/work/demo` 后再调用 `workspaceRegistry.resolveByPath`、目录访问和会话创建。
 - POSIX 路径保持原义；盘符转换只在 Windows Host 执行。
 - Windows 路径比较忽略大小写，POSIX 路径比较保持大小写敏感。
 - 归一化不解析符号链接；注册关系的权威判定仍由 Host `resolveByPath` 完成。

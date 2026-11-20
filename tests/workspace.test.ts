@@ -5,7 +5,7 @@ import { WorkspaceSelection } from '../src/workspace.ts';
 import { toHostWorkspacePath } from '../src/workspace-path.ts';
 
 /** 构造测试工作区。 */
-function workspace(id: string, root = '/d/Git'): Workspace {
+function workspace(id: string, root = '/c/work/demo'): Workspace {
   return { id, path: toHostWorkspacePath(root), title: id } as Workspace;
 }
 
@@ -43,28 +43,28 @@ describe('WorkspaceSelection.resolve', () => {
     const selected = workspace('ws_1');
     const resolveByPath = vi.fn(async () => selected);
     const selection = new WorkspaceSelection({
-      getWorkspaceRoot: () => '/d/Git',
+      getWorkspaceRoot: () => '/c/work/demo',
       getRegistry: () => registry(resolveByPath),
     });
 
     expect(await selection.resolve()).toEqual({
-      root: '/d/Git',
+      root: '/c/work/demo',
       workspace: selected,
       current: true,
     });
-    expect(resolveByPath).toHaveBeenCalledWith(toHostWorkspacePath('/d/Git'));
+    expect(resolveByPath).toHaveBeenCalledWith(toHostWorkspacePath('/c/work/demo'));
     expect(selection.valid).toBe(true);
     expect(selection.currentId).toBe('ws_1');
   });
 
   it('目录存在但未注册时返回无效选择', async () => {
     const selection = new WorkspaceSelection({
-      getWorkspaceRoot: () => '/d/Git',
+      getWorkspaceRoot: () => '/c/work/demo',
       getRegistry: () => registry(async () => undefined),
     });
 
     expect(await selection.resolve()).toEqual({
-      root: '/d/Git',
+      root: '/c/work/demo',
       workspace: undefined,
       current: true,
     });
@@ -74,11 +74,11 @@ describe('WorkspaceSelection.resolve', () => {
 
   it('注册表不可用或解析异常时返回无效选择', async () => {
     const missing = new WorkspaceSelection({
-      getWorkspaceRoot: () => '/d/Git',
+      getWorkspaceRoot: () => '/c/work/demo',
       getRegistry: () => undefined,
     });
     const failing = new WorkspaceSelection({
-      getWorkspaceRoot: () => '/d/Git',
+      getWorkspaceRoot: () => '/c/work/demo',
       getRegistry: () =>
         registry(async () => {
           throw new Error('registry failed');
@@ -92,31 +92,31 @@ describe('WorkspaceSelection.resolve', () => {
   });
 
   it('旧解析结果不覆盖新工作区缓存', async () => {
-    let root = '/d/Git/old';
+    let root = '/c/work/demo/old';
     const oldResult = deferred<Workspace | undefined>();
     const newResult = deferred<Workspace | undefined>();
     const oldWorkspace = workspace('ws_old', root);
-    const newWorkspace = workspace('ws_new', '/d/Git/new');
+    const newWorkspace = workspace('ws_new', '/c/work/demo/new');
     const selection = new WorkspaceSelection({
       getWorkspaceRoot: () => root,
       getRegistry: () =>
         registry((path) =>
-          path === toHostWorkspacePath('/d/Git/old') ? oldResult.promise : newResult.promise,
+          path === toHostWorkspacePath('/c/work/demo/old') ? oldResult.promise : newResult.promise,
         ),
     });
 
     const oldResolve = selection.resolve();
-    root = '/d/Git/new';
+    root = '/c/work/demo/new';
     const newResolve = selection.resolve();
     newResult.resolve(newWorkspace);
     expect(await newResolve).toEqual({
-      root: '/d/Git/new',
+      root: '/c/work/demo/new',
       workspace: newWorkspace,
       current: true,
     });
     oldResult.resolve(oldWorkspace);
     expect(await oldResolve).toEqual({
-      root: '/d/Git/old',
+      root: '/c/work/demo/old',
       workspace: oldWorkspace,
       current: false,
     });
@@ -128,7 +128,7 @@ describe('WorkspaceSelection.resolve', () => {
 describe('WorkspaceSelection.invalidate', () => {
   it('目标工作区删除时立即失效', async () => {
     const selection = new WorkspaceSelection({
-      getWorkspaceRoot: () => '/d/Git',
+      getWorkspaceRoot: () => '/c/work/demo',
       getRegistry: () => registry(async () => workspace('ws_1')),
     });
     await selection.resolve();
@@ -147,7 +147,7 @@ describe('WorkspaceSelection.invalidate', () => {
 
   it('无关删除与其他变更保持当前选择', async () => {
     const selection = new WorkspaceSelection({
-      getWorkspaceRoot: () => '/d/Git',
+      getWorkspaceRoot: () => '/c/work/demo',
       getRegistry: () => registry(async () => workspace('ws_1')),
     });
     await selection.resolve();
@@ -184,7 +184,7 @@ describe('WorkspaceSelection.invalidate', () => {
 describe('WorkspaceSelection.reset', () => {
   it('清除有效性与当前工作区 id', async () => {
     const selection = new WorkspaceSelection({
-      getWorkspaceRoot: () => '/d/Git',
+      getWorkspaceRoot: () => '/c/work/demo',
       getRegistry: () => registry(async () => workspace('ws_1')),
     });
     await selection.resolve();

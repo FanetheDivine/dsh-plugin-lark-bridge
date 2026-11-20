@@ -25,7 +25,7 @@ description: "Task list for 独立鉴权与工作区选择流程"
 **Purpose**: 提供 Host 与 Client 共用的状态类型和宿主标准 props 测试设施。
 
 - [X] T002 [P] 在 `tests/helpers.ts` 添加 `useWorkspaces` selector-hook 假实现与可控异步表单设施，保持 Cordis Client 服务集合不变
-- [X] T003 [P] 在 `src/types.ts` 定义共享 `ConnectionState = checking | connected | disconnected` 纯类型，在 `src/workspace-path.ts` 与 `tests/workspace-path.test.ts` 实现 `/d/Git` 归一化、平台路径比较和 Host 原生路径转换
+- [X] T003 [P] 在 `src/types.ts` 定义共享 `ConnectionState = checking | connected | disconnected` 纯类型，在 `src/workspace-path.ts` 与 `tests/workspace-path.test.ts` 实现 `/c/work/demo` 归一化、平台路径比较和 Host 原生路径转换
 
 **Checkpoint**: 依赖和测试基础就绪，现有代码仍通过类型检查。
 
@@ -73,7 +73,7 @@ description: "Task list for 独立鉴权与工作区选择流程"
 - [X] T016 [US2] 在 `src/workspace.ts` 实现 Host 原生路径转换后的注册解析、归一化当前 workspace id 缓存、`domain/changed` 删除识别和 generation 防护
 - [X] T017 [US2] 在 `src/index.ts` 与 `src/bridge.ts` 用鉴权和有效工作区共同控制监听，配置变化与目标删除先同步停止
 - [X] T018 [US2] 在 `src/sessions.ts` 于目录和会话边界转换 Host 原生路径，只使用 `resolveByPath` 返回的注册工作区，删除自动创建注册项并在 followup 前复核
-- [X] T019 [US2] 在 `src/client/config-form.ts` 将表单收敛为 `workspaceRoot` 单字段，读写均归一化为 `/d/Git` 形式并保留宿主只读与 override 语义
+- [X] T019 [US2] 在 `src/client/config-form.ts` 将表单收敛为 `workspaceRoot` 单字段，读写均归一化为 `/c/work/demo` 形式并保留宿主只读与 override 语义
 - [X] T020 [US2] 在 `src/client/config-page.tsx`、`src/client/auth-overlay.tsx`、`src/client/index.ts` 和 `src/client/locales.ts` 实现共享表单、归一化原生 select 值与标签、显式保存、空状态与可关闭共用弹窗
 
 **Checkpoint**: US2 可独立验证；无效选择不消费事件、不投递消息、不创建工作区注册。
@@ -93,8 +93,8 @@ description: "Task list for 独立鉴权与工作区选择流程"
 
 ### Implementation for User Story 3
 
-- [X] T023 [US3] 在 `src/config.ts` 与 `cordis.patch.yml` 删除标题和启动检测字段、把两者加入旧键集合并将工作区配置归一化为 `/d/Git` 形式
-- [X] T024 [US3] 在 `src/constants.ts`、`src/sessions.ts`、`src/state.ts` 和 `src/client/locales.ts` 固定「来自用户的飞书消息」，状态路径保存 `/d/Git` 形式并删除重置能力与废弃文案
+- [X] T023 [US3] 在 `src/config.ts` 与 `cordis.patch.yml` 删除标题和启动检测字段、把两者加入旧键集合并将工作区配置归一化为 `/c/work/demo` 形式
+- [X] T024 [US3] 在 `src/constants.ts`、`src/sessions.ts`、`src/state.ts` 和 `src/client/locales.ts` 固定「来自用户的飞书消息」，状态路径保存 `/c/work/demo` 形式并删除重置能力与废弃文案
 
 **Checkpoint**: 三个故事均通过独立测试，现有私聊、去重、置顶和通知回归保持通过。
 

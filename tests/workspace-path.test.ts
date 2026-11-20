@@ -9,14 +9,14 @@ import {
 
 describe('normalizeWorkspacePath', () => {
   it('统一 Windows 盘符、斜杠与末尾分隔符', () => {
-    expect(normalizeWorkspacePath('D:\\Git\\self\\')).toBe('/d/Git/self');
-    expect(normalizeWorkspacePath('d:/Git//self/')).toBe('/d/Git/self');
-    expect(normalizeWorkspacePath('D:\\')).toBe('/d');
+    expect(normalizeWorkspacePath('C:\\work\\demo\\')).toBe('/c/work/demo');
+    expect(normalizeWorkspacePath('c:/work//demo/')).toBe('/c/work/demo');
+    expect(normalizeWorkspacePath('C:\\')).toBe('/c');
   });
 
   it('保留 POSIX 路径原义', () => {
     expect(normalizeWorkspacePath('/home/user/project/')).toBe('/home/user/project');
-    expect(normalizeWorkspacePath('/d/Git')).toBe('/d/Git');
+    expect(normalizeWorkspacePath('/opt/work/demo')).toBe('/opt/work/demo');
   });
 
   it('统一 UNC 路径并保留双斜杠前缀', () => {
@@ -26,7 +26,7 @@ describe('normalizeWorkspacePath', () => {
 
 describe('sameWorkspacePath', () => {
   it('Windows 比较忽略格式与大小写', () => {
-    expect(sameWorkspacePath('D:\\Git\\Project', '/d/git/project/')).toBe(true);
+    expect(sameWorkspacePath('C:\\work\\Demo', '/c/WORK/demo/')).toBe(true);
   });
 
   it('POSIX 比较保持大小写敏感', () => {
@@ -36,9 +36,9 @@ describe('sameWorkspacePath', () => {
 
 describe('toHostWorkspacePath', () => {
   it('Windows 恢复盘符路径', () => {
-    expect(toHostWorkspacePath('/d/Git/self', 'win32')).toBe('D:/Git/self');
-    expect(toHostWorkspacePath('D:\\Git\\self', 'win32')).toBe('D:/Git/self');
-    expect(toHostWorkspacePath('/d', 'win32')).toBe('D:/');
+    expect(toHostWorkspacePath('/c/work/demo', 'win32')).toBe('C:/work/demo');
+    expect(toHostWorkspacePath('C:\\work\\demo', 'win32')).toBe('C:/work/demo');
+    expect(toHostWorkspacePath('/c', 'win32')).toBe('C:/');
   });
 
   it('Windows 恢复 UNC 路径', () => {
@@ -48,6 +48,6 @@ describe('toHostWorkspacePath', () => {
   });
 
   it('POSIX 不做盘符转换', () => {
-    expect(toHostWorkspacePath('/d/Git', 'linux')).toBe('/d/Git');
+    expect(toHostWorkspacePath('/c/work/demo', 'linux')).toBe('/c/work/demo');
   });
 });

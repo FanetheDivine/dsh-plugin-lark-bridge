@@ -150,7 +150,7 @@
 ```json
 {
   "sessionId": "uuid",
-  "workspaceRoot": "D:/work/demo",
+  "workspaceRoot": "C:/work/demo",
   "title": "飞书",
   "seen": { "om_xxx": 1730000000000 },
   "updatedAt": "2026-11-18T10:00:00.000Z"

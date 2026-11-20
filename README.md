@@ -62,7 +62,7 @@ npm 包：[dsh-plugin-lark-bridge](https://www.npmjs.com/package/dsh-plugin-lark
 
 | 键 | 默认值 | 说明 |
 | --- | --- | --- |
-| `workspaceRoot` | 空 | 已注册工作区的 Linux 风格路径，例如 `/d/Git` |
+| `workspaceRoot` | 空 | 已注册工作区的 Linux 风格路径，例如 `/c/work/demo` |
 
 工作区未选择或已从注册列表删除时，插件停止监听飞书事件并显示选择弹窗。弹窗可以暂时关闭；下次打开 GUI 或出现新的失效时会再次提示。监听停止期间不补投历史消息。
 

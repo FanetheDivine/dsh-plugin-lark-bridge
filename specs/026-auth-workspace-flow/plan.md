@@ -16,14 +16,14 @@
 
 ### Session 2026-11-20
 
-- [P-D002] Exploration: 保留 `workspaceRoot` 路径配置，插件内部统一使用 Linux 风格 `/d/Git`。前端保存归一化选项路径，Host 在注册表与会话边界转换回原生路径，避免引入工作区 id 配置迁移。
+- [P-D002] Exploration: 保留 `workspaceRoot` 路径配置，插件内部统一使用 Linux 风格 `/c/work/demo`。前端保存归一化选项路径，Host 在注册表与会话边界转换回原生路径，避免引入工作区 id 配置迁移。
 - [P-D003] Exploration: `plugins.row.config` 与 `shell.overlay` 都通过全局标准 props 接收 `useWorkspaces`；直接引入 `@deepseek-ai/dsh-client-ui-workspace` 类型与 Client inject 声明，版本跟随现有宿主。
 - [P-D004] Exploration: `lark-cli auth status --json --verify` 一次返回两种身份，三个检测按钮共用同一个并发复用的完整检查；状态展示保持独立。
 - [P-D005] Exploration: 固定标题与必检测删除两个运行时配置字段；旧 `sessionTitle` 与 `authCheckOnStartup` 按既有旧键规则接受并忽略。
 - [P-D006] Exploration: 删除授权与会话重置交互后，对应 Host 方法、浏览器 API 和路由一并删除，避免保留无界面的设备码授权入口。
 - [P-D007] Exploration: WorkspaceRegistry 没有专用 Host 生命周期事件；使用 `domain/changed` 监听注册删除，并在目标删除回调里同步停止事件桥。新增同版本 `dsh-storage-domain` 纯类型依赖。
 - [P-D001] Q: 共用弹窗中的工作区选择如何提交？ -> A: 选择后点击「保存选择」，保存成功后关闭弹窗；保存失败保留选择，配置页继续使用表单保存按钮。
-- [P-D008] Q: 所有工作区路径采用什么统一形式？ -> A: 统一归一化为 Linux 风格，例如 `D:\Git` 与 `D:/Git` 都转为 `/d/Git`；配置、前端选项和状态文件使用该形式，Host API 边界转回原生路径。
+- [P-D008] Q: 所有工作区路径采用什么统一形式？ -> A: 统一归一化为 Linux 风格，例如 `C:\work\demo` 与 `C:/work/demo` 都转为 `/c/work/demo`；配置、前端选项和状态文件使用该形式，Host API 边界转回原生路径。
 
 ## Review Record
 
@@ -154,9 +154,9 @@ docs/development.md
 
 ### 3. 注册工作区同步
 
-- 保留 `workspaceRoot`，`src/workspace-path.ts` 将反斜杠统一为 `/`，将 Windows 盘符路径转为小写盘符的 `/d/Git` 形式；POSIX 绝对路径保持原义。
+- 保留 `workspaceRoot`，`src/workspace-path.ts` 将反斜杠统一为 `/`，将 Windows 盘符路径转为小写盘符的 `/c/work/demo` 形式；POSIX 绝对路径保持原义。
 - 前端 select 的值和路径标签使用归一化路径，显示标题与路径以区分同名工作区；配置读取与表单格式化也归一化旧值。
-- Windows 上调用 `resolveByPath`、创建会话或访问目录前，将 `/d/Git` 转回 `D:/Git`；macOS 与 Linux 不做盘符转换。
+- Windows 上调用 `resolveByPath`、创建会话或访问目录前，将 `/c/work/demo` 转回 `C:/work/demo`；macOS 与 Linux 不做盘符转换。
 - Host `WorkspaceSelection` 使用 `resolveByPath` 校验配置，保存当前有效工作区，不调用 `create`。
 - 配置热重载、鉴权变化与目标工作区删除共用 `reconcile()`；鉴权失效、配置变化和注册删除先同步停止旧监听。
 - 使用 `domain/changed` 筛选 workspace 表的 deleted 事件；目标 id 命中当前缓存时立即失效，无关删除不影响监听。
