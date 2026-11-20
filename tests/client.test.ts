@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 // 前端测试：入口接线、字典、安全连接状态展示与共享状态控制器。
 import type {} from '@deepseek-ai/dsh-client-locale/client';
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store';
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
+import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/src/client/directory.ts';
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
@@ -9,6 +11,19 @@ import type { GlobalStandardProps, TranslateNS } from '@deepseek-ai/dsh-client-u
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
+
+// 官方模型选择器依赖浏览器快照，静态渲染时替换为最小桩。
+vi.mock('@deepseek-ai/dsh-client-ui-model-selection/src/client/ModelSelect.tsx', async () => {
+  const { createElement } = await import('react');
+  return {
+    ModelSelect: (props: { locked: boolean; available: boolean }) =>
+      createElement('div', {
+        'data-dsh-lark-model-select': '',
+        'data-locked': String(props.locked),
+        'data-available': String(props.available),
+      }),
+  };
+});
 
 import type { ApiResult, BridgeStatus } from '../src/client/api.ts';
 import {
@@ -35,6 +50,9 @@ import {
 } from '../src/client/config-page.tsx';
 import * as clientEntry from '../src/client/index.ts';
 import { en, NS, zh } from '../src/client/locales.ts';
+import type { ModelDefaultsInjected } from '../src/client/model-defaults.ts';
+import type { PresetDefaultsInjected, PresetDefaultsState } from '../src/client/preset-defaults.ts';
+import { currentText, menuItems, PresetSelect } from '../src/client/preset-select.tsx';
 import { StatusController } from '../src/client/status-controller.ts';
 import type { ConnectionState } from '../src/types.ts';
 import {
@@ -46,7 +64,13 @@ import {
 } from './helpers.ts';
 
 const { apply } = clientEntry;
-const ALL_SERVICES: ClientServiceName[] = ['slots', 'locale', 'configForms'];
+const ALL_SERVICES: ClientServiceName[] = [
+  'slots',
+  'locale',
+  'configForms',
+  'remote',
+  'remote.session',
+];
 const CLI_COMMAND = 'npm install -g @larksuite/cli@latest';
 const BOT_COMMAND = 'lark-cli config init';
 const USER_COMMAND = 'lark-cli auth login --scope auth:user.id:read';
@@ -112,15 +136,62 @@ function formState(overrides: Partial<ConfigFormState> = {}): ConfigFormState {
     saving: false,
     failed: false,
     workspaceRoot: { text: '/c/work/demo/One', overridden: true, invalid: false },
+    sessionProvider: { text: '', overridden: false, invalid: false },
+    sessionModel: { text: '', overridden: false, invalid: false },
+    sessionEffort: { text: '', overridden: false, invalid: false },
+    sessionPreset: { text: '', overridden: false, invalid: false },
     ...overrides,
   };
+}
+
+/** 渲染配置页时的模型目录注入桩。 */
+function modelDefaultsStub(): ModelDefaultsInjected {
+  const directory = createSnapshotStore<ModelDirectoryState>({
+    current: null,
+    routable: null,
+    groups: [],
+    failures: [],
+    status: 'ready',
+    pending: null,
+    error: null,
+  });
+  return {
+    directory,
+    load: () => undefined,
+    select: async () => ({ ok: true, value: undefined }),
+    t: ((key: string) => key) as never,
+    resolveText: (text) => String(text),
+  };
+}
+
+/** 渲染配置页时的预设名册注入桩。 */
+function presetDefaultsStub(): PresetDefaultsInjected {
+  const store = createSnapshotStore<PresetDefaultsState>({
+    status: 'ready',
+    error: null,
+    rows: [{ id: 'bridge', name: '桥接' }],
+    current: '',
+  });
+  return { hooks: { presetDefaults: store }, load: () => undefined, select: () => undefined };
 }
 
 /** 渲染完整配置页。 */
 function renderConfigPage(): string {
   const fake = makeConfigFormScope({
-    value: { workspaceRoot: '/c/work/demo/One' },
-    base: { workspaceRoot: '' },
+    value: {
+      workspaceRoot: '/c/work/demo/One',
+      sessionProvider: '',
+      sessionModel: '',
+      sessionEffort: '',
+      sessionPreset: '',
+    },
+    base: {
+      workspaceRoot: '',
+      sessionProvider: '',
+      sessionModel: '',
+      sessionEffort: '',
+      sessionPreset: '',
+    },
   });
   const form = new PluginConfigForm(fake.scope);
   const injected = form.inject();
@@ -141,6 +212,8 @@ function renderConfigPage(): string {
       discard: injected.discard,
       resetField: injected.resetField,
       controller,
+      modelDefaults: modelDefaultsStub(),
+      presetDefaults: presetDefaultsStub(),
     } as ConfigPageProps),
   );
   controller.dispose();
@@ -190,11 +263,21 @@ async function flushPromises(): Promise<void> {
 }
 
 describe('前端入口', () => {
-  it('不声明必需服务，字典与共享槽位分两组加载', () => {
-    expect('inject' in clientEntry).toBe(false);
+  it('声明客户端必需服务，字典与配置页分两组加载', () => {
+    expect(clientEntry.inject).toEqual([
+      'slots',
+      'locale',
+      'configForms',
+      'remote',
+      'remote.session',
+    ]);
     const ctx = makeClientCtx();
     apply(ctx);
-    expect(ctx._injectGroups).toEqual([['locale'], ['slots', 'locale', 'configForms']]);
+    expect(ctx._injectGroups).toEqual([
+      ['locale'],
+      ['slots', 'locale', 'configForms', 'remote', 'remote.session'],
+      ['remote.agentPresets'],
+    ]);
   });
 
   it('注册双语字典、全局鉴权弹窗与面板配置页', () => {
@@ -223,6 +306,8 @@ describe('前端入口', () => {
     type SharedSlotInjected = ConfigPageInjected & {
       readonly controller: StatusController;
       readonly openSettings?: () => void;
+      readonly modelDefaults: ModelDefaultsInjected;
+      readonly presetDefaults: PresetDefaultsInjected;
     };
     const overlayInject = ctx._slotRegistrations[0]?.options.inject as
       | (() => SharedSlotInjected)
@@ -251,8 +336,8 @@ function expectedRegistrations(services: ClientServiceName[]) {
   const has = (...names: ClientServiceName[]) => names.every((name) => services.includes(name));
   return {
     dictionary: has('locale'),
-    overlay: has('slots', 'locale', 'configForms'),
-    configPage: has('slots', 'locale', 'configForms'),
+    overlay: has('slots', 'locale', 'configForms', 'remote', 'remote.session'),
+    configPage: has('slots', 'locale', 'configForms', 'remote', 'remote.session'),
   };
 }
 
@@ -266,9 +351,10 @@ function activeRegistrations(ctx: ReturnType<typeof makeClientCtx>) {
   };
 }
 
-/** 三个服务各有或无的全部 8 种组合。 */
-const COMBINATIONS: ClientServiceName[][] = Array.from({ length: 8 }, (_, mask) =>
-  ALL_SERVICES.filter((_name, index) => (mask >> index) & 1),
+/** 每个服务各有或无的全部组合。 */
+const COMBINATIONS: ClientServiceName[][] = Array.from(
+  { length: 2 ** ALL_SERVICES.length },
+  (_, mask) => ALL_SERVICES.filter((_name, index) => (mask >> index) & 1),
 );
 
 describe('前端服务可选', () => {
@@ -291,7 +377,7 @@ describe('前端服务可选', () => {
     const ctx = makeClientCtx({ services: ['slots', 'locale'] });
     apply(ctx);
     expect(activeRegistrations(ctx).configPage).toBe(false);
-    ctx._grant('configForms');
+    ctx._grant('configForms', 'remote', 'remote.session');
     expect(activeRegistrations(ctx)).toEqual({ dictionary: true, overlay: true, configPage: true });
     expect(ctx._configFormRequests).toEqual([ROW_ID]);
   });
@@ -446,15 +532,21 @@ describe('工作区选择与共用弹窗', () => {
   it('空注册列表显示空状态并禁用选择', () => {
     const html = renderWorkspaceSelect([]);
     expect(html).toContain('暂无已注册工作区');
-    expect(html).toMatch(/<button\b[^>]*\bdisabled/);
+    expect(html).toContain('disabled=""');
     expect(html).not.toContain('role="menu"');
   });
 
-  it('配置页只保留连接面板与工作区选择', () => {
+  it('配置页包含连接面板、工作区与模型行', () => {
     const html = renderConfigPage();
     expect(html).toContain('data-dsh-lark-auth-panel');
     expect(html).toContain('data-dsh-lark-config-workspace');
+    expect(html).toContain('data-dsh-lark-config-model');
+    expect(html).toContain('data-dsh-lark-model-select');
+    expect(html).toContain('data-dsh-lark-config-preset');
+    expect(html).toContain('data-dsh-lark-preset-trigger');
     expect(html).toContain('工作区');
+    expect(html).toContain('模型');
+    expect(html).toContain('预设');
     expect(html).not.toContain('恢复默认');
     expect(html).not.toContain('会话标题');
     expect(html).not.toContain('启动时检测鉴权');
@@ -655,5 +747,72 @@ describe('StatusController', () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(fetchStatus).not.toHaveBeenCalled();
     expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+describe('预设选择器文案', () => {
+  /** 构造选择器状态。 */
+  function state(overrides: Partial<PresetDefaultsState> = {}): PresetDefaultsState {
+    return { status: 'ready', error: null, rows: [], current: '', ...overrides };
+  }
+
+  /** 用给定状态静态渲染选择器。 */
+  function renderPreset(value: PresetDefaultsState): string {
+    const store = createSnapshotStore<PresetDefaultsState>(value);
+    return renderToStaticMarkup(
+      createElement(PresetSelect, {
+        hooks: { presetDefaults: store },
+        load: () => undefined,
+        select: () => undefined,
+        locked: false,
+        t: translate(zh),
+      }),
+    );
+  }
+
+  it('未选择时显示跟随宿主默认', () => {
+    expect(currentText(state(), translate(zh))).toBe('跟随宿主默认');
+    expect(
+      currentText(state({ rows: [{ id: 'a', name: 'A' }], current: 'a' }), translate(zh)),
+    ).toBe('A');
+  });
+
+  it('已存预设不可用时追加不可用标注', () => {
+    const text = currentText(state({ current: 'gone' }), translate(zh));
+    expect(text).toBe('gone · 不可用');
+  });
+
+  it('加载中、无服务与失败各有文案', () => {
+    expect(currentText(state({ status: 'loading' }), translate(zh))).toBe('加载中…');
+    expect(currentText(state({ status: 'noService' }), translate(zh))).toBe('此部署不提供预设');
+    expect(currentText(state({ status: 'error' }), translate(zh))).toBe('预设加载失败');
+  });
+
+  it('无预设能力时触发器禁用并说明原因', () => {
+    const html = renderPreset(state({ status: 'noService' }));
+    expect(html).toContain('此部署不提供预设');
+    expect(html).toContain('disabled=""');
+  });
+
+  it('加载失败时显示重试', () => {
+    const html = renderPreset(state({ status: 'error', error: '失败了' }));
+    expect(html).toContain('失败了');
+    expect(html).toContain('重试');
+    expect(html).toContain('role="alert"');
+  });
+
+  it('已存预设不可用时触发器显示标注', () => {
+    const html = renderPreset(state({ current: 'gone' }));
+    expect(html).toContain('gone · 不可用');
+  });
+
+  it('菜单首项跟随宿主默认，不可用的已存值以禁用项补足', () => {
+    const items = menuItems(
+      state({ rows: [{ id: 'a', name: 'A' }], current: 'gone' }),
+      translate(zh),
+    );
+    expect(items[0]).toMatchObject({ id: '', label: '跟随宿主默认' });
+    expect(items[1]).toMatchObject({ id: 'a', label: 'A' });
+    expect(items[2]).toMatchObject({ id: 'gone', disabled: true });
   });
 });

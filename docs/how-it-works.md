@@ -31,9 +31,11 @@
 
 ## 配置
 
-`readConfig` 展开 `.volatile()` 引用后交给 `resolveConfig` 严格校验。当前只读取 `workspaceRoot`，旧 `profile`、`ownerOpenId`、`larkCli`、`sessionTitle` 与 `authCheckOnStartup` 被接受并丢弃。
+`readConfig` 展开 `.volatile()` 引用后交给 `resolveConfig` 严格校验。当前读取 `workspaceRoot`、`sessionProvider`、`sessionModel`、`sessionEffort` 与 `sessionPreset`；旧 `profile`、`ownerOpenId`、`larkCli`、`sessionTitle` 与 `authCheckOnStartup` 被接受并丢弃。
 
-保存 `workspaceRoot` 后，宿主发出 `loader/volatile-update`。插件更新配置、使旧工作区缓存失效、停止旧监听、立即重新解析，并执行一次完整鉴权检测。
+`sessionProvider` 与 `sessionModel` 同时非空才构成模型选择，`sessionEffort` 只在模型成立时生效。`sessionPreset` 为空表示跟随宿主默认预设。空白与半组配置按未配置处理。
+
+保存任一项后，宿主发出 `loader/volatile-update`。插件更新配置、使旧工作区缓存失效、停止旧监听、立即重新解析，并执行一次完整鉴权检测。
 
 ## 鉴权
 
@@ -98,18 +100,27 @@ Windows 比较忽略大小写，POSIX 比较保持大小写敏感。调用 `work
 lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 ```
 
-插件只接受 owner open_id 的私聊，要求鉴权与工作区均有效。消息过滤与去重窗口保持稳定。
+监听在 CLI、bot、user 与工作区全部就绪后启动，启动时刻写入 `startedAt`。插件只接受 owner open_id 的私聊；消息按 `message_id` 去重。
 
-注入内容是一条 `<lark-message message_id="…" reply_to="…" time="…">` 块：
+事件按以下顺序处理：
+
+1. 鉴权未就绪或发送者不符时丢弃。
+2. `message_id` 已在去重窗口时忽略。
+3. `create_time` 早于 `startedAt` 时过滤并记日志；飞书会按 `15 秒 / 5 分钟 / 1 小时 / 6 小时` 重推未确认事件，这些历史消息不会注入。
+4. 有 `reply_to` 时读取被引消息：`lark-cli im +messages-mget --no-reactions`，user 身份优先、bot 兜底，单次 8 秒。
+5. 其余消息进入队列，并重置 15 秒静默计时。
+
+计时到点且队列非空时，一次取走全部消息，按 `create_time` 升序拼成一个用户消息，每条一个 `<lark-message message_id="…" reply_to="…" time="…">` 块：
 
 - 普通文本：块内是正文；非文本消息使用类型占位。
-- 引用回复：块内先放 `<quote message_id="…" from="…" time="…">`，再放本条正文。被引消息用 `lark-cli im +messages-mget --no-reactions` 读取，user 身份优先、bot 兜底，单次 8 秒。
-- 读取失败时只注入本条正文，`<quote>` 保留消息 ID 与失败说明，并记录一条警告。
+- 引用回复：块内先放 `<quote message_id="…" from="…" time="…">`，再放本条正文。读取失败时 `<quote>` 保留消息 ID 与失败说明，并记录一条警告。
 - 引用正文最多 500 字符，超出追加「（已截断）」。
 - 聊天记录消息：块内是 `<forwarded_messages message_id="…"/>`，不展开子消息。
 - 块边界与属性值会转义。
 
-鉴权或工作区无效时停止事件消费者，不补投停止期间的历史消息。
+注入失败时整批丢弃并记录原因，不重试。监听停止时清空队列与计时器。
+
+ACK 由 lark-cli 完成；插件持续读取消费者输出，注入不阻塞事件读取。
 
 ## 会话
 
@@ -119,6 +130,9 @@ lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 - 恢复失败、会话已归档或路径变化时新建。
 - 新建会话使用固定标题「飞书桥接会话」；复用会话保留已有标题。
 - 新建会话挂到已注册工作区并置顶。
+- 新建会话经 `sessionController.create` 建立，配置的预设作为 `agentPreset` 传入；配置的模型先经 `llm.resolveCallConfig` 校验，再写入 `agent.model.select`。
+- 预设不在宿主名册、名册读取失败或模型校验失败时，新建会话按宿主默认运行并记录警告；飞书消息照常注入。
+- 已存在的会话保持原有模型与预设。
 - 注入使用 `createUserMessage`，`source.kind` 是 `lark-bridge`，再调用 `agent.followup`。
 - 桥接提醒是一条 `source.reminder` 为 true 的 `<system-reminder>` 用户消息。
 
@@ -148,7 +162,8 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 - 事件子进程退出后按 2 秒起、上限 60 秒的退避重启。
 - 插件卸载时终止子进程、注销路由和工具，并清理 Client 订阅与计时器。
-- 鉴权失效、配置变化和注册删除先停止旧监听。
+- 鉴权失效时停止监听。
+- 保存配置、增删工作区不重启监听；工作区失效后的注入按失败处理。
 
 ## 依赖
 

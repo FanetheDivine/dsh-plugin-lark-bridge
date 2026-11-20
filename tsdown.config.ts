@@ -1,3 +1,5 @@
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { defineConfig } from 'tsdown';
 
 /** 平台种子模块：宿主冻结模块表提供的浏览器模块，bundle 必须保持 external。 */
@@ -8,6 +10,7 @@ const PLATFORM_MODULES = [
   'react-dom/client',
   '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-client-ui-slots',
+  '@deepseek-ai/dsh-client-store',
   '@deepseek-ai/dsh-client-web-react',
   '@deepseek-ai/dsh-client-ui-primitives',
   '@deepseek-ai/dsh-client-ui-attachment',
@@ -16,6 +19,24 @@ const PLATFORM_MODULES = [
 
 /** 浏览器产物注册 id，必须与 package.json 的 name 一致。 */
 const CLIENT_ID = 'dsh-plugin-lark-bridge';
+
+/** 官方选择器的样式注入到浏览器产物，避免额外的 CSS 文件。 */
+function inlineClientCss(): void {
+  const cssFile = path.resolve('dist/client.css');
+  const jsFile = path.resolve('dist/client.js');
+  if (!existsSync(cssFile) || !existsSync(jsFile)) return;
+  const css = readFileSync(cssFile, 'utf8');
+  const js = readFileSync(jsFile, 'utf8');
+  const marker = 'data-dsh-lark-bridge-model-selection';
+  if (!js.includes(marker)) {
+    const id = 'dsh-plugin-lark-bridge-model-selection';
+    const injection = `
+;(() => { if (typeof document === 'undefined') return; const id = '${id}'; document.getElementById(id)?.remove(); const style = document.createElement('style'); style.id = id; style.setAttribute('${marker}', ''); style.textContent = ${JSON.stringify(css)}; document.head.append(style); })();
+`;
+    writeFileSync(jsFile, `${js}${injection}`);
+  }
+  rmSync(cssFile);
+}
 
 /**
  * 两组构建：
@@ -54,6 +75,8 @@ export default defineConfig([
     target: 'es2024',
     dts: false,
     clean: false,
+    css: { fileName: 'client.css' },
+    onSuccess: inlineClientCss,
     deps: {
       // 平台种子不得内联；其余依赖（含 devDependencies）一律内联，
       // 宿主模块表里没有的 require 会在运行时直接抛错。

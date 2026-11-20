@@ -1,4 +1,5 @@
 /** 前端字典与命名空间。中文字典是键集事实源。 */
+import type { ModelKey } from '@deepseek-ai/dsh-client-ui-model-selection/src/client/locales.ts';
 
 /** 前端使用的字典命名空间，与插件名一致。 */
 export const NS = 'dsh-plugin-lark-bridge';
@@ -24,12 +25,23 @@ export const zh = {
   'auth.command.user': 'lark-cli auth login --scope auth:user.id:read',
   'auth.command.copy': '复制命令',
   'auth.command.copied': '已复制',
-  'config.summary': '工作区与飞书连接',
+  'config.summary': '工作区、模型、预设与飞书连接',
   'config.workspaceRoot.title': '工作区',
   'config.workspaceRoot.description': '飞书消息注入到所选 DSH 工作区的会话。',
   'config.workspaceRoot.invalid': '请选择一个已注册的工作区。',
   'config.workspaceRoot.placeholder': '请选择工作区',
   'config.workspaceRoot.empty': '暂无已注册工作区',
+  'config.sessionModel.label': '模型',
+  'config.sessionModel.description': '选择新建桥接会话时使用的模型。',
+  'config.sessionPreset.label': '预设',
+  'config.sessionPreset.description': '选择新建桥接会话时使用的预设。',
+  'config.sessionPreset.followHost': '跟随宿主默认',
+  'config.sessionPreset.loading': '加载中…',
+  'config.sessionPreset.unavailable': '不可用',
+  'config.sessionPreset.noService': '此部署不提供预设',
+  'config.sessionPreset.loadFailed': '预设加载失败',
+  'config.sessionPreset.retry': '重试',
+  'config.sessionPreset.menuLabel': '预设',
   'config.saveSelection': '保存选择',
   'config.unavailable': '配置不可用。',
   'config.readOnly': '此部署以只读方式保存设置。',
@@ -59,12 +71,23 @@ export const en: Record<BridgeKey, string> = {
   'auth.command.user': 'lark-cli auth login --scope auth:user.id:read',
   'auth.command.copy': 'Copy command',
   'auth.command.copied': 'Copied',
-  'config.summary': 'Workspace and Lark connections',
+  'config.summary': 'Workspace, model, preset, and Lark connections',
   'config.workspaceRoot.title': 'Workspace',
   'config.workspaceRoot.description': 'Lark messages are injected into the selected DSH workspace.',
   'config.workspaceRoot.invalid': 'Select a registered workspace.',
   'config.workspaceRoot.placeholder': 'Select a workspace',
   'config.workspaceRoot.empty': 'No registered workspaces',
+  'config.sessionModel.label': 'Model',
+  'config.sessionModel.description': 'Choose the model new bridge sessions use.',
+  'config.sessionPreset.label': 'Preset',
+  'config.sessionPreset.description': 'Choose the preset new bridge sessions use.',
+  'config.sessionPreset.followHost': 'Follow Host default',
+  'config.sessionPreset.loading': 'Loading…',
+  'config.sessionPreset.unavailable': 'Unavailable',
+  'config.sessionPreset.noService': 'This deployment provides no presets.',
+  'config.sessionPreset.loadFailed': 'Could not load presets',
+  'config.sessionPreset.retry': 'Retry',
+  'config.sessionPreset.menuLabel': 'Preset',
   'config.saveSelection': 'Save selection',
   'config.unavailable': 'Configuration is unavailable.',
   'config.readOnly': 'This deployment stores settings read-only.',
@@ -78,6 +101,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** 飞书桥接前端文案，键集取自中文字典。 */
     'dsh-plugin-lark-bridge': BridgeKey;
+    /** 复用官方模型选择器的文案命名空间。 */
+    model: ModelKey;
   }
 }
 

@@ -1,4 +1,4 @@
-// 前端产物契约测试：执行 dist/client.js，断言闭包工厂按包名注册并导出 apply，不声明必需服务。
+// 前端产物契约测试：执行 dist/client.js，断言闭包工厂按包名注册并导出 inject 与 apply。
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,7 +39,7 @@ function loadRegistrations(): ClientRegistration[] {
 }
 
 describe('前端产物（dist/client.js）', () => {
-  it('按包名注册闭包工厂，导出 apply 且不声明必需服务', () => {
+  it('按包名注册闭包工厂，导出 inject 与 apply', () => {
     assertFreshDist();
     const registrations = loadRegistrations();
     expect(registrations).toHaveLength(1);
@@ -55,6 +55,15 @@ describe('前端产物（dist/client.js）', () => {
       useId: () => ':r0:',
     };
     const jsxStub = () => null;
+    const reactDomStub = { createPortal: (node: unknown) => node };
+    const storeStub = {
+      createSnapshotStore: (initial: unknown) => ({
+        getSnapshot: () => initial,
+        subscribe: () => () => undefined,
+        update: () => undefined,
+        set: () => undefined,
+      }),
+    };
     /** 平台组件桩：产物只在 apply 里构造表单模型，不渲染组件。 */
     const primitivesStub = {
       SettingsFormModel: class {
@@ -87,18 +96,27 @@ describe('前端产物（dist/client.js）', () => {
       SettingsForm: jsxStub,
       SettingsValueField: jsxStub,
       Switch: jsxStub,
+      Menu: jsxStub,
+      IconChevronDownOutlineRegular: jsxStub,
       Modal: jsxStub,
       Toast: jsxStub,
+      settingsTextField: (field: string) => ({
+        field,
+        format: () => '',
+        parse: () => ({ kind: 'clear' }),
+      }),
     };
     const exported = registration?.factory((id) => {
       if (id === 'react') return reactStub;
       if (id === '@deepseek-ai/dsh-client-ui-primitives') return primitivesStub;
+      if (id === 'react-dom') return reactDomStub;
+      if (id === '@deepseek-ai/dsh-client-store') return storeStub;
       if (id === 'react/jsx-runtime') {
         return { Fragment: 'Fragment', jsx: jsxStub, jsxs: jsxStub };
       }
       throw new Error(`产物请求了平台种子之外的模块：${id}`);
     });
-    expect(exported).not.toHaveProperty('inject');
+    expect(exported.inject).toEqual(['slots', 'locale', 'configForms', 'remote', 'remote.session']);
 
     if (exported === undefined) throw new Error('产物工厂没有返回导出对象');
     const ctx = makeClientCtx();
