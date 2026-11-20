@@ -10,11 +10,25 @@ export function hasText(value: string): boolean {
   return value.trim() !== '';
 }
 
-/** 把毫秒时间戳或 ISO 文本转成可读时间；非法值返回空串。 */
+/** 把毫秒时间戳或 ISO 文本转成 `YYYY-MM-DD HH:mm:ss`；非法值返回空串。 */
 export function formatTime(value: string | number | undefined, timeZone = 'Asia/Shanghai'): string {
   const date = typeof value === 'number' ? new Date(value) : new Date(String(value ?? ''));
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString('zh-CN', { hour12: false, timeZone });
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).format(date);
+}
+
+/** 转义属性值中的 `&`、`"` 与 `<`。 */
+export function escapeAttribute(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
 }
 
 /** 解析毫秒时间戳字符串；非法值返回当前时间。 */

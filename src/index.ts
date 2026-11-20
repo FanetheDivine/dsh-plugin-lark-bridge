@@ -10,6 +10,7 @@ import { EventBridge } from './bridge.ts';
 import { LarkCli } from './cli.ts';
 import { type PluginConfig, readConfig, statePath } from './config.ts';
 import { PLUGIN_LABEL } from './constants.ts';
+import { installReminderGuard } from './reminder.ts';
 import { type ConnectionLike, registerRoutes, type WebServerLike } from './routes.ts';
 import { SessionManager } from './sessions.ts';
 import { StateStore } from './state.ts';
@@ -44,6 +45,9 @@ export function apply(ctx: Context, config?: unknown): void {
     getConfig: () => current,
     logger: ctx.logger,
   });
+
+  const uninstallReminder = installReminderGuard({ ctx, sessions, logger: ctx.logger });
+  ctx.effect(() => () => uninstallReminder(), `${PLUGIN_LABEL}: reminder guard`);
 
   const selection = new WorkspaceSelection({
     getWorkspaceRoot: () => current.workspaceRoot,

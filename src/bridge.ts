@@ -1,6 +1,6 @@
 /**
  * 飞书事件桥：消费 bot 身份事件、过滤与去重，并把消息注入桥接会话。
- * 导出 EventBridge 与 formatFeishuReminder。
+ * 导出 EventBridge 与 formatLarkMessage。
  */
 import { createInterface } from 'node:readline';
 import type { AuthSnapshot } from './auth.ts';
@@ -9,7 +9,7 @@ import { killChildTree } from './cli.ts';
 import { RESTART_MAX_MS, RESTART_MIN_MS } from './constants.ts';
 import type { SessionManager } from './sessions.ts';
 import type { StateStore } from './state.ts';
-import { describeError, formatTime, parseTimestamp } from './utils.ts';
+import { describeError, escapeAttribute, formatTime, parseTimestamp } from './utils.ts';
 
 /** `im.message.receive_v1` 的可用字段。 */
 export interface FeishuEvent {
@@ -44,17 +44,17 @@ export interface BridgeDeps {
   readonly logger: BridgeLogger;
 }
 
-/** 把一条飞书消息渲染为注入正文。 */
-export function formatFeishuReminder(event: FeishuEvent, senderName: string): string {
+/** 把一条飞书消息渲染为 `<lark-message>` 块。 */
+export function formatLarkMessage(event: FeishuEvent): string {
   const time = formatTime(parseTimestamp(event.timestamp ?? event.create_time));
   const text = typeof event.content === 'string' ? event.content.trim() : '';
   const type = String(event.message_type ?? event.msg_type ?? 'text');
   const body = text === '' ? `[${type} 消息]` : text;
-  const id = String(event.message_id ?? event.id ?? '');
-  const header = ['飞书消息', `发送者：${senderName}`];
-  if (time !== '') header.push(`时间：${time}`);
-  if (id !== '') header.push(`消息 ID：${id}`);
-  return `${header.join('\n')}\n\n${body}`;
+  const id = escapeAttribute(String(event.message_id ?? event.id ?? ''));
+  const attributes = [`message_id="${id}"`];
+  if (time !== '') attributes.push(`time="${time}"`);
+  const safe = body.replaceAll('</lark-message>', '<\\/lark-message>');
+  return `<lark-message ${attributes.join(' ')}>\n${safe}\n</lark-message>`;
 }
 
 /** 返回事件的消息标识。 */
@@ -201,9 +201,9 @@ export class EventBridge {
     if (id === '') return false;
     const time = parseTimestamp(event.timestamp ?? event.create_time);
     if (!(await this.deps.store.markSeen(id, time))) return false;
-    const body = formatFeishuReminder(event, auth.userName ?? owner);
+    const block = formatLarkMessage(event);
     try {
-      const result = await this.deps.sessions.inject(body);
+      const result = await this.deps.sessions.inject(block);
       this.deps.logger.info(
         `lark-bridge: delivered ${id} to session ${result.sessionId} (created=${String(result.created)})`,
       );

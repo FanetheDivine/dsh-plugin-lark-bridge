@@ -152,9 +152,7 @@ describe('SessionManager', () => {
     expect(registryCreate).not.toHaveBeenCalled();
     expect((await store.load()).sessionId).toBe(result.sessionId);
     expect((await store.load()).workspaceRoot).toBe(workspaceRoot);
-    expect(followups[0]?.content).toEqual([
-      { type: 'text', text: expect.stringContaining('<system-reminder>') },
-    ]);
+    expect(followups[0]?.content).toEqual([{ type: 'text', text: '飞书消息' }]);
     expect(followups[0]?.source).toEqual({ kind: 'lark-bridge' });
   });
 
@@ -225,5 +223,17 @@ describe('SessionManager', () => {
   it('不提供公开重置方法', async () => {
     const { sessions } = await setup();
     expect(sessions).not.toHaveProperty('reset');
+  });
+
+  it('isBridgeSession 只识别状态文件记录的会话', async () => {
+    const { sessions } = await setup();
+    const result = await sessions.inject('<lark-message message_id="om_1">hi</lark-message>');
+    expect(await sessions.isBridgeSession({ id: result.sessionId } as never)).toBe(true);
+    expect(await sessions.isBridgeSession({ id: 'other' } as never)).toBe(false);
+  });
+
+  it('尚无会话记录时 isBridgeSession 为 false', async () => {
+    const { sessions } = await setup();
+    expect(await sessions.isBridgeSession({ id: 's1' } as never)).toBe(false);
   });
 });
