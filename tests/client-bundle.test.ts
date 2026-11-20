@@ -96,8 +96,15 @@ describe('前端产物（dist/client.js）', () => {
       SettingsForm: jsxStub,
       SettingsValueField: jsxStub,
       Switch: jsxStub,
+      Menu: jsxStub,
+      IconChevronDownOutlineRegular: jsxStub,
       Modal: jsxStub,
       Toast: jsxStub,
+      settingsTextField: (field: string) => ({
+        field,
+        format: () => '',
+        parse: () => ({ kind: 'clear' }),
+      }),
     };
     const exported = registration?.factory((id) => {
       if (id === 'react') return reactStub;

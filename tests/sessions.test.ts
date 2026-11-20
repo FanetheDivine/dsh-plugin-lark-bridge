@@ -18,6 +18,9 @@ async function setup(
     registered?: boolean;
     config?: Partial<PluginConfig>;
     llm?: 'available' | 'missing' | 'rejects';
+    controller?: 'available' | 'missing';
+    resolveFails?: boolean;
+    presets?: readonly { id: string; broken?: string }[] | 'rejects' | 'missing';
   } = {},
 ) {
   const home = await mkdtemp(path.join(tmpdir(), 'lark-bridge-sessions-'));
@@ -35,7 +38,12 @@ async function setup(
   const followups: Array<{ content: unknown; source: unknown }> = [];
   const attached: string[] = [];
   const pinned: string[] = [];
-  const created: Array<{ sessionId: string; meta: unknown }> = [];
+  const created: Array<{
+    sessionId: string;
+    meta: unknown;
+    workspaceId?: string;
+    agentPreset?: string;
+  }> = [];
   let liveAgent: unknown;
 
   const selections: unknown[] = [];
@@ -49,6 +57,7 @@ async function setup(
     followup: (message: { content: unknown; source: unknown }) => followups.push(message),
   };
   const workspace = {
+    id: 'ws-one',
     sessionIds: [] as string[],
     attachSession: async (id: string) => attached.push(id),
   };
@@ -63,7 +72,7 @@ async function setup(
       setup: (ctx: unknown, child: unknown) => Promise<void>;
     }) => {
       created.push({ sessionId: opts.sessionId, meta: opts.meta });
-      await opts.setup({}, agent);
+      if (opts.setup !== undefined) await opts.setup({}, agent);
       liveAgent = agent;
       return { agent, dispose: async () => undefined };
     },
@@ -77,6 +86,41 @@ async function setup(
       return { agent, dispose: async () => undefined };
     },
   };
+  const controllerCreate = vi.fn(
+    async (request: {
+      sessionId: string;
+      workspaceId: string;
+      cwd: string;
+      agentPreset?: string;
+    }) => {
+      created.push({
+        sessionId: request.sessionId,
+        meta: { cwd: request.cwd },
+        workspaceId: request.workspaceId,
+        ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }),
+      });
+      liveAgent = agent;
+      return {
+        sessionId: request.sessionId,
+        ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }),
+      };
+    },
+  );
+  const sessionController =
+    options.controller === 'missing'
+      ? undefined
+      : {
+          create: controllerCreate,
+          resolveAgent: async (id: unknown) =>
+            options.resolveFails === true || String(id) === 'gone'
+              ? { error: new Error('session missing') }
+              : { agent },
+        };
+  const presetsList = vi.fn(async () => {
+    if (options.presets === 'rejects') throw new Error('roster failed');
+    return options.presets ?? [];
+  });
+  const presets = options.presets === 'missing' ? undefined : { list: presetsList };
   const archived: string[] = [];
   const registry = {
     archivedSessionIds: archived,
@@ -95,6 +139,8 @@ async function setup(
       if (name === 'workspaceRegistry') return registry;
       if (name === 'agentDefaultModel') return undefined;
       if (name === 'llm') return llm;
+      if (name === 'sessionController') return sessionController;
+      if (name === 'agentPresets') return presets;
       return undefined;
     },
   };
@@ -123,6 +169,8 @@ async function setup(
     createAgent,
     selections,
     resolveCallConfig,
+    controllerCreate,
+    presetsList,
     logger,
   };
 }
@@ -324,5 +372,90 @@ describe('新建会话的模型配置', () => {
     const selectionsAfterFirst = selections.length;
     await sessions.inject('二');
     expect(selections.length).toBe(selectionsAfterFirst);
+  });
+});
+
+describe('新建会话的预设配置', () => {
+  it('可用预设传给会话控制服务', async () => {
+    const { sessions, controllerCreate, presetsList } = await setup({
+      config: { sessionPreset: 'bridge' },
+      presets: [{ id: 'bridge', name: '桥接' }],
+    });
+    await sessions.inject('hi');
+    expect(presetsList).toHaveBeenCalled();
+    expect(controllerCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ agentPreset: 'bridge', workspaceId: 'ws-one' }),
+    );
+  });
+
+  it('名册标记损坏的预设按不可用处理并记录警告', async () => {
+    const { sessions, controllerCreate, logger } = await setup({
+      config: { sessionPreset: 'broken' },
+      presets: [{ id: 'broken', broken: 'missing files' }],
+    });
+    await sessions.inject('hi');
+    expect(controllerCreate).toHaveBeenCalledWith(
+      expect.not.objectContaining({ agentPreset: expect.anything() }),
+    );
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('configured preset'));
+  });
+
+  it('名册读取失败时省略预设并记录警告', async () => {
+    const { sessions, controllerCreate, logger } = await setup({
+      config: { sessionPreset: 'bridge' },
+      presets: 'rejects',
+    });
+    await sessions.inject('hi');
+    expect(controllerCreate).toHaveBeenCalledWith(
+      expect.not.objectContaining({ agentPreset: expect.anything() }),
+    );
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('cannot read agent presets'));
+  });
+
+  it('缺少预设服务时省略预设且不记录警告', async () => {
+    const { sessions, controllerCreate, logger } = await setup({
+      config: { sessionPreset: 'bridge' },
+      presets: 'missing',
+    });
+    await sessions.inject('hi');
+    expect(controllerCreate).toHaveBeenCalledWith(
+      expect.not.objectContaining({ agentPreset: expect.anything() }),
+    );
+    expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('preset'));
+  });
+
+  it('缺少会话控制服务时回退 agent 工厂并记录警告', async () => {
+    const { sessions, createAgent, logger } = await setup({
+      controller: 'missing',
+      config: { sessionPreset: 'bridge' },
+      presets: [{ id: 'bridge' }],
+    });
+    await sessions.inject('hi');
+    expect(createAgent).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('preset was ignored'));
+  });
+
+  it('解析新会话失败时使用存活 Agent 并记录警告', async () => {
+    const { sessions, selections, logger } = await setup({
+      live: true,
+      resolveFails: true,
+      config: { sessionProvider: 'deepseek', sessionModel: 'deepseek-chat' },
+    });
+    await expect(sessions.inject('hi')).resolves.toMatchObject({ created: true });
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('cannot resolve the new session'),
+    );
+    expect(selections).toHaveLength(1);
+  });
+
+  it('新会话无法解析且没有存活 Agent 时注入失败', async () => {
+    const { sessions } = await setup({ resolveFails: true });
+    await expect(sessions.inject('hi')).rejects.toThrow('session missing');
+  });
+
+  it('未配置预设时不读取名册', async () => {
+    const { sessions, presetsList } = await setup();
+    await sessions.inject('hi');
+    expect(presetsList).not.toHaveBeenCalled();
   });
 });

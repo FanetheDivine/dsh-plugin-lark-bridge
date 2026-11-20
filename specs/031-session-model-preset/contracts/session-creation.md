@@ -28,7 +28,8 @@
 | 无 `sessionController` 服务 | 回退 `ctx.agents.create`，省略预设 | warn |
 | 模型不可用 | 省略 `agent.model.select` | warn |
 | 无 `llm` 服务 | 省略 `agent.model.select` | warn |
-| `resolveAgent` 失败 | 省略 `agent.model.select` | warn |
+| `resolveAgent` 失败但 Agent 存活 | 使用存活 Agent 继续应用模型与注入 | warn |
+| `resolveAgent` 失败且没有存活 Agent | 注入失败 | 抛错 |
 
 上述情况都继续创建会话并注入消息。
 

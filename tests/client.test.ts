@@ -51,6 +51,11 @@ import {
 import * as clientEntry from '../src/client/index.ts';
 import { en, NS, zh } from '../src/client/locales.ts';
 import type { ModelDefaultsInjected } from '../src/client/model-defaults.ts';
+import {
+  type PresetDefaultsInjected,
+  type PresetDefaultsState,
+} from '../src/client/preset-defaults.ts';
+import { currentText, menuItems, PresetSelect } from '../src/client/preset-select.tsx';
 import { StatusController } from '../src/client/status-controller.ts';
 import type { ConnectionState } from '../src/types.ts';
 import {
@@ -162,6 +167,17 @@ function modelDefaultsStub(): ModelDefaultsInjected {
   };
 }
 
+/** 渲染配置页时的预设名册注入桩。 */
+function presetDefaultsStub(): PresetDefaultsInjected {
+  const store = createSnapshotStore<PresetDefaultsState>({
+    status: 'ready',
+    error: null,
+    rows: [{ id: 'bridge', name: '桥接' }],
+    current: '',
+  });
+  return { hooks: { presetDefaults: store }, load: () => undefined, select: () => undefined };
+}
+
 /** 渲染完整配置页。 */
 function renderConfigPage(): string {
   const fake = makeConfigFormScope({
@@ -200,6 +216,7 @@ function renderConfigPage(): string {
       resetField: injected.resetField,
       controller,
       modelDefaults: modelDefaultsStub(),
+      presetDefaults: presetDefaultsStub(),
     } as ConfigPageProps),
   );
   controller.dispose();
@@ -262,6 +279,7 @@ describe('前端入口', () => {
     expect(ctx._injectGroups).toEqual([
       ['locale'],
       ['slots', 'locale', 'configForms', 'remote', 'remote.session'],
+      ['remote.agentPresets'],
     ]);
   });
 
@@ -292,6 +310,7 @@ describe('前端入口', () => {
       readonly controller: StatusController;
       readonly openSettings?: () => void;
       readonly modelDefaults: ModelDefaultsInjected;
+      readonly presetDefaults: PresetDefaultsInjected;
     };
     const overlayInject = ctx._slotRegistrations[0]?.options.inject as
       | (() => SharedSlotInjected)
@@ -516,7 +535,7 @@ describe('工作区选择与共用弹窗', () => {
   it('空注册列表显示空状态并禁用选择', () => {
     const html = renderWorkspaceSelect([]);
     expect(html).toContain('暂无已注册工作区');
-    expect(html).toMatch(/<button\b[^>]*\bdisabled/);
+    expect(html).toContain('disabled=""');
     expect(html).not.toContain('role="menu"');
   });
 
@@ -526,8 +545,11 @@ describe('工作区选择与共用弹窗', () => {
     expect(html).toContain('data-dsh-lark-config-workspace');
     expect(html).toContain('data-dsh-lark-config-model');
     expect(html).toContain('data-dsh-lark-model-select');
+    expect(html).toContain('data-dsh-lark-config-preset');
+    expect(html).toContain('data-dsh-lark-preset-trigger');
     expect(html).toContain('工作区');
     expect(html).toContain('模型');
+    expect(html).toContain('预设');
     expect(html).not.toContain('恢复默认');
     expect(html).not.toContain('会话标题');
     expect(html).not.toContain('启动时检测鉴权');
@@ -728,5 +750,72 @@ describe('StatusController', () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(fetchStatus).not.toHaveBeenCalled();
     expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+describe('预设选择器文案', () => {
+  /** 构造选择器状态。 */
+  function state(overrides: Partial<PresetDefaultsState> = {}): PresetDefaultsState {
+    return { status: 'ready', error: null, rows: [], current: '', ...overrides };
+  }
+
+  /** 用给定状态静态渲染选择器。 */
+  function renderPreset(value: PresetDefaultsState): string {
+    const store = createSnapshotStore<PresetDefaultsState>(value);
+    return renderToStaticMarkup(
+      createElement(PresetSelect, {
+        hooks: { presetDefaults: store },
+        load: () => undefined,
+        select: () => undefined,
+        locked: false,
+        t: translate(zh),
+      }),
+    );
+  }
+
+  it('未选择时显示跟随宿主默认', () => {
+    expect(currentText(state(), translate(zh))).toBe('跟随宿主默认');
+    expect(
+      currentText(state({ rows: [{ id: 'a', name: 'A' }], current: 'a' }), translate(zh)),
+    ).toBe('A');
+  });
+
+  it('已存预设不可用时追加不可用标注', () => {
+    const text = currentText(state({ current: 'gone' }), translate(zh));
+    expect(text).toBe('gone · 不可用');
+  });
+
+  it('加载中、无服务与失败各有文案', () => {
+    expect(currentText(state({ status: 'loading' }), translate(zh))).toBe('加载中…');
+    expect(currentText(state({ status: 'noService' }), translate(zh))).toBe('此部署不提供预设');
+    expect(currentText(state({ status: 'error' }), translate(zh))).toBe('预设加载失败');
+  });
+
+  it('无预设能力时触发器禁用并说明原因', () => {
+    const html = renderPreset(state({ status: 'noService' }));
+    expect(html).toContain('此部署不提供预设');
+    expect(html).toContain('disabled=""');
+  });
+
+  it('加载失败时显示重试', () => {
+    const html = renderPreset(state({ status: 'error', error: '失败了' }));
+    expect(html).toContain('失败了');
+    expect(html).toContain('重试');
+    expect(html).toContain('role="alert"');
+  });
+
+  it('已存预设不可用时触发器显示标注', () => {
+    const html = renderPreset(state({ current: 'gone' }));
+    expect(html).toContain('gone · 不可用');
+  });
+
+  it('菜单首项跟随宿主默认，不可用的已存值以禁用项补足', () => {
+    const items = menuItems(
+      state({ rows: [{ id: 'a', name: 'A' }], current: 'gone' }),
+      translate(zh),
+    );
+    expect(items[0]).toMatchObject({ id: '', label: '跟随宿主默认' });
+    expect(items[1]).toMatchObject({ id: 'a', label: 'A' });
+    expect(items[2]).toMatchObject({ id: 'gone', disabled: true });
   });
 });

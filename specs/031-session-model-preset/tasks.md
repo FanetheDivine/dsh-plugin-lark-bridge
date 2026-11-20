@@ -79,18 +79,18 @@
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] 新增 `tests/preset-defaults.test.ts`：名册读取、`broken` 过滤、`noService` 判定、选择写入 `sessionPreset`
-- [ ] T019 [P] [US2] 更新 `tests/client.test.ts`：预设行渲染、菜单项顺序、不可用标注
+- [X] T018 [P] [US2] 新增 `tests/preset-defaults.test.ts`：名册读取、`broken` 过滤、`noService` 判定、选择写入 `sessionPreset`
+- [X] T019 [P] [US2] 更新 `tests/client.test.ts`：预设行渲染、菜单项顺序、不可用标注
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] 新增 `src/client/preset-defaults.ts`：`remote.agentPresets.list()` 状态机与草稿写入
-- [ ] T021 [P] [US2] 新增 `src/client/preset-select.tsx`：触发器、宿主 `Menu`、portal、键盘与焦点返回
-- [ ] T022 [US2] 修改 `src/client/config-page.tsx`：模型行下方渲染预设行
-- [ ] T023 [US2] 修改 `src/client/index.ts`：`ctx.inject(['remote.agentPresets'])` 接入名册并注入配置页
-- [ ] T024 [US2] 修改 `src/sessions.ts`：`create` 改用 `sessionController.create({ sessionId, workspaceId, cwd, agentPreset? })`，预设先经 `agentPresets.list()` 过滤；缺少服务时回退 `ctx.agents.create` 并记录 warn；创建后向会话追加标题事件
-- [ ] T025 [US2] 更新 `tests/sessions.test.ts`：断言预设传递、不可用预设省略、无 `sessionController` 时回退
-- [ ] T026 [US2] 运行 `pnpm check`，提交本阶段
+- [X] T020 [P] [US2] 新增 `src/client/preset-defaults.ts`：`remote.agentPresets.list()` 状态机与草稿写入
+- [X] T021 [P] [US2] 新增 `src/client/preset-select.tsx`：触发器、宿主 `Menu`、portal、键盘与焦点返回
+- [X] T022 [US2] 修改 `src/client/config-page.tsx`：模型行下方渲染预设行
+- [X] T023 [US2] 修改 `src/client/index.ts`：`ctx.inject(['remote.agentPresets'])` 接入名册并注入配置页
+- [X] T024 [US2] 修改 `src/sessions.ts`：`create` 改用 `sessionController.create({ sessionId, workspaceId, cwd, agentPreset? })`，预设先经 `agentPresets.list()` 过滤；缺少服务时回退 `ctx.agents.create` 并记录 warn；创建后向会话追加标题事件
+- [X] T025 [US2] 更新 `tests/sessions.test.ts`：断言预设传递、不可用预设省略、无 `sessionController` 时回退
+- [X] T026 [US2] 运行 `pnpm check`，提交本阶段
 
 **Checkpoint**: 预设能力可按 US2 独立验收。
 
@@ -104,14 +104,14 @@
 
 ### Tests for User Story 3
 
-- [ ] T027 [P] [US3] 更新 `tests/sessions.test.ts`：模型校验失败、`resolveAgent` 失败、名册读取失败三种降级各记录 warn 且消息注入成功
-- [ ] T028 [P] [US3] 更新 `tests/preset-defaults.test.ts` 与 `tests/client.test.ts`：`noService` 禁用、加载失败重试、已存值不可用仍保留
+- [X] T027 [P] [US3] 更新 `tests/sessions.test.ts`：模型校验失败、`resolveAgent` 失败、名册读取失败三种降级各记录 warn 且消息注入成功
+- [X] T028 [P] [US3] 更新 `tests/preset-defaults.test.ts` 与 `tests/client.test.ts`：`noService` 禁用、加载失败重试、已存值不可用仍保留
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] 修改 `src/sessions.ts`：统一 warn 文案，`lastError` 保持现有语义
-- [ ] T030 [US3] 修改 `src/client/config-page.tsx` 与 `src/client/locales.ts`：不可用标注、无服务说明、失败重试
-- [ ] T031 [US3] 运行 `pnpm check`，提交本阶段
+- [X] T029 [US3] 修改 `src/sessions.ts`：统一 warn 文案，`lastError` 保持现有语义
+- [X] T030 [US3] 修改 `src/client/config-page.tsx` 与 `src/client/locales.ts`：不可用标注、无服务说明、失败重试
+- [X] T031 [US3] 运行 `pnpm check`，提交本阶段
 
 **Checkpoint**: 降级与状态可按 US3 独立验收。
 

@@ -12,7 +12,7 @@ import { type Session, SessionId } from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-session-title';
 import type { Workspace, WorkspaceRegistry } from '@deepseek-ai/dsh-workspace';
 
-import { modelSelectionOf, type PluginConfig } from './config.ts';
+import { modelSelectionOf, type PluginConfig, presetOf } from './config.ts';
 import { SESSION_TITLE } from './constants.ts';
 import { BridgeError } from './errors.ts';
 import { LARK_SOURCE } from './message.ts';
@@ -44,9 +44,20 @@ interface LlmLike {
   resolveCallConfig(config: ModelSelection): Promise<unknown>;
 }
 
-/** 会话恢复服务的最小接口。 */
+/** 预设名册服务的最小接口。 */
+interface PresetRegistryLike {
+  list(): Promise<readonly { readonly id: string; readonly broken?: string }[]>;
+}
+
+/** 会话控制服务的最小接口。 */
 interface SessionController {
   resolveAgent(id: SessionId): Promise<{ readonly agent: Agent } | { readonly error: unknown }>;
+  create?(request: {
+    readonly sessionId: string;
+    readonly workspaceId: string;
+    readonly cwd: string;
+    readonly agentPreset?: string;
+  }): Promise<{ readonly sessionId: string; readonly agentPreset?: string }>;
 }
 
 /** 日志接口。 */
@@ -173,6 +184,27 @@ export class SessionManager {
     }
   }
 
+  /** 解析可用的预设；名册缺失、读取失败或候选不可用时返回空串。 */
+  private async resolvePreset(): Promise<string> {
+    const candidate = presetOf(this.deps.getConfig());
+    if (candidate === '') return '';
+    const presets = this.ctx.get('agentPresets') as PresetRegistryLike | undefined;
+    if (presets === undefined) return '';
+    try {
+      const rows = await presets.list();
+      if (rows.some((row) => row.id === candidate && row.broken === undefined)) return candidate;
+      this.deps.logger.warn(
+        `lark-bridge: configured preset "${candidate}" is unavailable; using the host default`,
+      );
+      return '';
+    } catch (error) {
+      this.deps.logger.warn(
+        `lark-bridge: cannot read agent presets; using the host default: ${describeError(error)}`,
+      );
+      return '';
+    }
+  }
+
   /** 校验配置的模型选择；服务缺失或校验失败时返回 undefined。 */
   private async resolveSelection(): Promise<ModelSelection | undefined> {
     const selection = modelSelectionOf(this.deps.getConfig());
@@ -206,23 +238,51 @@ export class SessionManager {
     }
   }
 
-  /** 新建会话，设置标题、挂到工作区并置顶。 */
+  /** 新建会话，应用预设与模型，设置标题、挂到工作区并置顶。 */
   private async create(
     cwd: string,
     title: string,
     workspace: Workspace,
   ): Promise<{ sessionId: string; agent: Agent }> {
-    const sessionId = randomUUID();
     const selection = await this.resolveSelection();
-    const handle = await this.ctx.agents.create({
-      sessionId: SessionId(sessionId),
-      agentOptions: this.agentOptions(),
-      meta: { cwd },
-      setup: async (_childCtx, child) => {
-        appendTitle(child.session, title);
-      },
-    });
-    if (selection !== undefined) this.applySelection(handle.agent, selection);
+    const preset = await this.resolvePreset();
+    const controller = this.ctx.get('sessionController') as SessionController | undefined;
+    let sessionId: string = randomUUID();
+    let agent: Agent;
+    if (controller?.create !== undefined) {
+      const created = await controller.create({
+        sessionId,
+        workspaceId: String(workspace.id),
+        cwd,
+        ...(preset === '' ? {} : { agentPreset: preset }),
+      });
+      sessionId = created.sessionId;
+      const resolved = await controller.resolveAgent(SessionId(sessionId));
+      if ('error' in resolved) {
+        const live = this.ctx.agents.get(SessionId(sessionId));
+        if (live === undefined) throw resolved.error;
+        this.deps.logger.warn(
+          `lark-bridge: cannot resolve the new session; using the live agent: ${describeError(resolved.error)}`,
+        );
+        agent = live;
+      } else {
+        agent = resolved.agent;
+      }
+    } else {
+      if (preset !== '') {
+        this.deps.logger.warn(
+          'lark-bridge: sessionController is unavailable; the preset was ignored',
+        );
+      }
+      const handle = await this.ctx.agents.create({
+        sessionId: SessionId(sessionId),
+        agentOptions: this.agentOptions(),
+        meta: { cwd },
+      });
+      agent = handle.agent;
+    }
+    if (selection !== undefined) this.applySelection(agent, selection);
+    appendTitle(agent.session, title);
     await this.attach(sessionId, workspace);
     await this.registry().pinSession(SessionId(sessionId));
     await this.deps.store.patch({
@@ -231,7 +291,7 @@ export class SessionManager {
       title,
     });
     this.deps.logger.info(`lark-bridge: created session ${sessionId} in ${cwd}`);
-    return { sessionId, agent: handle.agent };
+    return { sessionId, agent };
   }
 
   /** 确保标题与置顶状态符合配置。 */

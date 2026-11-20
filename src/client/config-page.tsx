@@ -25,6 +25,8 @@ import { AuthPanel } from './auth-panel.tsx';
 import type { ConfigPageInjected } from './config-form.ts';
 import type { NS } from './locales.ts';
 import type { ModelDefaultsInjected } from './model-defaults.ts';
+import type { PresetDefaultsInjected } from './preset-defaults.ts';
+import { PresetSelect } from './preset-select.tsx';
 import type { StatusController } from './status-controller.ts';
 
 /** 配置页组件 props。 */
@@ -34,6 +36,7 @@ export type ConfigPageProps = PropsRuntime<'plugins.row.config'> &
     ConfigPageInjected & {
       readonly controller: StatusController;
       readonly modelDefaults: ModelDefaultsInjected;
+      readonly presetDefaults: PresetDefaultsInjected;
     }
   >;
 
@@ -214,6 +217,15 @@ export function ConfigPage(props: ConfigPageProps) {
             />
           </div>
           <p style={descriptionStyle}>{t('config.sessionModel.description')}</p>
+        </div>
+        <div data-dsh-lark-config-preset="default" style={fieldStyle}>
+          <div style={labelRowStyle}>
+            <span style={titleStyle}>{t('config.sessionPreset.label')}</span>
+          </div>
+          <div style={triggerRowStyle}>
+            <PresetSelect {...props.presetDefaults} locked={disabled} t={t} />
+          </div>
+          <p style={descriptionStyle}>{t('config.sessionPreset.description')}</p>
         </div>
       </SettingsForm>
     </div>
