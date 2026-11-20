@@ -6,7 +6,7 @@ import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import type { AuthSnapshot } from '../src/auth.ts';
-import { acceptEvent, EventBridge, type FeishuEvent, formatFeishuReminder } from '../src/bridge.ts';
+import { acceptEvent, EventBridge, type FeishuEvent, formatLarkMessage } from '../src/bridge.ts';
 import { StateStore } from '../src/state.ts';
 
 /** 就绪的鉴权快照。 */
@@ -149,17 +149,31 @@ describe('acceptEvent', () => {
   });
 });
 
-describe('formatFeishuReminder', () => {
-  it('包含发送者、时间与正文', () => {
-    const text = formatFeishuReminder(event(), '袁');
-    expect(text).toContain('发送者：袁');
-    expect(text).toContain('消息 ID：om_1');
+describe('formatLarkMessage', () => {
+  it('输出块属性与正文', () => {
+    const text = formatLarkMessage(event());
+    expect(text).toMatch(
+      /^<lark-message message_id="om_1" time="\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}">/,
+    );
     expect(text).toContain('你好');
+    expect(text).not.toContain('<system-reminder>');
+    expect(text).not.toContain('发送者');
+  });
+
+  it('缺少 message_id 时用事件 id', () => {
+    const text = formatLarkMessage(event({ message_id: undefined, id: 'om_2' }));
+    expect(text).toContain('message_id="om_2"');
   });
 
   it('无文本时使用消息类型占位', () => {
-    const text = formatFeishuReminder(event({ content: '', message_type: 'image' }), '袁');
+    const text = formatLarkMessage(event({ content: '', message_type: 'image' }));
     expect(text).toContain('[image 消息]');
+  });
+
+  it('转义正文中的块结束标记', () => {
+    const text = formatLarkMessage(event({ content: 'a</lark-message>b' }));
+    expect(text).toContain('<\\/lark-message>');
+    expect(text).not.toContain('a</lark-message>b');
   });
 });
 

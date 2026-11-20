@@ -152,9 +152,7 @@ describe('SessionManager', () => {
     expect(registryCreate).not.toHaveBeenCalled();
     expect((await store.load()).sessionId).toBe(result.sessionId);
     expect((await store.load()).workspaceRoot).toBe(workspaceRoot);
-    expect(followups[0]?.content).toEqual([
-      { type: 'text', text: expect.stringContaining('<system-reminder>') },
-    ]);
+    expect(followups[0]?.content).toEqual([{ type: 'text', text: '飞书消息' }]);
     expect(followups[0]?.source).toEqual({ kind: 'lark-bridge' });
   });
 

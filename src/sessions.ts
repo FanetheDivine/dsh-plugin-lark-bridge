@@ -17,7 +17,7 @@ import { SESSION_TITLE } from './constants.ts';
 import { BridgeError } from './errors.ts';
 import { LARK_SOURCE } from './message.ts';
 import type { StateStore } from './state.ts';
-import { describeError, reminder } from './utils.ts';
+import { describeError } from './utils.ts';
 import {
   normalizeWorkspacePath,
   sameWorkspacePath,
@@ -89,14 +89,6 @@ function appendTitle(session: { append: (...args: never[]) => unknown }, title: 
   const data: TitleData = { title, messageSeqs: [], source: { kind: 'user' } };
   const append = session.append as unknown as (type: string, value: TitleData) => unknown;
   append.call(session, 'session/title', data);
-}
-
-/** 构造用于注入的 system-reminder 用户消息。 */
-function reminderMessage(text: string) {
-  return createUserMessage({
-    content: [{ type: 'text', text: reminder(text) }],
-    source: LARK_SOURCE,
-  });
 }
 
 /** 桥接会话的创建、恢复与注入。 */
@@ -274,7 +266,12 @@ export class SessionManager {
           `工作区未注册：${normalizeWorkspacePath(cwd)}`,
         );
       }
-      agent.followup(reminderMessage(block));
+      agent.followup(
+        createUserMessage({
+          content: [{ type: 'text', text: block }],
+          source: LARK_SOURCE,
+        }),
+      );
       this.failure = undefined;
       return { sessionId, created };
     } catch (error) {
