@@ -7,9 +7,16 @@ import type { AuthSnapshot } from './auth.ts';
 import type { LarkCli } from './cli.ts';
 import { killChildTree } from './cli.ts';
 import { RESTART_MAX_MS, RESTART_MIN_MS } from './constants.ts';
+import { formatQuote, type QuotedMessage, readQuoted } from './quote.ts';
 import type { SessionManager } from './sessions.ts';
 import type { StateStore } from './state.ts';
-import { describeError, escapeAttribute, formatTime, parseTimestamp } from './utils.ts';
+import {
+  describeError,
+  escapeAttribute,
+  escapeBlockText,
+  formatTime,
+  parseTimestamp,
+} from './utils.ts';
 
 /** `im.message.receive_v1` 的可用字段。 */
 export interface FeishuEvent {
@@ -44,22 +51,30 @@ export interface BridgeDeps {
   readonly logger: BridgeLogger;
 }
 
-/** 把一条飞书消息渲染为 `<lark-message>` 块。 */
-export function formatLarkMessage(event: FeishuEvent): string {
-  const time = formatTime(parseTimestamp(event.timestamp ?? event.create_time));
-  const text = typeof event.content === 'string' ? event.content.trim() : '';
-  const type = String(event.message_type ?? event.msg_type ?? 'text');
-  const body = text === '' ? `[${type} 消息]` : text;
-  const id = escapeAttribute(String(event.message_id ?? event.id ?? ''));
-  const attributes = [`message_id="${id}"`];
-  if (time !== '') attributes.push(`time="${time}"`);
-  const safe = body.replaceAll('</lark-message>', '<\\/lark-message>');
-  return `<lark-message ${attributes.join(' ')}>\n${safe}\n</lark-message>`;
-}
-
 /** 返回事件的消息标识。 */
 function messageId(event: FeishuEvent): string {
   return String(event.message_id ?? event.id ?? '');
+}
+
+/** 返回事件的被引消息标识；没有引用时为空串。 */
+export function replyToId(event: FeishuEvent): string {
+  return typeof event.reply_to === 'string' ? event.reply_to.trim() : '';
+}
+
+/** 把一条飞书消息渲染为 `<lark-message>` 块。 */
+export function formatLarkMessage(event: FeishuEvent, quote?: QuotedMessage): string {
+  const time = formatTime(parseTimestamp(event.timestamp ?? event.create_time));
+  const text = typeof event.content === 'string' ? event.content.trim() : '';
+  const type = String(event.message_type ?? event.msg_type ?? 'text');
+  const id = escapeAttribute(messageId(event));
+  const replyTo = escapeAttribute(replyToId(event));
+  const attributes = [`message_id="${id}"`];
+  if (replyTo !== '') attributes.push(`reply_to="${replyTo}"`);
+  if (time !== '') attributes.push(`time="${time}"`);
+  let body = text === '' ? `[${type} 消息]` : escapeBlockText(text);
+  if (type === 'merge_forward') body = `<forwarded_messages message_id="${id}"/>`;
+  const inner = quote === undefined ? body : `${formatQuote(quote)}\n${body}`;
+  return `<lark-message ${attributes.join(' ')}>\n${inner}\n</lark-message>`;
 }
 
 /** 判断事件是否来自目标用户的私聊。 */
@@ -190,7 +205,7 @@ export class EventBridge {
     this.restartTimer.unref?.();
   }
 
-  /** 处理一条事件：过滤、去重、格式化并注入。 */
+  /** 处理一条事件：过滤、去重、读取引用、格式化并注入。 */
   async handleEvent(event: FeishuEvent): Promise<boolean> {
     const auth = this.deps.getAuth();
     if (auth.ready !== true || !this.deps.getWorkspaceReady()) return false;
@@ -201,7 +216,8 @@ export class EventBridge {
     if (id === '') return false;
     const time = parseTimestamp(event.timestamp ?? event.create_time);
     if (!(await this.deps.store.markSeen(id, time))) return false;
-    const block = formatLarkMessage(event);
+    const quote = await this.readQuote(event);
+    const block = formatLarkMessage(event, quote);
     try {
       const result = await this.deps.sessions.inject(block);
       this.deps.logger.info(
@@ -212,5 +228,16 @@ export class EventBridge {
       await this.deps.store.forget(id);
       throw error;
     }
+  }
+
+  /** 读取被引消息；没有引用或读取失败时返回降级模型。 */
+  private async readQuote(event: FeishuEvent): Promise<QuotedMessage | undefined> {
+    const replyTo = replyToId(event);
+    if (replyTo === '') return undefined;
+    const quote = await readQuoted(this.deps.getCli(), replyTo);
+    if (quote.unavailable) {
+      this.deps.logger.warn(`lark-bridge: cannot read quoted message ${replyTo}`);
+    }
+    return quote;
   }
 }

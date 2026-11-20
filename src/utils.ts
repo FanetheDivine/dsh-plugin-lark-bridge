@@ -37,6 +37,14 @@ export function parseTimestamp(value: string | undefined): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : Date.now();
 }
 
+/** 转义块内正文的结束标记，避免提前闭合外层块。 */
+export function escapeBlockText(value: string): string {
+  return value
+    .replaceAll('</lark-message>', '<\\/lark-message>')
+    .replaceAll('</quote>', '<\\/quote>')
+    .replaceAll('</forwarded_messages>', '<\\/forwarded_messages>');
+}
+
 /**
  * 把文本包成 system-reminder 帧。
  * @param text - 提醒正文。
