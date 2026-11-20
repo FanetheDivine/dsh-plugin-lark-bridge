@@ -144,6 +144,13 @@ describe('apply 接线', () => {
     expect(infos.some((line) => line.includes('config updated'))).toBe(true);
   });
 
+  it('注册提醒补注监听', () => {
+    process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
+    const ctx = makeCtx();
+    apply(ctx, { workspaceRoot: '' });
+    expect(ctx._onCallbacks.has('agent/pre-step')).toBe(true);
+  });
+
   it('卸载时注销工具并停止监听', () => {
     process.env['DSH_HOME'] = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
     const { webServer } = makeWebServer();
