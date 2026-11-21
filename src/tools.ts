@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import type { LarkCli } from './cli.ts';
 import { MAX_MESSAGE_CHARS, NOTIFY_TOOL_NAME } from './constants.ts';
 import { BridgeError } from './errors.ts';
-import type { ToolDefinition, ToolRunContext } from './types.ts';
+import type { Agent, ToolDefinition, ToolRunContext } from './types.ts';
 import { describeError, splitText } from './utils.ts';
 
 /** 发送结果。 */
@@ -23,6 +23,30 @@ export interface NotifyDeps {
   readonly getCli: () => LarkCli;
   /** 当前可用的用户 open_id；未知时返回 undefined。 */
   readonly getOwner: () => string | undefined;
+}
+
+/** 工具依赖：发送依赖加桥接会话判定。 */
+export interface NotifyToolDeps extends NotifyDeps {
+  /** 判断 agent 所在的会话是否是桥接会话。 */
+  readonly isBridgeAgent: (agent: Agent) => Promise<boolean>;
+}
+
+/** 非桥接会话的拒绝结果。 */
+function notBridgeSession(): NotifyResult {
+  return {
+    ok: false,
+    error: { code: 'not-bridge-session', message: 'lark_notify 只在桥接会话可用' },
+  };
+}
+
+/** 判定 agent 可用调用本工具；缺失 agent 或判定异常时按不可用处理。 */
+async function isAvailable(deps: NotifyToolDeps, agent: Agent | undefined): Promise<boolean> {
+  if (agent === undefined) return false;
+  try {
+    return await deps.isBridgeAgent(agent);
+  } catch {
+    return false;
+  }
 }
 
 /** 读取可选的 `reply_to`；类型不对时返回错误。 */
@@ -109,7 +133,7 @@ export async function sendNotification(deps: NotifyDeps, args: unknown): Promise
 }
 
 /** 构造工具定义。 */
-export function buildNotifyTool(deps: NotifyDeps): ToolDefinition {
+export function buildNotifyTool(deps: NotifyToolDeps): ToolDefinition {
   return {
     name: NOTIFY_TOOL_NAME,
     description:
@@ -149,10 +173,12 @@ export function buildNotifyTool(deps: NotifyDeps): ToolDefinition {
           return [{ type: 'text', text: `${action}（${result.parts ?? 1} 条）` }];
         }
         const error = result.error ?? { code: 'unknown', message: '发送失败' };
+        if (error.code === 'not-bridge-session') return [{ type: 'text', text: error.message }];
         return [{ type: 'text', text: `发送失败（${error.code}）：${error.message}` }];
       },
     },
-    async execute(args: unknown, _exec: ToolRunContext) {
+    async execute(args: unknown, exec: ToolRunContext) {
+      if (!(await isAvailable(deps, exec.agent))) return notBridgeSession();
       try {
         return await sendNotification(deps, args);
       } catch (error) {

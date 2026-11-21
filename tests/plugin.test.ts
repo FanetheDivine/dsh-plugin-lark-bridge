@@ -1,5 +1,5 @@
 // 插件入口与配置测试：模块契约、严格配置、apply 接线与热重载。
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
@@ -226,6 +226,62 @@ describe('apply 接线', () => {
     expect(ctx._activeTools.size).toBe(1);
     ctx._dispose();
     expect(ctx._activeTools.size).toBe(0);
+  });
+});
+
+/** 写入插件状态文件。 */
+function writeBridgeState(home: string, sessionId: string | null): void {
+  const dir = path.join(home, 'lark-bridge');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    path.join(dir, 'state.json'),
+    JSON.stringify({
+      sessionId,
+      workspaceRoot: null,
+      title: null,
+      seen: {},
+      updatedAt: '2026-11-21T00:00:00.000Z',
+    }),
+  );
+}
+
+/** 构造一步的条件入参。 */
+function stepFor(sessionId: string) {
+  return { agent: { session: { id: sessionId } } };
+}
+
+describe('通知工具可见性', () => {
+  it('只对状态文件记录的会话可见', async () => {
+    const home = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
+    process.env['DSH_HOME'] = home;
+    writeBridgeState(home, 's1');
+    const ctx = makeCtx();
+    apply(ctx, { authCheckOnStartup: false });
+    await expect(ctx._toolWhen(NOTIFY_TOOL_NAME, stepFor('s1'))).resolves.toBe(true);
+    await expect(ctx._toolWhen(NOTIFY_TOOL_NAME, stepFor('s2'))).resolves.toBe(false);
+  });
+
+  it('没有桥接会话时对任何会话都不可见', async () => {
+    const home = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
+    process.env['DSH_HOME'] = home;
+    const ctx = makeCtx();
+    apply(ctx, { authCheckOnStartup: false });
+    await expect(ctx._toolWhen(NOTIFY_TOOL_NAME, stepFor('s1'))).resolves.toBe(false);
+  });
+
+  it('重载后按当前状态文件求值', async () => {
+    const home = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
+    process.env['DSH_HOME'] = home;
+    writeBridgeState(home, 's1');
+    const first = makeCtx();
+    apply(first, { authCheckOnStartup: false });
+    await expect(first._toolWhen(NOTIFY_TOOL_NAME, stepFor('s1'))).resolves.toBe(true);
+
+    writeBridgeState(home, 's2');
+    const second = makeCtx();
+    apply(second, { authCheckOnStartup: false });
+    await expect(second._toolWhen(NOTIFY_TOOL_NAME, stepFor('s1'))).resolves.toBe(false);
+    await expect(second._toolWhen(NOTIFY_TOOL_NAME, stepFor('s2'))).resolves.toBe(true);
   });
 });
 

@@ -32,3 +32,7 @@
    - `im:message:send_as_bot`
 
 插件不执行安装、初始化或登录。用户登录只请求 `auth:user.id:read`，会替换同一 lark-cli 配置原有的用户授权范围。
+
+## 工具
+
+`lark_notify` 以 bot 身份给已绑定用户发送飞书私聊消息，只在桥接会话可用。
