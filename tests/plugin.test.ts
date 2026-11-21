@@ -269,6 +269,20 @@ describe('通知工具可见性', () => {
     await expect(ctx._toolWhen(NOTIFY_TOOL_NAME, stepFor('s1'))).resolves.toBe(false);
   });
 
+  it('重载后按当前状态文件求值', async () => {
+    const home = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
+    process.env['DSH_HOME'] = home;
+    writeBridgeState(home, 's1');
+    const first = makeCtx();
+    apply(first, { authCheckOnStartup: false });
+    await expect(first._toolWhen(NOTIFY_TOOL_NAME, stepFor('s1'))).resolves.toBe(true);
+
+    writeBridgeState(home, 's2');
+    const second = makeCtx();
+    apply(second, { authCheckOnStartup: false });
+    await expect(second._toolWhen(NOTIFY_TOOL_NAME, stepFor('s1'))).resolves.toBe(false);
+    await expect(second._toolWhen(NOTIFY_TOOL_NAME, stepFor('s2'))).resolves.toBe(true);
+  });
 });
 
 describe('未提供 webServer', () => {
