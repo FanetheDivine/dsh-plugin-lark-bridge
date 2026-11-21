@@ -181,13 +181,20 @@ describe('sendNotification', () => {
   });
 });
 
+/** 构造带桥接判定的工具。 */
+function makeTool(isBridge: boolean, results?: Array<{ ok: boolean }>) {
+  const { cli, calls } = makeCli(results);
+  const tool = buildNotifyTool({
+    getCli: () => cli,
+    getOwner: () => 'ou_1',
+    isBridgeAgent: async () => isBridge,
+  });
+  return { tool, calls };
+}
+
 describe('buildNotifyTool', () => {
   it('定义字段完整', () => {
-    const { cli } = makeCli();
-    const tool = buildNotifyTool({
-      getCli: () => cli,
-      getOwner: () => 'ou_1',
-    });
+    const { tool } = makeTool(true);
     expect(tool.name).toBe('lark_notify');
     expect(tool.parameters['text']).toMatchObject({ required: true, type: 'string' });
     expect(tool.parameters['reply_to']).toMatchObject({ required: false, type: 'string' });
@@ -198,5 +205,59 @@ describe('buildNotifyTool', () => {
     expect(tool.output.render({}, { ok: true, parts: 1, replyTo: 'om_1' })).toEqual([
       { type: 'text', text: expect.stringContaining('已回复') },
     ]);
+  });
+
+  it('非桥接会话不可用时不调用 CLI', async () => {
+    const { tool, calls } = makeTool(false);
+    await expect(
+      tool.execute({ text: 'hello' }, { agent: { session: { id: 's2' } } } as never),
+    ).resolves.toEqual({
+      ok: false,
+      error: { code: 'not-bridge-session', message: 'lark_notify 只在桥接会话可用' },
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it('缺少 agent 或判定异常时同样拒绝', async () => {
+    const { cli, calls } = makeCli();
+    const tool = buildNotifyTool({
+      getCli: () => cli,
+      getOwner: () => 'ou_1',
+      isBridgeAgent: async () => {
+        throw new Error('state unavailable');
+      },
+    });
+    await expect(tool.execute({ text: 'hello' }, {} as never)).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'not-bridge-session' },
+    });
+    await expect(
+      tool.execute({ text: 'hello' }, { agent: { session: { id: 's1' } } } as never),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'not-bridge-session' } });
+    expect(calls).toEqual([]);
+  });
+
+  it('桥接会话执行时仍按现有参数发送', async () => {
+    const { tool, calls } = makeTool(true);
+    await expect(
+      tool.execute({ text: 'hello' }, { agent: { session: { id: 's1' } } } as never),
+    ).resolves.toEqual({ ok: true, parts: 1, messageId: 'om_sent' });
+    expect(calls[0]?.args.slice(0, 5)).toEqual([
+      'im',
+      '+messages-send',
+      '--as',
+      'bot',
+      '--user-id',
+    ]);
+  });
+
+  it('非桥接错误使用独立展示文案', () => {
+    const { tool } = makeTool(true);
+    expect(
+      tool.output.render(
+        {},
+        { ok: false, error: { code: 'not-bridge-session', message: '只在桥接会话可用' } },
+      ),
+    ).toEqual([{ type: 'text', text: '只在桥接会话可用' }]);
   });
 });

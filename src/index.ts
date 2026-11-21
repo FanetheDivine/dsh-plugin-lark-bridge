@@ -15,7 +15,7 @@ import { type ConnectionLike, registerRoutes, type WebServerLike } from './route
 import { SessionManager } from './sessions.ts';
 import { StateStore } from './state.ts';
 import { buildNotifyTool } from './tools.ts';
-import type { Context } from './types.ts';
+import type { Agent, Context } from './types.ts';
 import { describeError } from './utils.ts';
 import { WorkspaceSelection } from './workspace.ts';
 
@@ -85,11 +85,21 @@ export function apply(ctx: Context, config?: unknown): void {
     if (result.current) bridge.sync(auth.current);
   };
 
+  const isBridgeAgent = async (agent: Agent): Promise<boolean> => {
+    try {
+      return await sessions.isBridgeSession(agent.session);
+    } catch {
+      return false;
+    }
+  };
   const notifyTool = buildNotifyTool({
     getCli: () => cli,
     getOwner: () => auth.current.ownerOpenId,
+    isBridgeAgent,
   });
-  const unregisterTool = ctx.tools.register(notifyTool);
+  const unregisterTool = ctx.tools.register(notifyTool, {
+    when: ({ agent }) => isBridgeAgent(agent),
+  });
   ctx.effect(() => () => unregisterTool(), `${PLUGIN_LABEL}: notify tool`);
 
   let disposeRoutes: (() => void) | undefined;
