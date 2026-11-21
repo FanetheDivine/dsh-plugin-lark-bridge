@@ -7,7 +7,7 @@ import { stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
 import type { Agent, AgentOptions, ModelSelection } from '@deepseek-ai/dsh-agent';
-import { createUserMessage } from '@deepseek-ai/dsh-llm';
+import { createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm';
 import { type Session, SessionId } from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-session-title';
 import type { Workspace, WorkspaceRegistry } from '@deepseek-ai/dsh-workspace';
@@ -15,7 +15,7 @@ import type { Workspace, WorkspaceRegistry } from '@deepseek-ai/dsh-workspace';
 import { modelSelectionOf, type PluginConfig, presetOf } from './config.ts';
 import { SESSION_TITLE } from './constants.ts';
 import { BridgeError } from './errors.ts';
-import { LARK_SOURCE } from './message.ts';
+import { isLarkMessage, LARK_SOURCE } from './message.ts';
 import type { StateStore } from './state.ts';
 import { describeError } from './utils.ts';
 import {
@@ -335,6 +335,51 @@ export class SessionManager {
     return { ...created, created: true, cwd };
   }
 
+  /** 选择投递边界：空闲时开新 turn，运行中并入当前 turn。 */
+  private deliver(agent: Agent, message: UserMessage): 'followup' | 'steer' | 'prepend' {
+    if (agent.status !== 'running') {
+      agent.followup(message);
+      return 'followup';
+    }
+    const pending = agent.inbox.nextStep;
+    if (pending.length > 0 && !pending.some(isLarkMessage)) {
+      try {
+        agent.inbox.prepend('next-step', message);
+        return 'prepend';
+      } catch (error) {
+        this.deps.logger.warn(
+          `lark-bridge: cannot prepend a steering message: ${describeError(error)}`,
+        );
+      }
+    }
+    try {
+      agent.steer(message);
+      return 'steer';
+    } catch (error) {
+      this.deps.logger.warn(
+        `lark-bridge: steering is unavailable; falling back to followup: ${describeError(error)}`,
+      );
+      agent.followup(message);
+      return 'followup';
+    }
+  }
+
+  /**
+   * 收尾一次运行中投递。
+   * 驱动已判定 turn 结束时，插话可能留在 next-step 而无人唤醒；此时改为 followup。
+   */
+  private async settleSteering(agent: Agent, message: UserMessage): Promise<void> {
+    await Promise.resolve();
+    await Promise.resolve();
+    if (agent.status !== 'idle') return;
+    if (!agent.inbox.nextStep.some((pending) => pending.id === message.id)) return;
+    agent.inbox.remove(message.id);
+    this.deps.logger.warn(
+      `lark-bridge: steering landed after the turn ended; delivering ${message.id} as a followup`,
+    );
+    agent.followup(message);
+  }
+
   /**
    * 把一段飞书消息块注入桥接会话。
    * @param block - 已格式化的 `<lark-message>` 块。
@@ -354,12 +399,11 @@ export class SessionManager {
           `工作区未注册：${normalizeWorkspacePath(cwd)}`,
         );
       }
-      agent.followup(
-        createUserMessage({
-          content: [{ type: 'text', text: block }],
-          source: LARK_SOURCE,
-        }),
-      );
+      const message = createUserMessage({
+        content: [{ type: 'text', text: block }],
+        source: LARK_SOURCE,
+      });
+      if (this.deliver(agent, message) !== 'followup') await this.settleSteering(agent, message);
       this.failure = undefined;
       return { sessionId, created };
     } catch (error) {

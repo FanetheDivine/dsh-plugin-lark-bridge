@@ -21,6 +21,17 @@ async function setup(
     controller?: 'available' | 'missing';
     resolveFails?: boolean;
     presets?: readonly { id: string; broken?: string }[] | 'rejects' | 'missing';
+    status?: 'idle' | 'running';
+    pendingStep?: readonly {
+      readonly id: string;
+      readonly role: 'user';
+      readonly content: unknown;
+      readonly source: { readonly kind: string };
+    }[];
+    steerError?: boolean;
+    prependError?: boolean;
+    steerSettlesIdle?: boolean;
+    prependSettlesIdle?: boolean;
   } = {},
 ) {
   const home = await mkdtemp(path.join(tmpdir(), 'lark-bridge-sessions-'));
@@ -36,6 +47,15 @@ async function setup(
 
   const appended: Array<[string, unknown]> = [];
   const followups: Array<{ content: unknown; source: unknown }> = [];
+  const steered: Array<{ content: unknown; source: unknown }> = [];
+  const prepended: Array<{ target: string; content: unknown; source: unknown }> = [];
+  const nextStep: Array<{
+    id: string;
+    role: 'user';
+    content: unknown;
+    source: { kind: string };
+  }> = [...(options.pendingStep ?? [])];
+  let status: 'idle' | 'running' = options.status ?? 'idle';
   const attached: string[] = [];
   const pinned: string[] = [];
   const created: Array<{
@@ -54,7 +74,46 @@ async function setup(
     model: {
       select: (selection: unknown) => selections.push(selection),
     },
+    get status() {
+      return status;
+    },
+    inbox: {
+      get nextStep() {
+        return nextStep;
+      },
+      prepend: (
+        target: string,
+        message: { id: string; content: unknown; source: { kind: string } },
+      ) => {
+        if (options.prependError === true) throw new Error('inbox prepend unavailable');
+        prepended.push({ target, content: message.content, source: message.source });
+        nextStep.unshift({
+          id: message.id,
+          role: 'user',
+          content: message.content,
+          source: message.source,
+        });
+        if (options.prependSettlesIdle === true) status = 'idle';
+      },
+      remove: (id: string) => {
+        const index = nextStep.findIndex((item) => item.id === id);
+        if (index < 0) return false;
+        nextStep.splice(index, 1);
+        return true;
+      },
+    },
     followup: (message: { content: unknown; source: unknown }) => followups.push(message),
+    steer: (message: { id: string; content: unknown; source: { kind: string } }) => {
+      if (options.steerError === true) throw new Error('steering unavailable');
+      steered.push(message);
+      nextStep.push({
+        id: message.id,
+        role: 'user',
+        content: message.content,
+        source: message.source,
+      });
+      if (options.steerSettlesIdle === true) status = 'idle';
+    },
   };
   const workspace = {
     id: 'ws-one',
@@ -155,6 +214,12 @@ async function setup(
     pinned,
     appended,
     followups,
+    steered,
+    prepended,
+    nextStep,
+    setStatus: (value: 'idle' | 'running') => {
+      status = value;
+    },
     agent,
     cwd,
     workspaceRoot,
@@ -311,6 +376,129 @@ describe('SessionManager', () => {
   it('尚无会话记录时 isBridgeSession 为 false', async () => {
     const { sessions } = await setup();
     expect(await sessions.isBridgeSession({ id: 's1' } as never)).toBe(false);
+  });
+});
+
+describe('运行中插话', () => {
+  /** 其他来源的 next-step 消息，例如 worker 上报。 */
+  function workerStep(id = 'worker-1') {
+    return {
+      id,
+      role: 'user' as const,
+      content: [{ type: 'text' as const, text: 'worker 上报' }],
+      source: { kind: 'worker-report' },
+    };
+  }
+
+  /** 本插件已排队但尚未被领用的消息。 */
+  function larkStep(id = 'lark-1') {
+    return {
+      id,
+      role: 'user' as const,
+      content: [{ type: 'text' as const, text: '早先的飞书消息' }],
+      source: { kind: 'lark-bridge' },
+    };
+  }
+
+  it('空闲时用 followup 开新 turn', async () => {
+    const { sessions, followups, steered } = await setup();
+    await sessions.inject('空闲消息');
+    expect(followups).toHaveLength(1);
+    expect(steered).toHaveLength(0);
+  });
+
+  it('运行中用 steer 并入当前 turn', async () => {
+    const { sessions, followups, steered, nextStep } = await setup({ status: 'running' });
+    await sessions.inject('运行中消息');
+    expect(followups).toHaveLength(0);
+    expect(steered).toHaveLength(1);
+    expect(steered[0]?.content).toEqual([{ type: 'text', text: '运行中消息' }]);
+    expect(steered[0]?.source).toEqual({ kind: 'lark-bridge' });
+    expect(nextStep).toHaveLength(1);
+  });
+
+  it('运行中已有 worker 消息时插到 next-step 队列之前', async () => {
+    const { sessions, followups, steered, prepended, nextStep } = await setup({
+      status: 'running',
+      pendingStep: [workerStep()],
+    });
+    await sessions.inject('用户新消息');
+    expect(followups).toHaveLength(0);
+    expect(steered).toHaveLength(0);
+    expect(prepended).toHaveLength(1);
+    expect(prepended[0]?.target).toBe('next-step');
+    expect(nextStep.map((item) => String(item.source.kind))).toEqual([
+      'lark-bridge',
+      'worker-report',
+    ]);
+  });
+
+  it('运行中已有本插件消息时继续追加，保持先后顺序', async () => {
+    const { sessions, steered, prepended, nextStep } = await setup({
+      status: 'running',
+      pendingStep: [larkStep()],
+    });
+    await sessions.inject('一');
+    await sessions.inject('二');
+    expect(prepended).toHaveLength(0);
+    expect(steered).toHaveLength(2);
+    expect(JSON.stringify(nextStep[1]?.content)).toContain('一');
+    expect(JSON.stringify(nextStep[2]?.content)).toContain('二');
+  });
+
+  it('steer 不可用时回退 followup', async () => {
+    const { sessions, followups, steered, logger } = await setup({
+      status: 'running',
+      steerError: true,
+    });
+    await sessions.inject('回退消息');
+    expect(steered).toHaveLength(0);
+    expect(followups).toHaveLength(1);
+    expect(JSON.stringify(followups[0]?.content)).toContain('回退消息');
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('falling back to followup'));
+  });
+
+  it('prepend 不可用时回退 steer', async () => {
+    const { sessions, followups, steered, logger } = await setup({
+      status: 'running',
+      pendingStep: [workerStep()],
+      prependError: true,
+    });
+    await sessions.inject('回退消息');
+    expect(followups).toHaveLength(0);
+    expect(steered).toHaveLength(1);
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('cannot prepend'));
+  });
+
+  it('steer 落在 turn 结束竞态时改为 followup，不丢消息', async () => {
+    const { sessions, followups, steered, nextStep, logger } = await setup({
+      status: 'running',
+      steerSettlesIdle: true,
+    });
+    await sessions.inject('竞态消息');
+    expect(steered).toHaveLength(1);
+    expect(followups).toHaveLength(1);
+    expect(JSON.stringify(followups[0]?.content)).toContain('竞态消息');
+    expect(nextStep).toHaveLength(0);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('steering landed after the turn ended'),
+    );
+  });
+
+  it('prepend 落在 turn 结束竞态时改为 followup，不丢消息', async () => {
+    const { sessions, followups, prepended, nextStep, logger } = await setup({
+      status: 'running',
+      pendingStep: [workerStep()],
+      prependSettlesIdle: true,
+    });
+    await sessions.inject('竞态消息');
+    expect(prepended).toHaveLength(1);
+    expect(followups).toHaveLength(1);
+    expect(JSON.stringify(followups[0]?.content)).toContain('竞态消息');
+    expect(nextStep.map((item) => String(item.source.kind))).toEqual(['worker-report']);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('steering landed after the turn ended'),
+    );
   });
 });
 
