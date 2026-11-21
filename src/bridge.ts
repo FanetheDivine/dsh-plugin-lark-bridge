@@ -6,7 +6,7 @@ import { createInterface } from 'node:readline';
 import type { AuthSnapshot } from './auth.ts';
 import type { LarkCli } from './cli.ts';
 import { killChildTree } from './cli.ts';
-import { INJECT_SILENCE_MS, RESTART_MAX_MS, RESTART_MIN_MS } from './constants.ts';
+import { RESTART_MAX_MS, RESTART_MIN_MS } from './constants.ts';
 import { formatQuote, type QuotedMessage, readQuoted } from './quote.ts';
 import type { SessionManager } from './sessions.ts';
 import type { StateStore } from './state.ts';
@@ -108,8 +108,8 @@ export class EventBridge {
   private startedAt = 0;
   private stopped = true;
   private readonly queue: QueuedMessage[] = [];
-  private silenceTimer: NodeJS.Timeout | undefined;
   private draining = false;
+  private delivery: Promise<void> = Promise.resolve();
 
   constructor(deps: BridgeDeps) {
     this.deps = deps;
@@ -132,8 +132,6 @@ export class EventBridge {
     this.stopped = true;
     if (this.restartTimer !== undefined) clearTimeout(this.restartTimer);
     this.restartTimer = undefined;
-    if (this.silenceTimer !== undefined) clearTimeout(this.silenceTimer);
-    this.silenceTimer = undefined;
     if (this.queue.length > 0) {
       this.deps.logger.warn(
         `lark-bridge: dropped ${this.queue.length} queued message(s) [${describeQueue(this.queue)}] on stop`,
@@ -253,47 +251,41 @@ export class EventBridge {
     }
     const quote = await this.readQuote(event);
     this.queue.push({ id, createdAt, receivedAt, block: formatLarkMessage(event, quote) });
-    this.schedule();
+    await this.requestDrain();
     return true;
   }
 
-  /** 重置静默计时；窗口内没有新消息时发起注入。 */
-  private schedule(): void {
-    if (this.silenceTimer !== undefined) clearTimeout(this.silenceTimer);
-    const timer = setTimeout(() => {
-      this.silenceTimer = undefined;
-      void this.drain();
-    }, INJECT_SILENCE_MS);
-    timer.unref?.();
-    this.silenceTimer = timer;
+  /** 把一次 drain 追加到投递链；前一次投递完成后按创建时间顺序继续。 */
+  private requestDrain(): Promise<void> {
+    const next = this.delivery.then(() => this.drain());
+    this.delivery = next.catch((error: unknown) => {
+      this.deps.logger.warn(`lark-bridge: drain failed: ${describeError(error)}`);
+    });
+    return this.delivery;
   }
 
-  /** 取空队列并按创建时间升序批量注入；失败的批次直接丢弃。 */
+  /** 逐条注入队列中的消息，每条按创建时间升序排列。失败的条目记录后继续。 */
   private async drain(): Promise<void> {
     if (this.draining || this.queue.length === 0) return;
     this.draining = true;
     try {
       while (this.queue.length > 0) {
-        const batch = this.queue.splice(0).sort((a, b) => a.createdAt - b.createdAt);
-        const text = batch.map((item) => item.block).join('\n\n');
-        const ids = batch
-          .map((item) => `${item.id}@${formatTime(item.createdAt)}/${formatTime(item.receivedAt)}`)
-          .join(',');
+        this.queue.sort((a, b) => a.createdAt - b.createdAt);
+        const item = this.queue.shift() as QueuedMessage;
+        const ids = `${item.id}@${formatTime(item.createdAt)}/${formatTime(item.receivedAt)}`;
         try {
-          const result = await this.deps.sessions.inject(text);
+          const result = await this.deps.sessions.inject(item.block);
           this.deps.logger.info(
-            `lark-bridge: delivered ${batch.length} message(s) [${ids}] to session ${result.sessionId} (created=${String(result.created)})`,
+            `lark-bridge: delivered 1 message(s) [${ids}] to session ${result.sessionId} (created=${String(result.created)})`,
           );
         } catch (error) {
           this.deps.logger.warn(
-            `lark-bridge: failed ${batch.length} message(s) [${ids}]: ${describeError(error)}`,
+            `lark-bridge: failed 1 message(s) [${ids}]: ${describeError(error)}`,
           );
         }
-        if (this.silenceTimer !== undefined) return;
       }
     } finally {
       this.draining = false;
-      if (this.queue.length > 0 && this.silenceTimer === undefined) this.schedule();
     }
   }
 
