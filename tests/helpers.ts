@@ -39,6 +39,10 @@ export function makeCtx(options: { services?: Record<string, unknown> } = {}) {
   const services = new Map<string, unknown>(Object.entries(options.services ?? {}));
   const onCallbacks = new Map<string, ((...args: unknown[]) => unknown)[]>();
   const registeredTools: unknown[] = [];
+  const toolOptions = new Map<
+    unknown,
+    { when?: (context: unknown) => boolean | Promise<boolean> }
+  >();
   const activeTools = new Set<unknown>();
   const effectDisposers: Array<() => void> = [];
   const loggerCalls: Array<{ level: 'debug' | 'info' | 'warn'; args: unknown[] }> = [];
@@ -56,8 +60,14 @@ export function makeCtx(options: { services?: Record<string, unknown> } = {}) {
   const ctx = {
     logger,
     tools: {
-      register: (def: unknown) => {
+      register: (def: unknown, options?: unknown) => {
         registeredTools.push(def);
+        if (options !== undefined) {
+          toolOptions.set(
+            def,
+            options as { when?: (context: unknown) => boolean | Promise<boolean> },
+          );
+        }
         activeTools.add(def);
         return () => {
           activeTools.delete(def);
@@ -83,6 +93,13 @@ export function makeCtx(options: { services?: Record<string, unknown> } = {}) {
     },
     _onCallbacks: onCallbacks,
     _registeredTools: registeredTools,
+    /** 按 agent 求值注册条件；没有条件时返回 true。 */
+    _toolWhen: async (name: string, context: unknown): Promise<boolean> => {
+      const def = registeredTools.find((tool) => (tool as { name?: string }).name === name);
+      const when = def === undefined ? undefined : toolOptions.get(def)?.when;
+      if (when === undefined) return true;
+      return await when(context);
+    },
     _services: services,
     _activeTools: activeTools,
     /** 触发某事件的全部监听。 */
@@ -98,6 +115,7 @@ export function makeCtx(options: { services?: Record<string, unknown> } = {}) {
   return ctx as unknown as Context & {
     _onCallbacks: Map<string, ((...args: unknown[]) => unknown)[]>;
     _registeredTools: Array<{ name?: string; description?: string }>;
+    _toolWhen: (name: string, context: unknown) => Promise<boolean>;
     _activeTools: Set<{ name?: string; description?: string }>;
     _emit: (type: string, ...args: unknown[]) => void;
     _dispose: () => void;
