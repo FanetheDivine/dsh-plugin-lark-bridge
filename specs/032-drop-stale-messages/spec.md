@@ -8,7 +8,7 @@
 
 **Input**: User description: "67993e96-3a39-4848-ae68-d8bc5456e895 这个会话是此插件创建的。里面我的三条消息被发送了三次。前两条都是我在插件配置正常之前注入的；第三条才是我意图中真正用于测试的。并且三条消息注入的时间间隔和我发送的不相符。接受飞书事件后立刻响应远程避免重推；立刻注入/开启会话；使用队列的方式，每次注入/开启会话都一次性处理全部的消息，分为多个 lark-msg 块。监听在全部配置完成后才开始。每次注入都要等待 15 秒没有新消息。"
 
-**2026-11-22 变更**: 去掉 15 秒静默窗口。消息到达后立即注入；每条消息各自注入一次。
+**2026-11-22 变更**: 去掉 15 秒静默窗口。消息到达后立即注入；每条消息各自注入一次。会话运行中把消息并入当前 turn，在下一个 step 边界领用。
 
 **变更类别**: 缺陷修复
 
@@ -34,6 +34,7 @@
 - [x] [D-007] ACK 由谁完成：lark-cli 自动回 ACK，插件不额外响应远程。 | Depends on: none | Status: answered
 - [x] [D-008] 注入的触发时机：入队后立即注入，不等待静默窗口。 | Depends on: D-004 | Status: answered
 - [x] [D-009] 注入是否有合并窗口：没有；每条消息各自注入一次，不开放配置。 | Depends on: D-008 | Status: answered
+- [x] [D-010] 会话运行中如何注入：用 `agent.steer` 并入当前 turn，在下一个 step 边界领用；空闲时用 `agent.followup` 开新 turn。 | Depends on: D-008 | Status: answered
 
 ## Clarifications
 
@@ -53,12 +54,14 @@
 
 - [D-008] Q: 注入何时触发？ -> A: 消息入队后立即注入，不等待静默窗口。
 - [D-009] Q: 是否有合并窗口？ -> A: 没有；每条消息各自注入一次。
+- [D-010] Q: 运行中如何注入？ -> A: 用 steer 并入当前 turn，在下一个 step 边界领用；turn 结束竞态回退 followup。
 
 ## Review Record
 
 - 2026-11-21 | Decision: Approved | Scope: 加入 15 秒静默窗口之前的版本 | Open items: none | Risks: 重推节奏依赖飞书服务端；启动前消息会被永久丢弃；队列批量注入改变了 Spec 029 的 D-003 行为
 - 2026-11-21 | Decision: Approved | Scope: 当前完整文档（含 15 秒静默窗口） | Open items: none | Risks: 15 秒等待让每条消息的注入固定延后
 - 2026-11-22 | Decision: Approved | Scope: 去掉 15 秒静默窗口，消息到达后立即逐条注入 | Open items: none | Risks: 每条消息各占一次注入，回复次数增加；连续消息不再合并为一个轮次
+- 2026-11-22 | Decision: Approved | Scope: 运行中消息用 steer 并入当前 turn，turn 结束竞态回退 followup | Open items: none | Risks: 插话会打断当前任务上下文；steer 与 worker 上报共享 next-step 队列，优先级由插入位置决定
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -126,6 +129,23 @@
 
 ---
 
+### User Story 5 - 运行中的会话插话 (Priority: P1)
+
+飞书消息到达时桥接会话正在执行 turn。插件把消息并入当前 turn，宿主在下一个 step 边界领用；会话空闲时立即开新 turn。steer 落在 turn 结束之后时改为 followup，消息不丢失。
+
+**Why this priority**: 等当前 turn 结束会把消息拖到几分钟之后，用户感知不到远程会话在及时响应。
+
+**Independent Test**: 让会话执行长任务，发消息，检查消息在当前 turn 的下一个 step 出现；模拟 turn 结束竞态，检查消息仍被投递。
+
+**Acceptance Scenarios**:
+
+1. **Given** 会话运行中，**When** 飞书消息到达，**Then** 用 steer 并入当前 turn，在下一个 step 边界领用。
+2. **Given** 会话空闲，**When** 飞书消息到达，**Then** 用 followup 立即开启新 turn。
+3. **Given** 运行中已有其他来源的 next-step 输入，**When** 飞书消息到达，**Then** 用户消息插到这些输入之前；已有本插件消息时继续追加，保持先后顺序。
+4. **Given** steer 落在 turn 结束之后，**When** 消息仍留在 next-step，**Then** 改为 followup 投递，不丢失。
+
+---
+
 ### Edge Cases
 
 - 消息的 `create_time` 正好等于监听启动时刻：按新消息处理。
@@ -135,6 +155,8 @@
 - 注入失败：丢弃该条并记录原因，继续投递后续消息。
 - 单条消息正文超长：按实现约束处理，块边界保持完整。
 - 消息持续到达：每条到达后立即投递；前一条注入未结束时后一条排在投递链中。
+- 会话运行中到达：消息并入当前 turn，在下一个 step 边界领用；不打断正在执行的模型请求或工具调用。
+- steer 或 prepend 落在 turn 结束竞态：插件检测到消息仍留在 next-step 且会话空闲时，改为 followup 投递。
 - 注入进行中监听停止：队列清空，未投递的消息丢弃并记录；已在投递中的消息完成本次注入。
 
 ## Requirements *(mandatory)*
@@ -149,18 +171,21 @@
 - **FR-005a**: 注入 MUST 按 `create_time` 升序串行执行；注入执行期间到达的消息 MUST 保留在队列，并在当前注入结束后继续投递。
 - **FR-006**: 监听停止时 MUST 清空队列，未注入的消息 MUST 记录为丢弃。
 - **FR-007**: 插件 MUST 在入队前按 `message_id` 去重，重复推送 MUST NOT 重复入队。
-- **FR-008**: 注入失败 MUST 丢弃该批消息并记录原因，MUST NOT 在后续注入中重试。
+- **FR-008**: 注入失败 MUST 丢弃该条消息并记录原因，MUST NOT 在后续注入中重试。
 - **FR-009**: ACK MUST 由 lark-cli 完成；插件 MUST 持续读取事件消费者的输出，ACK 与注入 MUST 互不阻塞，且 MUST NOT 额外响应远程。
 - **FR-010**: 配置保存与工作区增删 MUST NOT 重启监听；只有鉴权身份变化时才停止或重启。
 - **FR-011**: 过滤、丢弃与失败日志 MUST 包含 `message_id`、创建时间、到达时间与原因。
 - **FR-011a**: 注入 MUST NOT 依赖计时器或固定延时来保序或合并。
 - **FR-012**: 文档 MUST 说明监听启动条件、队列逐条注入、ACK 与飞书重推的边界。
+- **FR-013**: 会话运行中 MUST 用 `agent.steer` 把消息并入当前 turn；会话空闲 MUST 用 `agent.followup` 开启新 turn。运行态以宿主 `agent.status === 'running'` 判定。
+- **FR-014**: 运行中已有其他来源的 next-step 输入且没有更早的本插件消息时，MUST 用 `agent.inbox.prepend('next-step', ...)` 把用户消息插到这些输入之前；已有本插件消息时 MUST 追加，保持消息先后顺序。
+- **FR-015**: steer 或 prepend 落在 turn 结束竞态时，MUST 检测消息是否仍在 next-step；会话已空闲时 MUST 移除该条并改用 `agent.followup` 投递。
 
 ### Key Entities
 
 - **鉴权快照**: 包含 CLI、bot、user 状态与 owner open_id；决定监听何时启动。
 - **监听会话**: 本次事件消费者的运行区间与启动时刻；用于区分新消息与重推消息。
-- **消息队列**: 按创建时间排序的待注入消息；一次注入取走全部条目。
+- **消息队列**: 按创建时间排序的待注入消息；每次投递取走一条。
 - **消息事件**: 包含 `message_id`、`create_time`、发送者与会话类型；是过滤、去重与入队的输入。
 
 ## Success Criteria *(mandatory)*
@@ -173,6 +198,8 @@
 - **SC-003**: 积压消息按创建时间升序投递，每条注入只含 1 个 `<lark-message>` 块。
 - **SC-004**: 消费者在线期间，同一条消息只被处理一次，不出现新的重推注入。
 - **SC-005**: 每次过滤或失败都能在宿主日志中查到 `message_id`、时间与原因。
+- **SC-006**: 会话运行中到达的消息在下一个 step 边界进入会话，不等待当前 turn 结束。
+- **SC-007**: turn 结束竞态下投递的消息仍在下一 turn 出现，注入次数不减少。
 
 ## Assumptions
 
@@ -181,3 +208,5 @@
 - 宿主 `agent.followup` 在会话空闲时立即开启新一轮。
 - 本机与飞书的时钟偏差在 10 秒以内。
 - 消息在事件处理完成后立即发起注入；会话空闲时注入立即开启新轮次。
+- 宿主 `agent.status` 为 `running` 表示有活动 turn；`agent.steer` 与 `agent.inbox.prepend('next-step', ...)` 都在下一个 step 边界被领用。
+- `agent.steer` 在会话空闲时也会开启新 turn；插件按状态分流只为保持语义清晰。
