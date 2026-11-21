@@ -261,6 +261,14 @@ describe('通知工具可见性', () => {
     await expect(ctx._toolWhen(NOTIFY_TOOL_NAME, stepFor('s2'))).resolves.toBe(false);
   });
 
+  it('没有桥接会话时对任何会话都不可见', async () => {
+    const home = mkdtempSync(path.join(tmpdir(), 'lark-bridge-test-'));
+    process.env['DSH_HOME'] = home;
+    const ctx = makeCtx();
+    apply(ctx, { authCheckOnStartup: false });
+    await expect(ctx._toolWhen(NOTIFY_TOOL_NAME, stepFor('s1'))).resolves.toBe(false);
+  });
+
 });
 
 describe('未提供 webServer', () => {
