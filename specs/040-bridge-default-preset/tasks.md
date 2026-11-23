@@ -34,11 +34,11 @@
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T008 更新 `README.md` 的「飞书任务与调度会话」启用步骤：去掉手动选预设，写明默认预设与改选方式
-- [ ] T009 更新 `docs/known-risks.md` 的预设小节为「预设默认与改选」，写明默认值与改选后的能力缺失
-- [ ] T010 更新 `docs/how-it-works.md` 的配置小节，写明 `sessionPreset` 缺省 `sa-dispatch`、空值跟随宿主默认
-- [ ] T011 在 `CHANGELOG.md` 的 Unreleased 下新增 Changed 条目，版本号保持 `0.3.0`
-- [ ] T012 运行 `pnpm format && pnpm check` 通过后提交本阶段 commit
+- [x] T008 更新 `README.md` 的「飞书任务与调度会话」启用步骤：去掉手动选预设，写明默认预设与改选方式
+- [x] T009 更新 `docs/known-risks.md` 的预设小节为「预设默认与改选」，写明默认值与改选后的能力缺失
+- [x] T010 更新 `docs/how-it-works.md` 的配置小节，写明 `sessionPreset` 缺省 `sa-dispatch`、空值跟随宿主默认
+- [x] T011 在 `CHANGELOG.md` 的 Unreleased 下新增 Changed 条目，版本号保持 `0.3.0`
+- [x] T012 运行 `pnpm format && pnpm check` 通过后提交本阶段 commit
 
 ## Dependencies & Execution Order
 
