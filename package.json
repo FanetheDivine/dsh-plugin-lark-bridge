@@ -12,7 +12,9 @@
     "harness",
     "plugin",
     "lark",
-    "feishu"
+    "feishu",
+    "lark-super-agent",
+    "dispatch"
   ],
   "exports": {
     ".": {
@@ -24,12 +26,31 @@
       "default": "./dist/client.js"
     },
     "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg"
+    "./icon": "./icon.svg",
+    "./lark-super-agent": {
+      "types": "./dist/lark-super-agent/index.d.ts",
+      "import": "./dist/lark-super-agent.mjs"
+    },
+    "./lark-super-agent/locale/*.json": "./rows/lark-super-agent/locale/*.json",
+    "./lark-super-agent/icon": "./rows/lark-super-agent/icon.svg",
+    "./sa-dispatch": {
+      "types": "./dist/sa-dispatch/index.d.ts",
+      "import": "./dist/sa-dispatch.mjs"
+    },
+    "./sa-dispatch/locale/*.json": "./rows/sa-dispatch/locale/*.json",
+    "./sa-dispatch/icon": "./rows/sa-dispatch/icon.svg",
+    "./sa-worker": {
+      "types": "./dist/sa-worker/index.d.ts",
+      "import": "./dist/sa-worker.mjs"
+    },
+    "./sa-worker/locale/*.json": "./rows/sa-worker/locale/*.json",
+    "./sa-worker/icon": "./rows/sa-worker/icon.svg"
   },
   "files": [
     "dist",
     "cordis.patch.yml",
     "locale/*.json",
+    "rows",
     "icon.svg",
     "README.md"
   ],
@@ -77,6 +98,9 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write ."
   },
+  "dependencies": {
+    "dsh-plugin-meta-tools": "0.1.7"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.8",
     "@deepseek-ai/cordis": "~4.1.0",
@@ -118,6 +142,7 @@
     "tsdown": "^0.22.14",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10",
+    "yaml": "^2.9.1",
     "zod": "4.6.6",
     "zustand": "^5.1.0"
   },
