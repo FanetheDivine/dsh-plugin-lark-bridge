@@ -49,7 +49,7 @@ description: "Task list for 038-icon-full-bleed"
 - [ ] T007 [P] [US2] 修改 `locale/zh.json`：`meta.title` 为「用飞书连接DSH」，`meta.description` 为「配置lark-cli，用在手机上也可以和DSH对话」
 - [ ] T008 [P] [US2] 修改 `locale/en.json`：`meta.title` 为 `Connect DSH from Lark`，`meta.description` 为 `Configure lark-cli so you can talk to DSH from your phone too.`
 - [ ] T009 [P] [US2] 修改 `package.json` 的 `description` 为「配置lark-cli，用在手机上也可以和DSH对话」
-- [ ] T010 [US2] 运行 `pnpm test:code -- tests/metadata.test.ts` 与 `npm pack --dry-run --json`，确认键集、非空、单行断言通过，包描述为新文案，包内仍含 `icon.svg` 与 `locale/*.json`
+- [ ] T010 [US2] 运行 `pnpm test:code -- tests/metadata.test.ts` 与 `npm pack --dry-run --json`，确认键集、非空、单行断言通过，包内仍含 `icon.svg` 与 `locale/*.json`，`package.json` 的 `description` 为新文案
 - [ ] T011 [US2] 提交元数据改动，commit 说明 `feat(038): 插件标题与描述改为飞书连接 DSH`
 
 ## Phase 5: User Story 3 - 小尺寸与宿主约束下仍正常 (P3)

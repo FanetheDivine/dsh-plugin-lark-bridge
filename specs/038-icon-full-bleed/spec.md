@@ -35,6 +35,7 @@
 - [D-005] Q: 中文标题改为「用飞书连接DSH」，英文标题用哪个？ -> A: `Connect DSH from Lark`。
 - [D-006] Q: 英文描述用哪句？ -> A: `Configure lark-cli so you can talk to DSH from your phone too.`
 - [D-007] Q: `package.json` 的 `description` 是否一起改？ -> A: 同步改为新描述「配置lark-cli，用在手机上也可以和DSH对话」。
+- 实现澄清：`npm pack --dry-run --json` 不输出包描述字段，SC-006 的描述核对改为直接读 `package.json`；需求文案不变。
 
 ## Review Record
 
@@ -133,7 +134,7 @@
 - **SC-003**: 以 30px 渲染时，三段品牌色仍可区分，标志轮廓无缺口。
 - **SC-004**: 图标文件不超过 256 KiB，宿主解码成功且不回落默认图；在真实宿主中确认 48px 卡片底板与 40px 行底板的渲染结果。
 - **SC-005**: 中文与英文的插件标题、描述分别等于 FR-009 至 FR-012 的文案，插件停用状态下同样可见。
-- **SC-006**: `npm pack --dry-run --json` 的包描述等于 FR-013 的文案，发布包包含图标与两份元数据文件。
+- **SC-006**: `package.json` 的 `description` 等于 FR-013 的文案，发布包包含图标与两份元数据文件。
 
 ## Assumptions
 

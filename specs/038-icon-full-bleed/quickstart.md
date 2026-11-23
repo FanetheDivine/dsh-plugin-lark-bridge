@@ -40,10 +40,15 @@ pnpm format && pnpm check
 npm pack --dry-run --json
 ```
 
-预期：
+预期：文件列表含 `icon.svg`、`locale/zh.json`、`locale/en.json`。
 
-- 文件列表含 `icon.svg`、`locale/zh.json`、`locale/en.json`。
-- 包描述为「配置lark-cli，用在手机上也可以和DSH对话」。
+`npm pack --json` 不输出描述字段，描述直接读清单：
+
+```sh
+node -e "console.log(require('./package.json').description)"
+```
+
+预期：「配置lark-cli，用在手机上也可以和DSH对话」。
 
 ## 实机验证
 
