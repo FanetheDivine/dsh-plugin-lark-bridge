@@ -38,12 +38,12 @@ description: "Tasks for 039-dispatch-session-migration"
 
 **Purpose**: `lark-super-agent` 全局行提供 `larkSuperAgent` 服务，所有用户故事都依赖它
 
-- [ ] T007 逐字复制 `src/lark-super-agent/{api,blocks,bridge,git,ids,notes,reports,service,index}.ts`，不复制 `status.ts`
-- [ ] T008 按 plan A-01、A-02 修改：删除 `service.ts` 的 `status()` 与对 `status.ts` 的引用、`api.ts` 的 `status` 成员；`index.ts` 只保留 `ctx.effect(() => ctx.provide('larkSuperAgent', service))`，删除 `connection` 注入、路由与 `../rows.ts`、`../utils.ts` 引用；更新文件顶部注释
-- [ ] T009 按 plan A-04 把 `../types.ts` 引用对齐本仓 `src/types.ts` 的 `Context`；补齐类型检查需要的最小改动
-- [ ] T010 按 plan A-03 在 `src/lark-super-agent/service.ts` 读取 `workspaceRoot` 后经 `src/workspace-path.ts` 的 `toHostWorkspacePath` 转换，再用于 `NotesStore`、`ReportStore`；`sendReport` 与 `notifyFailure` 同样处理
-- [ ] T011 [P] 逐字复制 `tests/lark-super-agent-{blocks,git,notes,reports,service,index}.test.ts`；`index` 测试删除路由断言，只断言 `provide('larkSuperAgent')`
-- [ ] T012 在 `tests/lark-super-agent-service.test.ts` 增加用例：`state.json` 的 `workspaceRoot` 为 Linux 风格路径时，服务在 `win32` 平台写入转换后的原生目录；POSIX 路径保持原样
+- [X] T007 逐字复制 `src/lark-super-agent/{api,blocks,bridge,git,ids,notes,reports,service,index}.ts`，不复制 `status.ts`
+- [X] T008 按 plan A-01、A-02 修改：删除 `service.ts` 的 `status()` 与对 `status.ts` 的引用、`api.ts` 的 `status` 成员；`index.ts` 只保留 `ctx.effect(() => ctx.provide('larkSuperAgent', service))`，删除 `connection` 注入、路由与 `../rows.ts`、`../utils.ts` 引用；更新文件顶部注释
+- [X] T009 按 plan A-04 把 `../types.ts` 引用对齐本仓 `src/types.ts` 的 `Context`；补齐类型检查需要的最小改动
+- [X] T010 按 plan A-03 在 `src/lark-super-agent/service.ts` 读取 `workspaceRoot` 后经 `src/workspace-path.ts` 的 `toHostWorkspacePath` 转换，再用于 `NotesStore`、`ReportStore`；`sendReport` 与 `notifyFailure` 同样处理
+- [X] T011 [P] 逐字复制 `tests/lark-super-agent-{blocks,git,notes,reports,service,index}.test.ts`；`index` 测试删除路由断言，只断言 `provide('larkSuperAgent')`
+- [X] T012 在 `tests/lark-super-agent-service.test.ts` 增加用例：`state.json` 的 `workspaceRoot` 为 Linux 风格路径时，服务在 `win32` 平台写入转换后的原生目录；POSIX 路径保持原样
 
 **Checkpoint**: commit `feat(039): 迁入 lark-super-agent 调度服务`
 
