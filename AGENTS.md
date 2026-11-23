@@ -1,6 +1,6 @@
 # 项目说明
 
-`dsh-plugin-lark-bridge` 是 DSH 插件：通过 lark-cli 的 bot 身份接收飞书私聊消息，注入 DSH 会话，并提供通知用户的工具。用 TypeScript 开发，用 tsdown 构建，用 biome 检查代码质量，用 vitest 运行测试。
+`dsh-plugin-lark-bridge` 是 DSH 插件：通过 lark-cli 的 bot 身份接收飞书私聊消息，注入 DSH 会话，并提供通知用户的工具。它还提供 `SA-调度会话` 与 `SA-工作会话` 两个预设，用飞书远程派发任务。用 TypeScript 开发，用 tsdown 构建，用 biome 检查代码质量，用 vitest 运行测试。
 
 - 常用 pnpm 脚本：`dev`、`build`、`check`、`full-check`、`release`、`test:code`、`test:dist`、`lint`、`lint:fix`、`format`。
 - 命令说明见 [development.md](./docs/development.md#命令)。

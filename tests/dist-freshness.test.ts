@@ -15,6 +15,12 @@ const PRODUCT_FILES = [
   'dist/index.mjs',
   'dist/index.d.ts',
   'dist/client/index.d.ts',
+  'dist/lark-super-agent.mjs',
+  'dist/lark-super-agent/index.d.ts',
+  'dist/sa-dispatch.mjs',
+  'dist/sa-dispatch/index.d.ts',
+  'dist/sa-worker.mjs',
+  'dist/sa-worker/index.d.ts',
 ];
 
 /** 输入的默认时间戳（秒），早于产物。 */

@@ -1,5 +1,5 @@
 // package.json 打包回归测试：npm pack --dry-run 断言 tarball 只含发布所需文件。
-// files 字段（package.json）决定分发内容：dist + cordis.patch.yml + locale/*.json + icon.svg + README.md；
+// files 字段（package.json）决定分发内容：dist + cordis.patch.yml + locale/*.json + rows + icon.svg + README.md；
 // src / tests / scripts 等开发文件不得进包。产物由 build 生成，过期时测试失败。
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -12,6 +12,9 @@ import { assertFreshDist } from './support/dist-freshness.ts';
 
 /** 仓库根目录（tests/ 的上一级）。 */
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/** 主行之外的三个行入口。 */
+const ROW_NAMES = ['lark-super-agent', 'sa-dispatch', 'sa-worker'] as const;
 
 /** 发布清单中的运行时依赖。 */
 const manifest = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as {
@@ -67,6 +70,23 @@ describe('npm 包内容（npm pack --dry-run）', () => {
     expect([...packed].some((p) => p.startsWith('tests/'))).toBe(false);
     expect([...packed].some((p) => p.startsWith('scripts/'))).toBe(false);
   }, 30_000);
+
+  it.each(ROW_NAMES)(
+    'tarball 含 %s 的宿主入口、类型、图标与元数据',
+    (row) => {
+      const packed = packedPaths();
+      expect(packed.has(`dist/${row}.mjs`)).toBe(true);
+      expect(packed.has(`dist/${row}/index.d.ts`)).toBe(true);
+      expect(packed.has(`rows/${row}/icon.svg`)).toBe(true);
+      expect(packed.has(`rows/${row}/locale/en.json`)).toBe(true);
+      expect(packed.has(`rows/${row}/locale/zh.json`)).toBe(true);
+    },
+    30_000,
+  );
+
+  it('随包安装 dsh-plugin-meta-tools，供 SA-调度会话预设加载', () => {
+    expect(manifest.dependencies?.['dsh-plugin-meta-tools']).toBe('0.1.7');
+  });
 
   it('前端产物以包名注册闭包工厂', () => {
     // 读取的产物与包内容一致

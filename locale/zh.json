@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "用飞书连接DSH",
-    "description": "配置lark-cli，用在手机上也可以和DSH对话"
+    "title": "用飞书和DSH对话",
+    "description": "配置lark-cli即可在手机和dsh对话，体验Super Agent！"
   }
 }

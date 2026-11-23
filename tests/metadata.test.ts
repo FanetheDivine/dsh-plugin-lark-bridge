@@ -1,6 +1,6 @@
-// 插件元数据测试：断言 locale/<语言 id>.json 的结构、键集与打包声明。
+// 插件元数据测试：断言根行 locale/ 与各行 rows/<row>/locale/ 的结构、键集与打包声明。
 // 宿主在插件未激活时读取这些文件，因此校验放在测试里，不进入运行时。
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -8,8 +8,11 @@ import { describe, expect, it } from 'vitest';
 /** 仓库根目录（tests/ 的上一级）。 */
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** 元数据目录。 */
-const LOCALE_DIR = path.join(ROOT, 'locale');
+/** 主行之外的三个行。 */
+const ROW_NAMES = ['lark-super-agent', 'sa-dispatch', 'sa-worker'] as const;
+
+/** 元数据目录：根行与各行，相对仓库根。 */
+const LOCALE_DIRS = ['locale', ...ROW_NAMES.map((row) => `rows/${row}/locale`)];
 
 /** 基线语言：前端字典与元数据都提供这两份。 */
 const BASELINE_LOCALES = ['en', 'zh'];
@@ -18,8 +21,8 @@ const BASELINE_LOCALES = ['en', 'zh'];
 const FORBIDDEN_CHARS = ['\u200b', '\ufeff'];
 
 /** 读取一份元数据文件，返回解析结果与原文。 */
-function readLocale(name: string): { text: string; data: unknown } {
-  const text = readFileSync(path.join(LOCALE_DIR, `${name}.json`), 'utf8');
+function readLocale(dir: string, name: string): { text: string; data: unknown } {
+  const text = readFileSync(path.join(ROOT, dir, `${name}.json`), 'utf8');
   return { text, data: JSON.parse(text) };
 }
 
@@ -31,14 +34,14 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-describe('插件元数据资源', () => {
+describe.each(LOCALE_DIRS)('%s 元数据资源', (dir) => {
   it('目录里只有基线语言的资源文件，文件名即语言 id', () => {
-    const files = readdirSync(LOCALE_DIR).filter((name) => name.endsWith('.json'));
+    const files = readdirSync(path.join(ROOT, dir)).filter((name) => name.endsWith('.json'));
     expect(files.sort()).toEqual(BASELINE_LOCALES.map((id) => `${id}.json`));
   });
 
   it.each(BASELINE_LOCALES)('%s 的 meta 含非空的 title 与 description', (id) => {
-    const meta = asRecord(asRecord(readLocale(id).data)['meta']);
+    const meta = asRecord(asRecord(readLocale(dir, id).data)['meta']);
     expect(Object.keys(meta).sort()).toEqual(['description', 'title']);
     for (const key of ['title', 'description']) {
       const value = meta[key];
@@ -51,7 +54,7 @@ describe('插件元数据资源', () => {
 
   it('各语言的 meta 键集一致', () => {
     const keysOf = (id: string) =>
-      Object.keys(asRecord(asRecord(readLocale(id).data)['meta'])).sort();
+      Object.keys(asRecord(asRecord(readLocale(dir, id).data)['meta'])).sort();
     const [first, ...rest] = BASELINE_LOCALES.map(keysOf);
     for (const keys of rest) {
       expect(keys).toEqual(first);
@@ -60,7 +63,7 @@ describe('插件元数据资源', () => {
 
   it('资源不含零宽空格与 BOM', () => {
     for (const id of BASELINE_LOCALES) {
-      const { text } = readLocale(id);
+      const { text } = readLocale(dir, id);
       for (const char of FORBIDDEN_CHARS) {
         expect(text.includes(char)).toBe(false);
       }
@@ -69,7 +72,7 @@ describe('插件元数据资源', () => {
 
   it('声明 meta.detail 时指向包内 Markdown 文件', () => {
     for (const id of BASELINE_LOCALES) {
-      const meta = asRecord(asRecord(readLocale(id).data)['meta']);
+      const meta = asRecord(asRecord(readLocale(dir, id).data)['meta']);
       const detail = meta['detail'];
       if (detail === undefined) continue;
       expect(typeof detail).toBe('string');
@@ -77,10 +80,25 @@ describe('插件元数据资源', () => {
       expect(() => readFileSync(path.join(ROOT, String(detail)), 'utf8')).not.toThrow();
     }
   });
+});
 
-  it('package.json 导出并打包全部元数据资源', () => {
-    const manifest = asRecord(JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')));
-    expect(asRecord(manifest['exports'])['./locale/*.json']).toBe('./locale/*.json');
+describe('元数据清单声明', () => {
+  const manifest = asRecord(JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')));
+  const exportsMap = asRecord(manifest['exports']);
+
+  it('package.json 导出并打包根行元数据资源', () => {
+    expect(exportsMap['./locale/*.json']).toBe('./locale/*.json');
     expect(manifest['files']).toContain('locale/*.json');
+  });
+
+  it.each(ROW_NAMES)('package.json 导出 %s 的模块、元数据与图标', (row) => {
+    expect(asRecord(exportsMap[`./${row}`])).toEqual({
+      types: `./dist/${row}/index.d.ts`,
+      import: `./dist/${row}.mjs`,
+    });
+    expect(exportsMap[`./${row}/locale/*.json`]).toBe(`./rows/${row}/locale/*.json`);
+    expect(exportsMap[`./${row}/icon`]).toBe(`./rows/${row}/icon.svg`);
+    expect(existsSync(path.join(ROOT, 'rows', row, 'icon.svg'))).toBe(true);
+    expect(manifest['files']).toContain('rows');
   });
 });
