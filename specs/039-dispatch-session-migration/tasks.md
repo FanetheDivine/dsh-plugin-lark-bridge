@@ -110,7 +110,7 @@ description: "Tasks for 039-dispatch-session-migration"
 
 ## Phase 7: 实机验证
 
-- [ ] T032 按 `quickstart.md` 执行 RD-1 至 RD-5，结果写入 `specs/039-dispatch-session-migration/real-device-report.md`
+- [X] T032 按 `quickstart.md` 执行 RD-1 至 RD-5，结果写入 `specs/039-dispatch-session-migration/real-device-report.md`
 
 **Checkpoint**: commit `test(039): 实机验证报告`
 
