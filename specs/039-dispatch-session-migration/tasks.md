@@ -85,9 +85,9 @@ description: "Tasks for 039-dispatch-session-migration"
 
 **Independent Test**: 新增测试通过，现有 `tests/plugin.test.ts` 等不改动且通过
 
-- [ ] T021 [P] [US3] 在 `tests/lark-super-agent-notes.test.ts` 增加用例：预置一份组合包格式的 `message-task-status.json` 与 `workspaces.json`，服务 `updateTask` 与 `listCandidates` 读写成功且格式不变
-- [ ] T022 [P] [US5] 在 `tests/presets-patch.test.ts` 增加断言：主行 `dsh-plugin-lark-bridge` 的配置仍只有 `workspaceRoot: ''`，补丁不改动主行与 `agent-preset-registry`
-- [ ] T023 [US5] 运行 `pnpm full-check`，确认 `dist` 只新增三个宿主入口，现有测试零改动通过
+- [X] T021 [P] [US3] 在 `tests/lark-super-agent-service.test.ts` 增加用例：预置一份组合包格式的 `message-task-status.json` 与 `workspaces.json`，服务 `updateTask` 与 `listCandidates` 读写成功且格式不变
+- [X] T022 [P] [US5] 在 `tests/presets-patch.test.ts` 增加断言：主行 `dsh-plugin-lark-bridge` 的配置仍只有 `workspaceRoot: ''`，补丁不改动主行与 `agent-preset-registry`
+- [X] T023 [US5] 运行 `pnpm full-check`，确认 `dist` 只新增三个宿主入口，现有测试零改动通过
 
 **Checkpoint**: commit `test(039): 覆盖升级数据与现有功能回归`
 

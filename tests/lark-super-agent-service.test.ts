@@ -115,6 +115,63 @@ describe('lark-super-agent service', { timeout: 30000 }, () => {
     expect((await readTaskState(root)).tasks).toHaveLength(1);
   });
 
+  it('reads and updates tasks left behind by the standalone bundle', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root);
+    await writeFile(
+      join(root, 'message-task-status.json'),
+      JSON.stringify({
+        version: 1,
+        tasks: [
+          {
+            id: 'task-20260101000000-a1b2',
+            title: 'Legacy task',
+            status: 'in_progress',
+            workspaceId: 'workspace-a',
+            sessionIds: ['worker-session'],
+            reportIds: ['report-20260101000000-abcdef'],
+            messages: [{ text: 'Please fix it', time: '2026-01-01T00:00:00+08:00' }],
+            createdAt: '2026-01-01T00:00:00+08:00',
+            updatedAt: '2026-01-01T00:00:00+08:00',
+          },
+        ],
+      }),
+      'utf8',
+    );
+    await writeFile(
+      join(root, 'workspaces.json'),
+      JSON.stringify({
+        version: 1,
+        workspaces: [
+          {
+            workspaceId: 'workspace-a',
+            path: 'D:/project',
+            summary: 'Project A',
+            keywords: ['a'],
+            notes: '',
+            updatedAt: '2026-01-01T00:00:00+08:00',
+          },
+        ],
+      }),
+      'utf8',
+    );
+    const ctx = makeContext({
+      agents: { get: () => undefined },
+      sessionController: { resolveAgent: async () => null },
+      sessionQuery: { listSessions: async () => [{ id: 'worker-session', cwd: '/project' }] },
+    });
+    const service = new SuperAgentService(ctx, { home });
+
+    await expect(service.listCandidates('workspace-a')).resolves.toMatchObject({
+      candidates: [{ sessionId: 'worker-session', taskIds: ['task-20260101000000-a1b2'] }],
+    });
+    await expect(
+      service.updateTask({ taskId: 'task-20260101000000-a1b2', status: 'waiting_user' }),
+    ).resolves.toMatchObject({ status: 'waiting_user', archived: false });
+    expect((await readTaskState(root)).tasks[0]?.messages).toHaveLength(1);
+    expect((await readWorkspaceState(root)).workspaces[0]?.summary).toBe('Project A');
+  });
+
   it('converts drive-letter workspaces only on Windows', async () => {
     const ctx = makeContext({});
     const home = await bridgeHome('/z/dispatch-root');
