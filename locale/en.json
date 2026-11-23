@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Lark bot bridge",
-    "description": "Receives Lark direct messages through the local lark-cli bot, injects them into a session in the selected DSH workspace, and provides a notification tool and in-plugin authentication."
+    "title": "Connect DSH from Lark",
+    "description": "Configure lark-cli so you can talk to DSH from your phone too."
   }
 }

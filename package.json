@@ -121,5 +121,5 @@
     "zod": "4.6.6",
     "zustand": "^5.1.0"
   },
-  "description": "通过 lark-cli 的 bot 身份接收飞书消息并注入 DSH 会话，同时提供通知用户的工具。"
+  "description": "配置lark-cli，用在手机上也可以和DSH对话"
 }
