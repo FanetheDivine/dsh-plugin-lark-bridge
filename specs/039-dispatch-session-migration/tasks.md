@@ -55,10 +55,10 @@ description: "Tasks for 039-dispatch-session-migration"
 
 **Independent Test**: `pnpm check` 中 `sa-dispatch` 与预设补丁测试通过；实机 RD-2、RD-3
 
-- [ ] T013 [US1] 逐字复制 `src/sa-dispatch/{index,presence,prompt,tools}.ts`；`presence.ts` 中桥接来源 `'lark-bridge'` 保持与 `src/message.ts` 的 `LARK_SOURCE.kind` 一致
-- [ ] T014 [US1] 在 `cordis.patch.yml` 主行之后插入 `lark-super-agent`（`name: dsh-plugin-lark-bridge/lark-super-agent`）与 `preset-sa-dispatch`，内容按 `contracts/presets.md`，子行 `sa-dispatch.name` 为 `dsh-plugin-lark-bridge/sa-dispatch`；更新文件顶部注释
-- [ ] T015 [P] [US1] 逐字复制 `tests/sa-dispatch.test.ts`，改用本仓 `tests/helpers.ts` 的 `makeCtx`
-- [ ] T016 [P] [US1] 逐字复制 `tests/support/standard-preset.yml`；新建 `tests/presets-patch.test.ts`，取组合包同名测试中 `lark-super-agent` 行与 `preset-sa-dispatch` 的断言，删去组合包其他行的断言
+- [X] T013 [US1] 逐字复制 `src/sa-dispatch/{index,presence,prompt,tools}.ts`；`presence.ts` 中桥接来源 `'lark-bridge'` 保持与 `src/message.ts` 的 `LARK_SOURCE.kind` 一致
+- [X] T014 [US1] 在 `cordis.patch.yml` 主行之后插入 `lark-super-agent`（`name: dsh-plugin-lark-bridge/lark-super-agent`）与 `preset-sa-dispatch`，内容按 `contracts/presets.md`，子行 `sa-dispatch.name` 为 `dsh-plugin-lark-bridge/sa-dispatch`；更新文件顶部注释
+- [X] T015 [P] [US1] 逐字复制 `tests/sa-dispatch.test.ts`，改用本仓 `tests/helpers.ts` 的 `makeCtx`
+- [X] T016 [P] [US1] 逐字复制 `tests/support/standard-preset.yml`；新建 `tests/presets-patch.test.ts`，取组合包同名测试中 `lark-super-agent` 行与 `preset-sa-dispatch` 的断言，删去组合包其他行的断言
 
 **Checkpoint**: commit `feat(039): 迁入 SA-调度会话预设`
 

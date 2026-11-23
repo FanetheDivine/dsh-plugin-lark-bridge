@@ -1,4 +1,5 @@
-# 用于 dsh plugin add：插件安装后作为组合层插入的 preset 行（id = 包名）。
+# 用于 dsh plugin add：插件安装后作为组合层插入的行。
+# 主行 id = 包名；lark-super-agent 提供调度服务；两个预设行声明 SA-调度会话与 SA-工作会话。
 # 本地可在 profile 的 cordis.patch.yml 里按 id 覆盖 config。
 - insert:
     - id: dsh-plugin-lark-bridge
@@ -6,3 +7,82 @@
       config:
         # 已注册工作区的 Linux 风格路径，例如 /c/work/demo；空值要求用户选择。
         workspaceRoot: ''
+    # 飞书任务与调度会话：共享服务。
+    - id: lark-super-agent
+      name: dsh-plugin-lark-bridge/lark-super-agent
+    - id: preset-sa-dispatch
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: sa-dispatch
+        name: SA-调度会话
+        description: 接收飞书消息，派发任务并协调任务会话。
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: You are a coding agent powered by the {{model}} model.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+            config:
+              applyPatch: false
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+                config:
+                  thresholdRatio: 0.3
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+          - id: meta-tools
+            name: dsh-plugin-meta-tools
+            config:
+              workspace_list: true
+              workspace_create: true
+              workspace_remove: true
+              workspace_rename: true
+              session_list: true
+              session_get: true
+              session_create: true
+              session_stop: true
+              session_send: true
+              session_pin: true
+              session_archive: true
+              session_preset: sa-worker
+          - id: sa-dispatch
+            name: dsh-plugin-lark-bridge/sa-dispatch
