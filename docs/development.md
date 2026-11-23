@@ -127,17 +127,27 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | `tests/tools.test.ts` | 参数校验、分段发送与失败返回 |
 | `tests/routes.test.ts` | 同源校验、状态投影与动作路由 |
 | `tests/state.test.ts` | 状态读写、去重窗口与损坏恢复 |
+| `tests/lark-super-agent-index.test.ts` | 调度行提供 `larkSuperAgent` 服务 |
+| `tests/lark-super-agent-service.test.ts` | 桥接状态读取与路径转换、上报投递、失败通知、候选会话与旧数据兼容 |
+| `tests/lark-super-agent-notes.test.ts` | 任务与工作区笔记、状态转换、归档与 git 提交 |
+| `tests/lark-super-agent-reports.test.ts` | 上报记录、附件复制与任务归属 |
+| `tests/lark-super-agent-git.test.ts` | git 初始化、路径限定提交与串行队列 |
+| `tests/lark-super-agent-blocks.test.ts` | 上报块与失败通知块的格式与转义 |
+| `tests/sa-dispatch.test.ts` | 调度工具契约、提示词注册与用户在场提醒 |
+| `tests/sa-worker.test.ts` | `send_report`、提示词、调度消息包装与失败事件过滤 |
+| `tests/presets-patch.test.ts` | 补丁行、两个预设的子行与标准预设快照的差异 |
 | `tests/config-form.test.ts` | 配置页草稿与字段集、校验、保存、恢复默认、放弃与卸载 |
 | `tests/release-archive.test.mjs` | CHANGELOG 归档计划 |
 | `tests/client.test.ts` | 前端服务声明、字典与槽位注册、共享状态控制器、连接面板、工作区下拉与弹窗 reducer（jsdom） |
 | `tests/client-bundle.test.ts` | `dist/client.js` 的注册契约与导出（产物测试） |
-| `tests/package-pack.test.ts` | npm 包不含 lark-cli，含发布所需文件与前端闭包工厂（产物测试） |
-| `tests/metadata.test.ts` | 插件元数据的结构、键集、禁用字符与清单声明 |
+| `tests/package-pack.test.ts` | npm 包不含 lark-cli，含四个宿主入口、`rows/`、`dsh-plugin-meta-tools` 依赖与前端闭包工厂（产物测试） |
+| `tests/metadata.test.ts` | 根行与三行元数据的结构、键集、禁用字符与清单声明 |
 | `tests/dependency-versions.test.ts` | `dsh-*` 依赖版本一致，并以同版本列入 `minimumReleaseAgeExclude` |
 | `tests/dist-freshness.test.ts` | 产物新鲜度判定的三种状态 |
 | `tests/worktree-extension.test.ts` | worktree 扩展的占号、改号、复用、编号校验与清理 |
 | `tests/sync-main.test.ts` | 主工作区 `main` 快进到 `origin/main`，不满足约束时保持原样 |
 | `tests/helpers.ts` | 模拟宿主与客户端 `ctx`，记录注册、事件监听与日志 |
+| `tests/support/standard-preset.yml` | 宿主 `0.2.2-rc.5` 标准预设快照，供预设补丁测试比对 |
 | `tests/support/primitives.ts` | 把平台组件包解析到源码，避开已发布产物内联的依赖 |
 
 测试要求见[宪章](../.specify/memory/constitution.md)原则 II。文案与元数据的规范见 [i18n.md](./i18n.md)。
@@ -211,7 +221,8 @@ spec 与 plan 模板包含状态、待确认决策、澄清记录和审查记录
 ## 文件地图
 
 ```text
-cordis.patch.yml            # 插件行，dsh plugin add 时插入 profile
+cordis.patch.yml            # 主行、调度行与两个预设行，dsh plugin add 时插入 profile
+rows/<行>/                  # lark-super-agent、sa-dispatch、sa-worker 的图标与元数据
 src/
 ├── index.ts                # 打包入口，导出 name、inject、apply、Config
 ├── config.ts               # Config schema、默认值、严格校验与热重载读取
@@ -228,6 +239,9 @@ src/
 ├── errors.ts               # 可诊断错误
 ├── types.ts                # 宿主类型再导出
 ├── utils.ts                # 零依赖工具函数
+├── lark-super-agent/       # 调度行：服务、笔记、上报、归档与 git
+├── sa-dispatch/            # SA-调度会话子行：调度工具、提示词与在场提醒
+├── sa-worker/              # SA-工作会话子行：send_report、提示词、消息标记与失败通知
 └── client/
     ├── index.ts            # 浏览器入口：字典、弹窗与配置页
     ├── api.ts              # 路由调用与状态类型
@@ -239,7 +253,10 @@ src/
     ├── config-page.tsx     # 注册工作区下拉（宿主 Menu）与配置页视图
     └── locales.ts          # 中英文字典与命名空间
 dist/
-├── index.mjs               # 宿主产物
+├── index.mjs               # 主行宿主产物
+├── lark-super-agent.mjs    # 调度行宿主产物
+├── sa-dispatch.mjs         # SA-调度会话子行产物
+├── sa-worker.mjs           # SA-工作会话子行产物
 ├── client.js               # 浏览器产物（闭包工厂）
 ├── index.d.ts              # 宿主类型声明
 └── client/                 # 前端类型声明

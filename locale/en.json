@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Connect DSH from Lark",
-    "description": "Configure lark-cli so you can talk to DSH from your phone too."
+    "title": "Talk to DSH from Lark",
+    "description": "Configure lark-cli to chat with DSH from your phone and try Super Agent!"
   }
 }

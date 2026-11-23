@@ -95,14 +95,14 @@ description: "Tasks for 039-dispatch-session-migration"
 
 ## Phase 6: Polish（文档、元数据与 CHANGELOG）
 
-- [ ] T024 [P] 按 plan A-07 更新 `locale/zh.json`、`locale/en.json` 与 `package.json` 的 `description`
-- [ ] T025 [P] `README.md` 增加「飞书任务与调度会话」章节：从组合包 README 的「飞书任务与调度会话」「远程调度用法」「两个预设」「上报与注入」「笔记、git 与归档」搬入，删去组合包安装与其他行的内容，预设名用 `SA-工作会话`
-- [ ] T026 [P] `docs/how-it-works.md` 组成表增加三行与 `rows/`，并从组合包同名文档搬入「调度服务与预设叠加」「调度工作区存储」「上报投递与失败监听」，删去状态路由句子，补一句 `workspaceRoot` 经 `toHostWorkspacePath` 转换
-- [ ] T027 [P] `docs/known-risks.md` 从组合包搬入 `lark-super-agent` 各小节，删去状态路由相关句；增加与旧版组合包并存时重复注册一条
-- [ ] T028 [P] `docs/development.md` 测试表与文件地图增加新源码、`rows/` 与测试文件；`docs/i18n.md` 元数据资源增加 `rows/<row>/locale/*.json` 与对应 `exports`
-- [ ] T029 [P] `AGENTS.md` 项目说明补充调度会话与两个预设
-- [ ] T030 `CHANGELOG.md` 的 `Unreleased` 增加 `Added` 条目：迁入调度服务、`SA-调度会话`、`SA-工作会话` 与 `dsh-plugin-meta-tools` 依赖；`Changed` 条目：插件标题与描述
-- [ ] T031 运行 `pnpm format && pnpm full-check`
+- [X] T024 [P] 按 plan A-07 更新 `locale/zh.json`、`locale/en.json` 与 `package.json` 的 `description`
+- [X] T025 [P] `README.md` 增加「飞书任务与调度会话」章节：从组合包 README 的「飞书任务与调度会话」「远程调度用法」「两个预设」「上报与注入」「笔记、git 与归档」搬入，删去组合包安装与其他行的内容，预设名用 `SA-工作会话`
+- [X] T026 [P] `docs/how-it-works.md` 组成表增加三行与 `rows/`，并从组合包同名文档搬入「调度服务与预设叠加」「调度工作区存储」「上报投递与失败监听」，删去状态路由句子，补一句 `workspaceRoot` 经 `toHostWorkspacePath` 转换
+- [X] T027 [P] `docs/known-risks.md` 从组合包搬入 `lark-super-agent` 各小节，删去状态路由相关句；增加与旧版组合包并存时重复注册一条
+- [X] T028 [P] `docs/development.md` 测试表与文件地图增加新源码、`rows/` 与测试文件；`docs/i18n.md` 元数据资源增加 `rows/<row>/locale/*.json` 与对应 `exports`
+- [X] T029 [P] `AGENTS.md` 项目说明补充调度会话与两个预设
+- [X] T030 `CHANGELOG.md` 的 `Unreleased` 增加 `Added` 条目：迁入调度服务、`SA-调度会话`、`SA-工作会话` 与 `dsh-plugin-meta-tools` 依赖；`Changed` 条目：插件标题与描述
+- [X] T031 运行 `pnpm format && pnpm full-check`
 
 **Checkpoint**: commit `docs(039): 同步调度功能文档与元数据`
 
