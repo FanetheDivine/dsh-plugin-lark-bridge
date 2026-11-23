@@ -59,6 +59,7 @@ const rows = insertedRows(readYaml('cordis.patch.yml'));
 const standardRows = insertedRows(readYaml('tests/support/standard-preset.yml'));
 const standard = preset(standardRows, 'preset-standard');
 const dispatch = preset(rows, 'preset-sa-dispatch');
+const worker = preset(rows, 'preset-sa-worker');
 
 describe('SA 预设补丁', () => {
   it('主行之后声明调度服务与调度预设，入口名正确', () => {
@@ -66,10 +67,12 @@ describe('SA 预设补丁', () => {
       'dsh-plugin-lark-bridge',
       'lark-super-agent',
       'preset-sa-dispatch',
+      'preset-sa-worker',
     ]);
     expect(rows.map((row) => row.name)).toEqual([
       'dsh-plugin-lark-bridge',
       'dsh-plugin-lark-bridge/lark-super-agent',
+      '@deepseek-ai/dsh-agent-preset',
       '@deepseek-ai/dsh-agent-preset',
     ]);
     expect(dispatch).toMatchObject({
@@ -77,7 +80,13 @@ describe('SA 预设补丁', () => {
       name: 'SA-调度会话',
       description: expect.any(String),
     });
+    expect(worker).toMatchObject({
+      id: 'sa-worker',
+      name: 'SA-工作会话',
+      description: expect.any(String),
+    });
     expect(dispatch.description.trim()).not.toBe('');
+    expect(worker.description.trim()).not.toBe('');
   });
 
   it('主行配置只有 workspaceRoot', () => {
@@ -150,7 +159,7 @@ describe('SA 预设补丁', () => {
   });
 
   it('调度预设无 ask-user，skill-filesystem 不含 customSkillDirs', () => {
-    for (const config of [dispatch]) {
+    for (const config of [dispatch, worker]) {
       expect(config.plugins.some((entry) => entry.id === 'tool-ask-user')).toBe(false);
       expect(config.plugins.some((entry) => entry.name === '@deepseek-ai/dsh-tool-ask-user')).toBe(
         false,
@@ -161,8 +170,24 @@ describe('SA 预设补丁', () => {
     }
   });
 
+  it('工作预设与标准快照只差删除 ask-user、增加 sa-worker、删除 customSkillDirs', () => {
+    const expected = standard.plugins
+      .filter((entry) => entry.id !== 'tool-ask-user')
+      .map((entry) => {
+        if (entry.id !== 'skill-filesystem') return entry;
+        const { config: _config, ...withoutConfig } = entry;
+        return withoutConfig;
+      });
+    expected.push({
+      id: 'sa-worker',
+      name: 'dsh-plugin-lark-bridge/sa-worker',
+    });
+    expect(worker.plugins).toEqual(expected);
+  });
+
   it('不设默认预设，不修改标准预设或预设注册服务', () => {
     expect(Object.keys(dispatch).sort()).toEqual(['description', 'id', 'name', 'plugins']);
+    expect(Object.keys(worker).sort()).toEqual(['description', 'id', 'name', 'plugins']);
     expect(rows.some((row) => row.id === 'preset-standard')).toBe(false);
     expect(rows.some((row) => row.id === 'agent-preset-registry')).toBe(false);
     expect(rows.some((row) => row.name === '@deepseek-ai/dsh-agent-preset-registry')).toBe(false);

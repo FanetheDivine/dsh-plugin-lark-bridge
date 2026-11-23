@@ -70,10 +70,10 @@ description: "Tasks for 039-dispatch-session-migration"
 
 **Independent Test**: `pnpm check` 中 `sa-worker` 与预设补丁测试通过；实机 RD-4
 
-- [ ] T017 [US2] 逐字复制 `src/sa-worker/{dispatch-message,host,index,prompt,tools}.ts`；文件顶部注释中的预设名改为 `SA-工作会话`
-- [ ] T018 [US2] 在 `cordis.patch.yml` 增加 `preset-sa-worker`，`config.name` 为 `SA-工作会话`，子行 `sa-worker.name` 为 `dsh-plugin-lark-bridge/sa-worker`，其余按 `contracts/presets.md`
-- [ ] T019 [P] [US2] 逐字复制 `tests/sa-worker.test.ts`，改用本仓 `tests/helpers.ts` 的 `makeCtx`
-- [ ] T020 [US2] 在 `tests/presets-patch.test.ts` 补入组合包对 `preset-sa-worker` 的断言，预设名断言为 `SA-工作会话`
+- [X] T017 [US2] 逐字复制 `src/sa-worker/{dispatch-message,host,index,prompt,tools}.ts`；文件顶部注释中的预设名改为 `SA-工作会话`
+- [X] T018 [US2] 在 `cordis.patch.yml` 增加 `preset-sa-worker`，`config.name` 为 `SA-工作会话`，子行 `sa-worker.name` 为 `dsh-plugin-lark-bridge/sa-worker`，其余按 `contracts/presets.md`
+- [X] T019 [P] [US2] 逐字复制 `tests/sa-worker.test.ts`，改用本仓 `tests/helpers.ts` 的 `makeCtx`
+- [X] T020 [US2] 在 `tests/presets-patch.test.ts` 补入组合包对 `preset-sa-worker` 的断言，预设名断言为 `SA-工作会话`
 
 **Checkpoint**: commit `feat(039): 迁入 SA-工作会话预设`
 
