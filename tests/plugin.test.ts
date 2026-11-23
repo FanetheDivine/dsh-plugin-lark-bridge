@@ -66,7 +66,7 @@ describe('配置', () => {
       sessionPreset: string;
     }>();
     expect(parsed.workspaceRoot.get()).toBe('');
-    expect(parsed.sessionPreset.get()).toBe('');
+    expect(parsed.sessionPreset.get()).toBe('sa-dispatch');
     expect(Object.keys(parsed)).toEqual([
       'workspaceRoot',
       'sessionProvider',
@@ -79,7 +79,7 @@ describe('配置', () => {
       sessionProvider: '',
       sessionModel: '',
       sessionEffort: '',
-      sessionPreset: '',
+      sessionPreset: 'sa-dispatch',
     });
   });
 

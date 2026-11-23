@@ -647,8 +647,8 @@ describe('新建会话的预设配置', () => {
     await expect(sessions.inject('hi')).rejects.toThrow('session missing');
   });
 
-  it('未配置预设时不读取名册', async () => {
-    const { sessions, presetsList } = await setup();
+  it('预设为空时不读取名册', async () => {
+    const { sessions, presetsList } = await setup({ config: { sessionPreset: '' } });
     await sessions.inject('hi');
     expect(presetsList).not.toHaveBeenCalled();
   });
