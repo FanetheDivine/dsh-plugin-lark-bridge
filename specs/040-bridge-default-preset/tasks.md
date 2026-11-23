@@ -28,9 +28,9 @@
 
 **独立验证**: `menuItems` 不包含 id 为空的条目；`currentText` 对空值返回「跟随宿主默认」。
 
-- [ ] T005 [US2] 从 `src/client/preset-select.tsx` 的 `menuItems` 移除「跟随宿主默认」项，保留 `currentText` 的空值文案并更新注释
-- [ ] T006 [US2] 更新 `tests/client.test.ts` 的菜单用例为「首项为预设、不可用的已存值以禁用项补足」，并把空值文案用例改名为旧配置场景
-- [ ] T007 [US2] 运行 `pnpm test:code -- tests/client.test.ts` 通过后提交本阶段 commit
+- [x] T005 [US2] 从 `src/client/preset-select.tsx` 的 `menuItems` 移除「跟随宿主默认」项，保留 `currentText` 的空值文案并更新注释
+- [x] T006 [US2] 更新 `tests/client.test.ts` 的菜单用例为「首项为预设、不可用的已存值以禁用项补足」，并把空值文案用例改名为旧配置场景
+- [x] T007 [US2] 运行 `pnpm test:code -- tests/client.test.ts` 通过后提交本阶段 commit
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 

@@ -770,7 +770,7 @@ describe('预设选择器文案', () => {
     );
   }
 
-  it('未选择时显示跟随宿主默认', () => {
+  it('旧配置的空值显示跟随宿主默认', () => {
     expect(currentText(state(), translate(zh))).toBe('跟随宿主默认');
     expect(
       currentText(state({ rows: [{ id: 'a', name: 'A' }], current: 'a' }), translate(zh)),
@@ -806,13 +806,13 @@ describe('预设选择器文案', () => {
     expect(html).toContain('gone · 不可用');
   });
 
-  it('菜单首项跟随宿主默认，不可用的已存值以禁用项补足', () => {
+  it('菜单只列可用预设，不可用的已存值以禁用项补足', () => {
     const items = menuItems(
       state({ rows: [{ id: 'a', name: 'A' }], current: 'gone' }),
       translate(zh),
     );
-    expect(items[0]).toMatchObject({ id: '', label: '跟随宿主默认' });
-    expect(items[1]).toMatchObject({ id: 'a', label: 'A' });
-    expect(items[2]).toMatchObject({ id: 'gone', disabled: true });
+    expect(items[0]).toMatchObject({ id: 'a', label: 'A' });
+    expect(items[1]).toMatchObject({ id: 'gone', disabled: true });
+    expect(items.some((item) => item.id === '')).toBe(false);
   });
 });
