@@ -33,12 +33,12 @@ export function currentText(state: PresetDefaultsState, t: TranslateNS<typeof NS
   return name === undefined || name === '' ? row.id : name;
 }
 
-/** 菜单项：先「跟随宿主默认」，再列出可用预设，不可用的已存值以禁用项补足。 */
+/** 菜单项：列出可用预设，不可用的已存值以禁用项补足。 */
 export function menuItems(state: PresetDefaultsState, t: TranslateNS<typeof NS>): MenuEntry[] {
-  const items: MenuEntry[] = [
-    { id: '', label: t('config.sessionPreset.followHost') },
-    ...state.rows.map((row) => ({ id: row.id, label: row.name?.trim() || row.id })),
-  ];
+  const items: MenuEntry[] = state.rows.map((row) => ({
+    id: row.id,
+    label: row.name?.trim() || row.id,
+  }));
   if (
     state.status === 'ready' &&
     state.current !== '' &&

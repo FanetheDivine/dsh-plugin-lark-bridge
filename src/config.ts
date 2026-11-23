@@ -20,7 +20,7 @@ export interface Config {
   sessionModel: Volatile<string>;
   /** 新建桥接会话的推理等级；仅在模型成对时生效。 */
   sessionEffort: Volatile<string>;
-  /** 新建桥接会话的预设；空值表示跟随宿主默认。 */
+  /** 新建桥接会话的预设；缺省为 sa-dispatch，空值表示跟随宿主默认。 */
   sessionPreset: Volatile<string>;
 }
 
@@ -30,7 +30,7 @@ export const Config: Schema<Config> = Schema.object({
   sessionProvider: Schema.string().default('').volatile(),
   sessionModel: Schema.string().default('').volatile(),
   sessionEffort: Schema.string().default('').volatile(),
-  sessionPreset: Schema.string().default('').volatile(),
+  sessionPreset: Schema.string().default('sa-dispatch').volatile(),
 }) as unknown as Schema<Config>;
 
 /** 配置项的实时取值。 */
@@ -48,7 +48,7 @@ export const DEFAULT_CONFIG: Readonly<PluginConfig> = Object.freeze({
   sessionProvider: '',
   sessionModel: '',
   sessionEffort: '',
-  sessionPreset: '',
+  sessionPreset: 'sa-dispatch',
 });
 
 /** 合法的当前配置键。 */
