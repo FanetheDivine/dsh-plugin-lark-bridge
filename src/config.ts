@@ -5,7 +5,7 @@ import type { ModelSelection } from '@deepseek-ai/dsh-agent';
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm';
 import Schema from '@deepseek-ai/schemastery';
 
-import { PLUGIN_LABEL, STATE_DIR, STATE_FILE } from './constants.ts';
+import { HOLIDAY_CACHE_FILE, PLUGIN_LABEL, STATE_DIR, STATE_FILE } from './constants.ts';
 import type { Volatile } from './types.ts';
 import { isRecord } from './utils.ts';
 import { normalizeWorkspacePath } from './workspace-path.ts';
@@ -147,8 +147,18 @@ export function readConfig(config?: unknown): Readonly<PluginConfig> {
   return resolveConfig(values);
 }
 
+/** 解析插件状态目录。 */
+export function stateRoot(home?: string): string {
+  const root = home ?? process.env['DSH_HOME'] ?? join(homedir(), '.dsh');
+  return join(root, STATE_DIR);
+}
+
 /** 解析插件状态文件路径。 */
 export function statePath(home?: string): string {
-  const root = home ?? process.env['DSH_HOME'] ?? join(homedir(), '.dsh');
-  return join(root, STATE_DIR, STATE_FILE);
+  return join(stateRoot(home), STATE_FILE);
+}
+
+/** 解析节假日缓存文件路径。 */
+export function holidayCachePath(home?: string): string {
+  return join(stateRoot(home), HOLIDAY_CACHE_FILE);
 }

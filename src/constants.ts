@@ -30,3 +30,26 @@ export const QUOTE_TIMEOUT_MS = 8_000;
 /** 监听重启的初始与最大退避。 */
 export const RESTART_MIN_MS = 2_000;
 export const RESTART_MAX_MS = 60_000;
+
+/** 节假日缓存文件名，位于状态目录。 */
+export const HOLIDAY_CACHE_FILE = 'holiday-cache.json';
+
+/** 节假日数据主源；`<year>` 由调用方替换。 */
+export const HOLIDAY_SOURCE_PRIMARY =
+  'https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/<year>.json';
+
+/** 节假日数据备源。 */
+export const HOLIDAY_SOURCE_FALLBACK =
+  'https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/<year>.json';
+
+/** 节假日缓存的过期时长。 */
+export const HOLIDAY_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** 获取失败后的退避时长。 */
+export const HOLIDAY_RETRY_MS = 60 * 60 * 1000;
+
+/** 单次获取的超时毫秒数。 */
+export const HOLIDAY_TIMEOUT_MS = 8_000;
+
+/** 在场状态到点判定的间隔。 */
+export const PRESENCE_TICK_MS = 15_000;
