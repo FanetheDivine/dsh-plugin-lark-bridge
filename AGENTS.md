@@ -7,7 +7,7 @@
 
 # 文档索引
 
-- [README.md](./README.md)：插件简介与前置。
+- [README.md](./README.md)：插件简介、使用与预设。
 - [how-it-works.md](./docs/how-it-works.md)：插件构造、鉴权、消息与会话流程。
 - [known-risks.md](./docs/known-risks.md)：已知风险与宿主限制。
 - [development.md](./docs/development.md)：本地开发、命令、测试、Spec Kit 命令与文件地图。

@@ -49,9 +49,9 @@ description: "Task list for README 面向使用者"
 
 **Independent Test**: 只看 README 的简介与使用两节完成配置，无需查阅 `docs/`。
 
-- [ ] T008 [US1] 把 `README.md` 替换为 `specs/041-readme-user-focus/contracts/readme.md` 中标题、徽章、简介与「使用」一节的全文
-- [ ] T009 [P] [US1] 把 `docs/how-it-works.md`「鉴权」中的 `README.md#前置` 改为 `README.md#使用`
-- [ ] T010 [P] [US1] 把 `AGENTS.md` 文档索引中 README 的描述改为「插件简介、使用与预设」
+- [X] T008 [US1] 把 `README.md` 替换为 `specs/041-readme-user-focus/contracts/readme.md` 中标题、徽章、简介与「使用」一节的全文
+- [X] T009 [P] [US1] 把 `docs/how-it-works.md`「鉴权」中的 `README.md#前置` 改为 `README.md#使用`
+- [X] T010 [P] [US1] 把 `AGENTS.md` 文档索引中 README 的描述改为「插件简介、使用与预设」
 
 **Checkpoint**: 简介与使用可独立验收，提交一次。
 
