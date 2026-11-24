@@ -15,9 +15,9 @@
 | `src/sessions.ts` | 工作区会话的创建、恢复、新建标题与置顶 |
 | `src/routes.ts` | 安全状态与完整检测的同源 JSON 路由 |
 | `src/state.ts` | 会话标识、归一化路径与去重窗口的持久化 |
-| `src/lark-super-agent/` | `lark-super-agent` 行：调度服务、笔记、上报、归档与 git |
-| `src/sa-dispatch/` | `SA-调度会话` 预设子行：调度工具、提示词与在场提醒 |
-| `src/sa-worker/` | `SA-工作会话` 预设子行：`send_report`、提示词、调度消息标记与失败通知 |
+| `src/lark-super-agent/` | `lark-super-agent` 行：调度服务、笔记、上报、归档、git、全局在场状态与状态路由 |
+| `src/sa-dispatch/` | `SA-调度会话` 预设子行：调度工具、提示词与在场提醒插入 |
+| `src/sa-worker/` | `SA-工作会话` 预设子行：`send_report`、提示词、调度消息标记、在场提醒插入与失败通知 |
 
 宿主按 `cordis.patch.yml` 的 `name` 分别 import 各入口：
 
@@ -88,6 +88,8 @@ lark-cli auth status --json --verify
 | --- | --- | --- |
 | GET | `/lark-bridge/status` | 返回最近一次安全状态 |
 | POST | `/lark-bridge/check` | 执行完整检测并返回安全状态 |
+| GET | `/lark-bridge/presence` | 返回全局在场状态，由 `lark-super-agent` 行注册 |
+| POST | `/lark-bridge/presence` | 写入 `{ presence: 'local' \| 'remote' }` 并返回新状态 |
 
 安全状态只包含 `cli`、`bot`、`user`、`ready` 与 `checkedAt`。路由不发送鉴权 URL、原始错误、App ID、用户名、open_id、token、scope 或会话错误。
 
@@ -196,15 +198,45 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 只有 `workspaces.json` 已登记的工作区可以接收任务。没有匹配时，调度会话先请用户新增工作区或补充现有工作区的说明与关键词；多个工作区都匹配时，先问清目标再派发。
 - 派发开始时，调度会话告诉用户任务 id、目标工作区与所选会话。
 - 用户对上报的回答由调度会话送回原工作会话，并追加到任务笔记。
-- 两个预设子行都监听 `agent/pre-step` 区分用户消息与注入消息。调度会话按 `source.kind` 判定：`user` 为本机消息，`lark-bridge` 为飞书消息，状态切换时插入来源为 `sa-dispatch-presence` 的系统提醒。状态记录在以会话为键的 `WeakMap` 中。
-- `SA-调度会话` 的提示词按最近的系统提醒选择渠道：远程时经 `lark_notify` 回复与转达，用户在电脑前时在正文回复与转达。
+- 在场状态见[在场状态](#在场状态)。
+- `SA-调度会话` 的提示词按最近的在场提醒选择渠道：离开时经 `lark_notify` 回复与转达，在电脑旁时在正文回复与转达。
 - `SA-工作会话` 把 `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>`，保留原消息 id 与 `source`，文本中的闭标签转义。这覆盖 `session_create` 的首条任务与 `session_send` 的提醒。
-- `SA-工作会话` 的提示词按有无 `<dispatch_session_message>` 区分调度消息与本机消息：远程模式经 `send_report` 交流，本机模式正文直接对话；本机模式下需求变更、完成与放弃仍上报，`text` 首行写「用户在电脑前」。
+- `SA-工作会话` 的提示词用 `<dispatch_session_message>` 区分调度消息与用户消息，按最近的在场提醒选择模式：离开为远程模式，经 `send_report` 交流；在电脑旁为本机模式，正文直接对话，需求变更、完成与放弃仍上报。
 - `SA-调度会话` 的提示词要求新建工作会话后先置顶，再发送任务要求；复用的候选会话保持原置顶状态。
 - `SA-调度会话` 的提示词要求任务完成时先取得会话 id，标记完成后再逐个归档；仍被未完成任务引用的会话保持未归档，归档带 `stop_activity` 停止运行中的工作。
 - 两个预设都不含 `ask_user_question`，也不修改新会话的默认预设。
 - `SA-调度会话` 不含 `tool-jobs`，保留 `persona`、`agent-instructions`、`time-context`、`skill-filesystem` 与压缩组。压缩组的 `compaction-basic` 设 `thresholdRatio: 0.3`，上下文压力到模型窗口 30% 时触发压缩。
 - 全局行与预设子行的工具叠加。`lark_notify` 来自本插件主行，其他插件的全局工具也照常可见。
+
+## 在场状态
+
+`lark-super-agent` 行持有一份内存中的全局在场状态：`local` 表示在电脑旁，`remote` 表示离开。
+
+- 行启用时状态为 `local`，不写盘。
+- 浏览器经 `/lark-bridge/presence` 读取与切换。
+- 该行注册全局 `agent/pre-step`，在 `next()` 之后观察本批消息：
+  - `source.kind === 'user'` 且 `guiInputSetsLocal` 开启时设为 `local`。
+  - `source.kind === 'lark-bridge'`、非桥接提醒且 `larkInputSetsRemote` 开启时设为 `remote`。
+  - 同批以最后一条可判定消息为准。同一消息对象只观察一次，手动切换与自动更新以发生先后为准。
+- 两个开关在行配置中，均为 volatile，默认 `true`，前端为 `dsh-plugin-lark-bridge#lark-super-agent` 注册配置页。
+
+两个预设子行在 `agent/pre-step` 调用服务的 `presence.reminderFor(session, messages)`：
+
+1. 先观察本批消息，保证提醒使用更新后的状态。
+2. 从 `session.surface.nodes` 末尾向前找第一条 `user/message` 且 `source.kind === 'sa-presence'` 的事件，读 `source.presence`。
+3. 找不到或与当前状态不同时，在本批消息最前插入提醒，`source` 为 `{ kind: 'sa-presence', form: 'notice', presence }`。
+
+- 识别与比较只读来源属性，不解析正文。
+- 提醒正文两个预设共用，只陈述用户位置。
+- 压缩移除提醒后，下一次模型请求前补回。
+- 其他预设的会话不插入提醒。
+
+前端 `PresenceController` 每 3 秒读取一次路由，页面隐藏时跳过：
+
+- 回答为在场状态 JSON 时，在 `sidebar.footer.action` 注册按钮，`order: 52`。
+- 回答不是 JSON 时视为行已停用，注销按钮。未注册路径由 Web 外壳的 SPA fallback 返回 `index.html`。
+- 网络失败时保持现状。
+- 单击先显示目标状态再写入；写入期间暂停轮询，失败时恢复原状态并显示 3 秒错误态。
 
 ## 调度工作区存储
 

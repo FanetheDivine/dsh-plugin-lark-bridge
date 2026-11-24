@@ -114,10 +114,10 @@ description: "Tasks for 042-presence-toggle"
 
 ## Phase 7: Polish（文档、构建与实机）
 
-- [ ] T034 [P] 更新 `README.md`：页脚在场按钮的含义与切换、两个开关及默认值
-- [ ] T035 [P] 更新 `docs/how-it-works.md`：组成表增加 `src/lark-super-agent/presence.ts`、`routes.ts`；浏览器通信表增加 `/lark-bridge/presence`；重写在场判定段落为全局状态、观察点、提醒属性与共用正文
-- [ ] T036 [P] 更新 `docs/known-risks.md`：手机浏览器的 GUI 输入记为在电脑旁；主行停用时按钮与配置页不显示；关闭 GUI 开关后工作会话不切到本机模式
-- [ ] T037 运行 `pnpm format && pnpm check && pnpm build`，修复问题；确认 `dist` 与打包测试通过
+- [X] T034 [P] 更新 `README.md`：页脚在场按钮的含义与切换、两个开关及默认值
+- [X] T035 [P] 更新 `docs/how-it-works.md`：组成表增加 `src/lark-super-agent/presence.ts`、`routes.ts`；浏览器通信表增加 `/lark-bridge/presence`；重写在场判定段落为全局状态、观察点、提醒属性与共用正文
+- [X] T036 [P] 更新 `docs/known-risks.md`：手机浏览器的 GUI 输入记为在电脑旁；主行停用时按钮与配置页不显示；关闭 GUI 开关后工作会话不切到本机模式
+- [X] T037 运行 `pnpm format && pnpm check && pnpm build`，修复问题；确认 `dist` 与打包测试通过
 - [ ] T038 用 `real-device-test` skill 按 `quickstart.md` 全部场景实机验证，结果写入 `specs/042-presence-toggle/real-device-report.md`
 
 **Checkpoint**: commit `docs(042): 在场按钮文档与实机报告`
