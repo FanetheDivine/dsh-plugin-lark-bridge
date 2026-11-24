@@ -48,6 +48,11 @@ export const zh = {
   'config.saveFailed': '此部署未接受这些值，已保留以便修改。',
   'config.save': '保存',
   'config.saving': '保存中…',
+  'presence.local': '在电脑旁',
+  'presence.remote': '离开',
+  'presence.toLocal': '点击切换为在电脑旁',
+  'presence.toRemote': '点击切换为离开',
+  'presence.failed': '切换失败，点击重试',
 } as const;
 
 /** 英文字典，键集与中文一致。 */
@@ -95,6 +100,11 @@ export const en: Record<BridgeKey, string> = {
     'The deployment did not accept these values; they were left for you to correct.',
   'config.save': 'Save',
   'config.saving': 'Saving…',
+  'presence.local': 'At the computer',
+  'presence.remote': 'Away',
+  'presence.toLocal': 'Click to mark as at the computer',
+  'presence.toRemote': 'Click to mark as away',
+  'presence.failed': 'Switch failed. Click to retry',
 };
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

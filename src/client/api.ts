@@ -1,4 +1,4 @@
-/** 浏览器侧调用宿主 `/lark-bridge/*` 路由。导出安全状态与检测函数。 */
+/** 浏览器侧调用宿主 `/lark-bridge/*` 路由。导出安全状态、检测与在场状态函数。 */
 
 import type { ConnectionState } from '../types.ts';
 
@@ -80,4 +80,38 @@ export function fetchStatus(signal?: AbortSignal): Promise<ApiResult<BridgeStatu
 /** 执行一次完整检测。 */
 export function checkAuth(): Promise<ApiResult<BridgeStatus>> {
   return callApi<BridgeStatus>('check', { method: 'POST', body: '{}' });
+}
+
+/** 在场状态：local 表示在电脑旁，remote 表示离开。 */
+export type Presence = 'local' | 'remote';
+
+/** 在场状态路由的回答。 */
+export interface PresenceStatus {
+  readonly presence: Presence;
+  readonly updatedAt: number;
+}
+
+/** 校验在场状态回答；结构不符时映射为 invalid-response。 */
+function presenceResult(result: ApiResult<unknown>): ApiResult<PresenceStatus> {
+  if (!result.ok) return result;
+  const data = result.data as Partial<PresenceStatus> | null | undefined;
+  if (
+    (data?.presence === 'local' || data?.presence === 'remote') &&
+    typeof data.updatedAt === 'number'
+  ) {
+    return { ok: true, data: { presence: data.presence, updatedAt: data.updatedAt } };
+  }
+  return { ok: false, error: { code: 'invalid-response', message: 'unexpected presence reply' } };
+}
+
+/** 读取全局在场状态。 */
+export async function fetchPresence(): Promise<ApiResult<PresenceStatus>> {
+  return presenceResult(await callApi<unknown>('presence', { method: 'GET' }));
+}
+
+/** 写入全局在场状态。 */
+export async function writePresence(presence: Presence): Promise<ApiResult<PresenceStatus>> {
+  return presenceResult(
+    await callApi<unknown>('presence', { method: 'POST', body: JSON.stringify({ presence }) }),
+  );
 }

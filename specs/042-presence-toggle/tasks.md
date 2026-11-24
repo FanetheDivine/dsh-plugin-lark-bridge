@@ -53,11 +53,11 @@ description: "Tasks for 042-presence-toggle"
 
 **Independent Test**: `tests/presence-client.test.ts` 通过；实机「初始」「多页同步」「行停用」「折叠侧栏」场景
 
-- [ ] T013 [US1] 新增 `src/client/presence-controller.ts`：`PresenceController` 每 3 秒经 `callApi('presence')` 读取，页面隐藏时跳过，`visibilitychange` 与 `focus` 时立即读取；快照含 `available: boolean | null`、`presence`、`pending`、`failed`；`ok` 置 `available: true`，`invalid-response` 置 `false`，`network` 与其他错误保持原值；`subscribe`、`getSnapshot`、`dispose` 与 `StatusController` 一致
-- [ ] T014 [US1] 新增 `src/client/presence-button.tsx`：`PresenceButton` 接收 `wide`、`t` 与注入的 `controller`；36×36 圆形透明按钮，悬停底色为当前色 12% 混合；在电脑旁为绿色显示器（`rect x=3 y=4 w=18 h=12 rx=2`、`M12 16v4`、`M8 20h8`），离开为 `var(--dsw-alias-label-secondary)` 手机（`rect x=7 y=2.5 w=10 h=19 rx=2.5`、`M11 18.5h2`），18 px、描边 1.8；`title` 与 `aria-label` 为「在电脑旁 · 点击切换为离开」或「离开 · 点击切换为在电脑旁」；`data-rail` 与折叠栏 CSS 沿用参考插件 `RAIL_CSS`，选择器类名改为 `lbp-entry`
-- [ ] T015 [US1] 修改 `src/client/index.ts`：创建 `PresenceController` 并随共享状态清理；订阅可用性，`true` 时用 `ctx.plugin` 挂载子插件注册 `sidebar.footer.action`（`id: 'lark-bridge-presence'`、`order: 52`、`locale: NS`）与折叠栏样式，`false` 时卸载，`null` 时保持
-- [ ] T016 [P] [US1] 在 `src/client/locales.ts` 增加 `presence.local`、`presence.remote`、`presence.toLocal`、`presence.toRemote`、`presence.failed` 的中英文
-- [ ] T017 [P] [US1] 新增 `tests/presence-client.test.ts`：控制器可用性三种回答；隐藏页不请求；按钮两种状态的图标与文案；`index.ts` 在可用性 true/false 间挂载与卸载槽位
+- [X] T013 [US1] 新增 `src/client/presence-controller.ts`：`PresenceController` 每 3 秒经 `callApi('presence')` 读取，页面隐藏时跳过，`visibilitychange` 与 `focus` 时立即读取；快照含 `available: boolean | null`、`presence`、`pending`、`failed`；`ok` 置 `available: true`，`invalid-response` 置 `false`，`network` 与其他错误保持原值；`subscribe`、`getSnapshot`、`dispose` 与 `StatusController` 一致
+- [X] T014 [US1] 新增 `src/client/presence-button.tsx`：`PresenceButton` 接收 `wide`、`t` 与注入的 `controller`；36×36 圆形透明按钮，悬停底色为当前色 12% 混合；在电脑旁为绿色显示器（`rect x=3 y=4 w=18 h=12 rx=2`、`M12 16v4`、`M8 20h8`），离开为 `var(--dsw-alias-label-secondary)` 手机（`rect x=7 y=2.5 w=10 h=19 rx=2.5`、`M11 18.5h2`），18 px、描边 1.8；`title` 与 `aria-label` 为「在电脑旁 · 点击切换为离开」或「离开 · 点击切换为在电脑旁」；`data-rail` 与折叠栏 CSS 沿用参考插件 `RAIL_CSS`，选择器类名改为 `lbp-entry`
+- [X] T015 [US1] 修改 `src/client/index.ts`：创建 `PresenceController` 并随共享状态清理；订阅可用性，`true` 时用 `ctx.plugin` 挂载子插件注册 `sidebar.footer.action`（`id: 'lark-bridge-presence'`、`order: 52`、`locale: NS`）与折叠栏样式，`false` 时卸载，`null` 时保持
+- [X] T016 [P] [US1] 在 `src/client/locales.ts` 增加 `presence.local`、`presence.remote`、`presence.toLocal`、`presence.toRemote`、`presence.failed` 的中英文
+- [X] T017 [P] [US1] 新增 `tests/presence-client.test.ts`：控制器可用性三种回答；隐藏页不请求；按钮两种状态的图标与文案；`index.ts` 在可用性 true/false 间挂载与卸载槽位
 
 **Checkpoint**: commit `feat(042): 侧栏显示在场状态`
 
