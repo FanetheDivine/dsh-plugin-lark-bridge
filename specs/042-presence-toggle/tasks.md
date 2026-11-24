@@ -21,8 +21,8 @@ description: "Tasks for 042-presence-toggle"
 
 **Purpose**: 槽位类型可用
 
-- [ ] T001 在 `package.json` 的 `devDependencies` 增加 `"@deepseek-ai/dsh-client-ui-sidebar": "0.2.2-rc.5"`；在 `pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` 按字母序加入 `'@deepseek-ai/dsh-client-ui-sidebar@0.2.2-rc.5'`；运行 `pnpm install` 更新 `pnpm-lock.yaml`
-- [ ] T002 确认 `tests/dependency-versions.test.ts` 覆盖新依赖并通过；需要时更新断言
+- [X] T001 在 `package.json` 的 `devDependencies` 增加 `"@deepseek-ai/dsh-client-ui-sidebar": "0.2.2-rc.5"`；在 `pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` 按字母序加入 `'@deepseek-ai/dsh-client-ui-sidebar@0.2.2-rc.5'`；运行 `pnpm install` 更新 `pnpm-lock.yaml`
+- [X] T002 确认 `tests/dependency-versions.test.ts` 覆盖新依赖并通过；需要时更新断言
 
 **Checkpoint**: commit `chore(042): 增加侧栏槽位类型依赖`
 

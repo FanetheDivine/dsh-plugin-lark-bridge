@@ -109,7 +109,6 @@ specs/042-presence-toggle/
 ├── data-model.md
 ├── quickstart.md
 ├── contracts/presence-route.md
-├── icon-preview.html
 ├── icon-preview.png
 └── tasks.md
 ```
