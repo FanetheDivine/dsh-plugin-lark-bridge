@@ -1,13 +1,27 @@
 // @vitest-environment jsdom
 // 在场按钮前端测试：控制器可用性、隐藏页、按钮图标与文案、槽位挂载。
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store';
+import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/src/client/directory.ts';
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@deepseek-ai/dsh-client-ui-model-selection/src/client/ModelSelect.tsx', async () => {
+  const { createElement } = await import('react');
+  return {
+    ModelSelect: (props: { locked: boolean }) =>
+      createElement('div', {
+        'data-dsh-lark-model-select': '',
+        'data-locked': String(props.locked),
+      }),
+  };
+});
+
 import type { ApiResult, PresenceStatus } from '../src/client/api.ts';
 import { apply } from '../src/client/index.ts';
 import { type NS, zh } from '../src/client/locales.ts';
+import type { ModelDefaultsInjected } from '../src/client/model-defaults.ts';
 import { PRESENCE_SLOT_ID, PresenceButton, presenceLabel } from '../src/client/presence-button.tsx';
 import {
   type PresenceConfigFields,
@@ -236,6 +250,25 @@ describe('页脚槽位挂载', () => {
   });
 });
 
+/** 渲染配置页时的模型目录注入桩。 */
+function modelDefaultsStub(): ModelDefaultsInjected {
+  return {
+    directory: createSnapshotStore<ModelDirectoryState>({
+      current: null,
+      routable: null,
+      groups: [],
+      failures: [],
+      status: 'ready',
+      pending: null,
+      error: null,
+    }),
+    load: () => undefined,
+    select: async () => ({ ok: true, value: undefined }),
+    t: ((key: string) => key) as never,
+    resolveText: (text) => String(text),
+  };
+}
+
 describe('在场开关配置页', () => {
   /** 构造开关表单。 */
   function setupForm(value: Partial<PresenceConfigFields> = {}) {
@@ -265,6 +298,24 @@ describe('在场开关配置页', () => {
     form.dispose();
   });
 
+  it('工作会话模型三个字段成组保存，空值保存为空串', async () => {
+    const { fake, form, state } = setupForm({
+      workerProvider: 'deepseek',
+      workerModel: 'deepseek-chat',
+      workerEffort: 'high',
+    });
+    expect(state().workerModel.text).toBe('deepseek-chat');
+    const actions = form.inject();
+    actions.edit('workerProvider', 'other');
+    actions.edit('workerModel', 'big');
+    actions.edit('workerEffort', '');
+    await actions.save();
+    const ops = fake.writes.flat();
+    expect(ops).toContainEqual({ op: 'set', path: ['workerProvider'], value: 'other' });
+    expect(ops).toContainEqual({ op: 'set', path: ['workerModel'], value: 'big' });
+    form.dispose();
+  });
+
   it('页面渲染两个开关，摘要视图只给文案', () => {
     const { form } = setupForm({ guiInputSetsLocal: false });
     const injected = form.inject();
@@ -274,11 +325,16 @@ describe('在场开关配置页', () => {
       usePresenceConfig: <S>(selector: (state: PresenceConfigState) => S) =>
         selector(injected.hooks.presenceConfig.getSnapshot()),
       ...injected,
+      modelDefaults: modelDefaultsStub(),
     } as unknown as PresenceConfigPageProps;
     const html = renderToStaticMarkup(createElement(PresenceConfigPage, props));
     expect(html).toContain('网页输入时切换为在电脑旁');
     expect(html).toContain('收到飞书消息时切换为离开');
     expect(html).toContain('data-dsh-lark-presence-config="guiInputSetsLocal"');
+    expect(html).toContain('data-dsh-lark-config-model="worker"');
+    expect(html).toContain('data-dsh-lark-model-select');
+    expect(html).toContain('工作会话模型');
+    expect(html).toContain('「用飞书和DSH对话」配置页的「模型」');
     const summary = renderToStaticMarkup(
       createElement(PresenceConfigPage, { ...props, view: 'summary' }),
     );

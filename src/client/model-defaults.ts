@@ -10,7 +10,30 @@ import { ModelCatalogDirectory } from '@deepseek-ai/dsh-client-ui-model-selectio
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/src/client/directory.ts';
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 
-import type { ConfigFormState } from './config-form.ts';
+/** 模型选择器读写的三个草稿字段名。 */
+export interface ModelFieldNames {
+  readonly provider: string;
+  readonly model: string;
+  readonly effort: string;
+}
+
+/** 主行配置页使用的字段名：新建桥接会话的模型。 */
+export const SESSION_MODEL_FIELDS: ModelFieldNames = {
+  provider: 'sessionProvider',
+  model: 'sessionModel',
+  effort: 'sessionEffort',
+};
+
+/** 草稿状态里按字段名读取暂存文本的最小结构。 */
+export type ModelFormState = object;
+
+/** 读取草稿里某字段的暂存文本；字段缺失按空处理。 */
+function fieldText(state: ModelFormState, field: string): string {
+  const value = (state as Record<string, unknown>)[field];
+  if (typeof value !== 'object' || value === null || !('text' in value)) return '';
+  const text = (value as { text: unknown }).text;
+  return typeof text === 'string' ? text.trim() : '';
+}
 
 /** 配置页默认模型选择器使用的注入值。 */
 export interface ModelDefaultsInjected {
@@ -44,11 +67,13 @@ export class ModelDefaults {
    * @param ctx - 前端根上下文，提供模型目录与连接事件。
    * @param form - 配置页草稿状态。
    * @param edit - 配置页草稿编辑动作。
+   * @param fields - 选择器读写的草稿字段名，缺省为新建桥接会话的模型。
    */
   constructor(
     ctx: Context,
-    private readonly form: SnapshotStore<ConfigFormState>,
+    private readonly form: SnapshotStore<ModelFormState>,
     private readonly edit: (field: string, text: string) => void,
+    private readonly fields: ModelFieldNames = SESSION_MODEL_FIELDS,
   ) {
     this.catalog = new ModelCatalogDirectory(ctx);
     this.disposers.push(this.catalog.store.subscribe(() => this.sync()));
@@ -103,9 +128,9 @@ export class ModelDefaults {
       state.status = 'selecting';
       state.error = null;
     });
-    this.edit('sessionProvider', selection.provider);
-    this.edit('sessionModel', selection.model);
-    this.edit('sessionEffort', selection.reasoningEffort ?? '');
+    this.edit(this.fields.provider, selection.provider);
+    this.edit(this.fields.model, selection.model);
+    this.edit(this.fields.effort, selection.reasoningEffort ?? '');
     this.store.update((state) => {
       state.pending = null;
       state.status = 'ready';
@@ -117,9 +142,9 @@ export class ModelDefaults {
   private sync(): void {
     const config = this.form.getSnapshot();
     const catalog = this.catalog.store.getSnapshot();
-    const provider = config.sessionProvider?.text.trim() ?? '';
-    const model = config.sessionModel?.text.trim() ?? '';
-    const effort = config.sessionEffort?.text.trim() ?? '';
+    const provider = fieldText(config, this.fields.provider);
+    const model = fieldText(config, this.fields.model);
+    const effort = fieldText(config, this.fields.effort);
     const current =
       provider === '' || model === ''
         ? null

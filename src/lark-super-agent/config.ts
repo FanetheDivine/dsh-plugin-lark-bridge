@@ -13,12 +13,21 @@ export interface Config {
   guiInputSetsLocal: Volatile<boolean>;
   /** 飞书输入把状态设为离开。 */
   larkInputSetsRemote: Volatile<boolean>;
+  /** 调度会话创建工作会话时的 provider；与 workerModel 成对。 */
+  workerProvider: Volatile<string>;
+  /** 调度会话创建工作会话时的 model；与 workerProvider 成对。 */
+  workerModel: Volatile<string>;
+  /** 调度会话创建工作会话时的推理等级；仅在模型成对时生效。 */
+  workerEffort: Volatile<string>;
 }
 
 /** 行配置 schema；两个开关默认开启，保存后原地生效。 */
 export const Config: Schema<Config> = Schema.object({
   guiInputSetsLocal: Schema.boolean().default(true).volatile(),
   larkInputSetsRemote: Schema.boolean().default(true).volatile(),
+  workerProvider: Schema.string().default('').volatile(),
+  workerModel: Schema.string().default('').volatile(),
+  workerEffort: Schema.string().default('').volatile(),
 }) as unknown as Schema<Config>;
 
 /** 读取一个开关的实时值；缺省或非布尔值按开启处理。 */

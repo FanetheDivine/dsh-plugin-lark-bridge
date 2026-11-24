@@ -8,6 +8,7 @@ import { Config, readPresenceSwitches } from './config.ts';
 import { PresenceStore } from './presence.ts';
 import { registerPresenceRoute } from './routes.ts';
 import { SuperAgentService } from './service.ts';
+import { readWorkerModel, WorkerModelStore } from './worker-model.ts';
 
 export { Config };
 
@@ -17,7 +18,10 @@ export const name = 'lark-super-agent';
 /** 插件启用时提供共享服务并观察全部会话的输入；宿主的 Web 服务器就绪后注册在场状态路由。 */
 export function apply(ctx: Context, config?: unknown): void {
   const presence = new PresenceStore({ switches: () => readPresenceSwitches(config) });
-  const service = new SuperAgentService(ctx, { presence });
+  const service = new SuperAgentService(ctx, {
+    presence,
+    workerModel: new WorkerModelStore(() => readWorkerModel(config)),
+  });
   ctx.effect(() => ctx.provide('larkSuperAgent', service), 'lark-super-agent: service');
 
   // 任一会话的 GUI 输入与飞书输入按开关更新全局状态。

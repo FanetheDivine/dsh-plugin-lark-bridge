@@ -13,11 +13,14 @@ import {
   type SettingsFormScope,
   type SettingsFormShell,
   Switch,
+  settingsTextField,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { CSSProperties } from 'react';
 
 import type { NS } from './locales.ts';
+import type { ModelDefaultsInjected } from './model-defaults.ts';
+import { WORKER_MODEL_FIELD_NAMES, WorkerModelField } from './worker-model-field.tsx';
 
 /** 行 id，同时是宿主配置的条目 id。 */
 export const PRESENCE_ROW_ID = 'lark-super-agent';
@@ -31,13 +34,20 @@ export const PRESENCE_FIELDS = ['guiInputSetsLocal', 'larkInputSetsRemote'] as c
 /** 开关字段名。 */
 export type PresenceField = (typeof PRESENCE_FIELDS)[number];
 
+/** 工作会话模型的三个文本字段。 */
+const WORKER_FIELDS = Object.values(WORKER_MODEL_FIELD_NAMES);
+
 /** 行配置的取值。 */
-export type PresenceConfigFields = Record<PresenceField, boolean>;
+export type PresenceConfigFields = Record<PresenceField, boolean> &
+  Record<'workerProvider' | 'workerModel' | 'workerEffort', string>;
 
 /** 配置页读取的表单状态。 */
 export interface PresenceConfigState extends SettingsFormShell {
   readonly guiInputSetsLocal: SettingsFieldState;
   readonly larkInputSetsRemote: SettingsFieldState;
+  readonly workerProvider: SettingsFieldState;
+  readonly workerModel: SettingsFieldState;
+  readonly workerEffort: SettingsFieldState;
 }
 
 /** 配置页的注入值。 */
@@ -65,11 +75,17 @@ export class PresenceConfigForm {
 
   /** @param scope - 宿主为该行提供的配置表单。 */
   constructor(scope: SettingsFormScope<PresenceConfigFields>) {
-    this.form = new SettingsFormModel(scope, PRESENCE_FIELDS.map(presenceSwitchField));
+    this.form = new SettingsFormModel(scope, [
+      ...PRESENCE_FIELDS.map(presenceSwitchField),
+      ...WORKER_FIELDS.map((field) => settingsTextField(field)),
+    ]);
     this.state = this.form.bind(() => ({
       ...this.form.shell(),
       guiInputSetsLocal: this.form.field('guiInputSetsLocal'),
       larkInputSetsRemote: this.form.field('larkInputSetsRemote'),
+      workerProvider: this.form.field('workerProvider'),
+      workerModel: this.form.field('workerModel'),
+      workerEffort: this.form.field('workerEffort'),
     }));
   }
 
@@ -87,7 +103,7 @@ export class PresenceConfigForm {
 /** 配置页组件 props。 */
 export type PresenceConfigPageProps = PropsRuntime<'plugins.row.config'> &
   PropsLocale<typeof NS> &
-  InjectFace<PresenceConfigInjected>;
+  InjectFace<PresenceConfigInjected & { readonly modelDefaults: ModelDefaultsInjected }>;
 
 /** 开关文案键。 */
 const FIELD_KEYS = {
@@ -134,6 +150,12 @@ export function PresenceConfigPage(props: PresenceConfigPageProps) {
           <p style={descriptionStyle}>{t(FIELD_KEYS[field].description)}</p>
         </div>
       ))}
+      <WorkerModelField
+        t={t}
+        modelDefaults={props.modelDefaults}
+        available={state.available}
+        disabled={disabled}
+      />
     </SettingsForm>
   );
 }
