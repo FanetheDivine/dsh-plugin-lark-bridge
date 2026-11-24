@@ -1,0 +1,38 @@
+[
+  {
+    "name": "E0 装载：预设与行配置",
+    "ok": true
+  },
+  {
+    "name": "E1 未配置：调度创建的工作会话保持默认",
+    "ok": true
+  },
+  {
+    "name": "E2 已配置：调度创建的工作会话使用所配模型与 effort",
+    "ok": true
+  },
+  {
+    "name": "E3 手动新建的 SA-工作会话与默认预设会话不受影响",
+    "ok": true
+  },
+  {
+    "name": "E3b 调度创建进行中并发手动新建的工作会话不被套用",
+    "ok": true
+  },
+  {
+    "name": "E4 显式 provider/model/effort 优先",
+    "ok": true
+  },
+  {
+    "name": "E5 配置不可用（effort 不属于模型）时回退默认并记录警告",
+    "ok": true
+  },
+  {
+    "name": "E6 半组配置（只有 provider）按未配置处理",
+    "ok": true
+  },
+  {
+    "name": "E7 全程未改默认模型",
+    "ok": true
+  }
+]
