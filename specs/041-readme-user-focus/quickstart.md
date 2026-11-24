@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 全文一致 | 对比 `README.md` 与 [contracts/readme.md](./contracts/readme.md) | 逐字一致 |
 | 行数 | `wc -l README.md` | 不超过 40 |
-| 二级标题 | `grep -c '^## ' README.md` | 3 |
+| 二级标题 | `grep -c '^## ' README.md` | 2 |
 | 相对链接 | `grep -nE '\]\((\.|/|docs)' README.md` | 无输出 |
 | 迁移完整 | 按 [data-model.md](./data-model.md) 逐行核对 `docs/` | 每条都有归属 |
 | 锚点 | `grep -rn 'README.md#' docs AGENTS.md` | 只出现 `README.md#使用` |

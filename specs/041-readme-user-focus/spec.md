@@ -39,6 +39,7 @@
 - [D-005] Q: 远程派发的用法保留多少？ -> A: 不保留。
 - [D-006] Q: 是否增加常见问题或链接 `docs/`？ -> A: 都不增加。
 - [D-007] Q: 工具如何介绍？ -> A: 不介绍。
+- [IMPL-001] Q: 简介写在一级标题下，SC-002 的二级标题数按几个计？ -> A: 两个，README 草稿保持不变。
 
 ## Review Record
 
@@ -106,7 +107,7 @@
 ### Measurable Outcomes
 
 - **SC-001**: README 不超过 40 行。
-- **SC-002**: README 的二级标题恰好三个。
+- **SC-002**: README 的二级标题恰好两个：使用、关于两个预设。简介紧跟一级标题。
 - **SC-003**: README 不含工具签名、XML 示例、存储文件表与相对链接，数量为 0。
 - **SC-004**: 当前 README 的每条信息都能在新 README 或 `docs/` 找到唯一归属，遗漏数为 0。
 - **SC-005**: `pnpm format && pnpm check` 通过，package-pack 测试仍确认 `README.md` 进包。

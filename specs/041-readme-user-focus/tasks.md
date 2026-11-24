@@ -71,9 +71,9 @@ description: "Task list for README 面向使用者"
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T012 在 `CHANGELOG.md` 的 `[Unreleased]` 下增加 `### Changed` 条目：README 改为面向使用者的精简版本
-- [ ] T013 运行 `pnpm format && pnpm check`
-- [ ] T014 按 `specs/041-readme-user-focus/quickstart.md` 执行全部检查：全文一致、不超过 40 行、3 个二级标题、无相对链接、锚点只剩 `README.md#使用`
+- [X] T012 在 `CHANGELOG.md` 的 `[Unreleased]` 下增加 `### Changed` 条目：README 改为面向使用者的精简版本
+- [X] T013 运行 `pnpm format && pnpm check`
+- [X] T014 按 `specs/041-readme-user-focus/quickstart.md` 执行全部检查：全文一致、不超过 40 行、2 个二级标题、无相对链接、锚点只剩 `README.md#使用`
 
 **Checkpoint**: 门禁通过，提交一次。
 
