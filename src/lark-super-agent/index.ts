@@ -14,7 +14,7 @@ export { Config };
 /** 行标识，与 cordis.patch.yml 一致。 */
 export const name = 'lark-super-agent';
 
-/** 插件启用时提供共享服务并观察全部会话的输入；宿主的 Web 服务器存在时注册在场状态路由。 */
+/** 插件启用时提供共享服务并观察全部会话的输入；宿主的 Web 服务器就绪后注册在场状态路由。 */
 export function apply(ctx: Context, config?: unknown): void {
   const presence = new PresenceStore({ switches: () => readPresenceSwitches(config) });
   const service = new SuperAgentService(ctx, { presence });
@@ -27,14 +27,17 @@ export function apply(ctx: Context, config?: unknown): void {
     return decision;
   });
 
-  const webServer = ctx.get('webServer');
-  if (webServer === undefined) return;
-  const connection = ctx.get('connection');
-  const dispose = registerPresenceRoute({
-    webServer,
-    ...(connection === undefined ? {} : { connection }),
-    store: presence,
-    logger: ctx.logger,
+  // webServer 是可选依赖：就绪后注册路由，下线时随作用域注销。
+  ctx.inject(['webServer'], (scoped) => {
+    const webServer = scoped.get('webServer');
+    if (webServer === undefined) return;
+    const connection = scoped.get('connection');
+    const dispose = registerPresenceRoute({
+      webServer,
+      ...(connection === undefined ? {} : { connection }),
+      store: presence,
+      logger: scoped.logger,
+    });
+    scoped.effect(() => dispose, 'lark-super-agent: presence route');
   });
-  ctx.effect(() => dispose, 'lark-super-agent: presence route');
 }

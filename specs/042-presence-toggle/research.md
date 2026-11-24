@@ -24,7 +24,7 @@
 **Rationale**:
 
 - 前端 bundle 挂在主行 `dsh-plugin-lark-bridge` 上，不随子行启停。
-- `dsh-host-webserver` 对未注册路径交给 fallback，Web 组合中由 SPA 返回 `index.html`。现有 `callApi` 把这种回答映射为 `invalid-response`。
+- `dsh-host-webserver` 对未注册路径交给 fallback，没有 fallback 时回答 404。0.2.2-rc.5 实测该路径返回无正文类型的 404。现有 `callApi` 把非 JSON 回答映射为 `invalid-response`。
 - 路由随行的 `ctx.effect` 注销，行停用即消失，无需读取 loader。
 
 **Alternatives considered**: 参考插件的做法是主行读取 loader 条目树判断各行状态。它依赖 loader 内部结构与 `FiberState` 序号，本功能只需一行，路由存在与否已足够。

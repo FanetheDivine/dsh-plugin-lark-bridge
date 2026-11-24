@@ -213,7 +213,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 `lark-super-agent` 行持有一份内存中的全局在场状态：`local` 表示在电脑旁，`remote` 表示离开。
 
 - 行启用时状态为 `local`，不写盘。
-- 浏览器经 `/lark-bridge/presence` 读取与切换。
+- 浏览器经 `/lark-bridge/presence` 读取与切换。`webServer` 是该行的可选依赖，就绪后才注册路由。
 - 该行注册全局 `agent/pre-step`，在 `next()` 之后观察本批消息：
   - `source.kind === 'user'` 且 `guiInputSetsLocal` 开启时设为 `local`。
   - `source.kind === 'lark-bridge'`、非桥接提醒且 `larkInputSetsRemote` 开启时设为 `remote`。
@@ -234,7 +234,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 前端 `PresenceController` 每 3 秒读取一次路由，页面隐藏时跳过：
 
 - 回答为在场状态 JSON 时，在 `sidebar.footer.action` 注册按钮，`order: 52`。
-- 回答不是 JSON 时视为行已停用，注销按钮。未注册路径由 Web 外壳的 SPA fallback 返回 `index.html`。
+- 回答不是 JSON 时视为行已停用，注销按钮。路由随行注销后，该路径的回答不是 JSON，0.2.2-rc.5 实测为无正文类型的 404。
 - 网络失败时保持现状。
 - 单击先显示目标状态再写入；写入期间暂停轮询，失败时恢复原状态并显示 3 秒错误态。
 

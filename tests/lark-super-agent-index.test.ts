@@ -13,6 +13,7 @@ function makeRowCtx(services: Record<string, unknown> = {}) {
   const provided: Array<[string, unknown]> = [];
   const disposers: Array<() => void> = [];
   const listeners = new Map<string, (...args: unknown[]) => unknown>();
+  const injected: string[][] = [];
   const ctx = {
     logger: { warn() {} },
     on(name: string, fn: (...args: unknown[]) => unknown) {
@@ -30,11 +31,16 @@ function makeRowCtx(services: Record<string, unknown> = {}) {
     get(name: string) {
       return services[name];
     },
+    inject(deps: string[], callback: (scoped: unknown) => void) {
+      injected.push(deps);
+      if (deps.every((dep) => services[dep] !== undefined)) callback(ctx);
+    },
   } as unknown as Context;
   return {
     ctx,
     provided,
     listeners,
+    injected,
     dispose: () => {
       for (const fn of disposers.splice(0)) fn();
     },
@@ -58,6 +64,12 @@ describe('lark-super-agent 全局行', () => {
       guiInputSetsLocal: true,
       larkInputSetsRemote: true,
     });
+  });
+
+  it('webServer 作为可选依赖等待就绪', () => {
+    const { ctx, injected } = makeRowCtx();
+    apply(ctx);
+    expect(injected).toEqual([['webServer']]);
   });
 
   it('有 webServer 时注册在场状态路由，卸载时注销', () => {
