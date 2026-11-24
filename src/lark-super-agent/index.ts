@@ -6,7 +6,7 @@
 import { holidayCachePath } from '../config.ts';
 import type { Context } from '../types.ts';
 import { Config, readPresenceAlarms, readPresenceSwitches } from './config.ts';
-import { HolidayCalendar } from './holidays.ts';
+import { dayKeyOf, HolidayCalendar } from './holidays.ts';
 import { PresenceStore } from './presence.ts';
 import { registerPresenceRoute } from './routes.ts';
 import { PresenceScheduler } from './schedule.ts';
@@ -36,6 +36,8 @@ export function apply(ctx: Context, config?: unknown): void {
   // 到点调度随行启停；判定失败只记日志，不影响其他能力。
   ctx.effect(() => {
     scheduler.start();
+    // 行启用时提前取一次节假日数据，配置页据此显示数据状态。
+    void calendar.prepare(dayKeyOf(new Date()));
     return () => scheduler.stop();
   }, 'lark-super-agent: presence schedule');
 

@@ -25,6 +25,15 @@ export function defaultAlarmTime(now: Date = new Date()): string {
   return `${hour}:${minute}`;
 }
 
+// react-time-picker 输入时给出不带前导零的小时，保存前统一补零。
+function padTime(value: string): string {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value);
+  const hour = match?.[1];
+  const minute = match?.[2];
+  if (hour === undefined || minute === undefined) return value;
+  return `${hour.padStart(2, '0')}:${minute}`;
+}
+
 /** 文档语言，作为时间选择器的 locale。 */
 function documentLocale(): string | undefined {
   if (typeof document === 'undefined') return undefined;
@@ -104,14 +113,13 @@ export function PresenceAlarmEditor(props: PresenceAlarmEditorProps) {
         <TimePicker
           value={time}
           onChange={(value) => {
-            setTime(typeof value === 'string' ? value : '');
+            setTime(typeof value === 'string' ? padTime(value) : '');
           }}
           format="HH:mm"
           {...(locale === undefined ? {} : { locale })}
           portalContainer={portal}
-          openClockOnFocus
+          openClockOnFocus={false}
           clearIcon={null}
-          clockIcon={null}
           disabled={props.disabled}
           className="dsh-lark-time-picker"
           hourAriaLabel={t('presenceConfig.editor.hour')}
