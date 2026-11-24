@@ -88,11 +88,11 @@ description: "Tasks for 042-presence-toggle"
 
 **Independent Test**: 观察与配置页测试通过；实机「GUI 输入」「飞书输入」「开关关闭」场景
 
-- [ ] T026 [US3] 在 `src/lark-super-agent/index.ts` 注册全局 `agent/pre-step`：`next()` 后对非 reject 决定调用 `store.observe(decision.messages)`，返回原决定
-- [ ] T027 [US3] 新增 `src/client/presence-config.tsx`：行配置页，两个 `Switch` 绑定 `guiInputSetsLocal`、`larkInputSetsRemote`，暂存值为 `'true'`/`'false'`，提供保存与放弃；`view === 'summary'` 返回摘要文案
-- [ ] T028 [US3] 修改 `src/client/index.ts`：用 `ctx.configForms.get('lark-super-agent')` 建表单，注册 `plugins.row.config`，`key: 'dsh-plugin-lark-bridge#lark-super-agent'`
-- [ ] T029 [P] [US3] 在 `src/client/locales.ts` 增加行配置页文案：「网页输入时切换为在电脑旁」「收到飞书消息时切换为离开」及英文与摘要
-- [ ] T030 [P] [US3] 测试：`tests/lark-super-agent-index.test.ts` 断言全局观察按配置更新；`tests/config-form.test.ts` 或新用例断言布尔字段格式与解析；`tests/client.test.ts` 断言行配置页注册键
+- [X] T026 [US3] 在 `src/lark-super-agent/index.ts` 注册全局 `agent/pre-step`：`next()` 后对非 reject 决定调用 `store.observe(decision.messages)`，返回原决定
+- [X] T027 [US3] 新增 `src/client/presence-config.tsx`：行配置页，两个 `Switch` 绑定 `guiInputSetsLocal`、`larkInputSetsRemote`，暂存值为 `'true'`/`'false'`，提供保存与放弃；`view === 'summary'` 返回摘要文案
+- [X] T028 [US3] 修改 `src/client/index.ts`：用 `ctx.configForms.get('lark-super-agent')` 建表单，注册 `plugins.row.config`，`key: 'dsh-plugin-lark-bridge#lark-super-agent'`
+- [X] T029 [P] [US3] 在 `src/client/locales.ts` 增加行配置页文案：「网页输入时切换为在电脑旁」「收到飞书消息时切换为离开」及英文与摘要
+- [X] T030 [P] [US3] 测试：`tests/lark-super-agent-index.test.ts` 断言全局观察按配置更新；`tests/config-form.test.ts` 或新用例断言布尔字段格式与解析；`tests/client.test.ts` 断言行配置页注册键
 
 **Checkpoint**: commit `feat(042): 按配置自动更新在场状态`
 

@@ -53,6 +53,12 @@ export const zh = {
   'presence.toLocal': '点击切换为在电脑旁',
   'presence.toRemote': '点击切换为离开',
   'presence.failed': '切换失败，点击重试',
+  'presenceConfig.summary': '在场状态的自动更新',
+  'presenceConfig.guiInputSetsLocal.label': '网页输入时切换为在电脑旁',
+  'presenceConfig.guiInputSetsLocal.description':
+    '在任一会话的网页中发送消息时，把在场状态设为在电脑旁。',
+  'presenceConfig.larkInputSetsRemote.label': '收到飞书消息时切换为离开',
+  'presenceConfig.larkInputSetsRemote.description': '桥接会话收到飞书私聊时，把在场状态设为离开。',
 } as const;
 
 /** 英文字典，键集与中文一致。 */
@@ -105,6 +111,13 @@ export const en: Record<BridgeKey, string> = {
   'presence.toLocal': 'Click to mark as at the computer',
   'presence.toRemote': 'Click to mark as away',
   'presence.failed': 'Switch failed. Click to retry',
+  'presenceConfig.summary': 'Automatic presence updates',
+  'presenceConfig.guiInputSetsLocal.label': 'Mark as at the computer on Web input',
+  'presenceConfig.guiInputSetsLocal.description':
+    'Sending a message from the Web GUI in any session marks the user as at the computer.',
+  'presenceConfig.larkInputSetsRemote.label': 'Mark as away on Lark messages',
+  'presenceConfig.larkInputSetsRemote.description':
+    'A Lark direct message to the bridge session marks the user as away.',
 };
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

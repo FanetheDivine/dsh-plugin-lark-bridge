@@ -12,8 +12,13 @@ import type { Context } from '../src/types.ts';
 function makeRowCtx(services: Record<string, unknown> = {}) {
   const provided: Array<[string, unknown]> = [];
   const disposers: Array<() => void> = [];
+  const listeners = new Map<string, (...args: unknown[]) => unknown>();
   const ctx = {
     logger: { warn() {} },
+    on(name: string, fn: (...args: unknown[]) => unknown) {
+      listeners.set(name, fn);
+      return () => listeners.delete(name);
+    },
     effect(fn: () => unknown) {
       const disposer = fn();
       if (typeof disposer === 'function') disposers.push(disposer as () => void);
@@ -29,6 +34,7 @@ function makeRowCtx(services: Record<string, unknown> = {}) {
   return {
     ctx,
     provided,
+    listeners,
     dispose: () => {
       for (const fn of disposers.splice(0)) fn();
     },
@@ -68,6 +74,19 @@ describe('lark-super-agent 全局行', () => {
     expect([...routes]).toEqual([PRESENCE_PATH]);
     dispose();
     expect(routes.size).toBe(0);
+  });
+
+  it('全局 pre-step 观察任一会话的输入，reject 不观察', async () => {
+    const { ctx, provided, listeners } = makeRowCtx();
+    apply(ctx);
+    const service = provided[0]?.[1] as SuperAgentService;
+    const listener = listeners.get('agent/pre-step');
+    const lark = { role: 'user', content: [], source: { kind: 'lark-bridge' } };
+    await listener?.({}, async () => ({ kind: 'reject', messages: [lark] }));
+    expect(service.presence.get().presence).toBe('local');
+    const decision = { kind: 'enter', messages: [lark] };
+    expect(await listener?.({}, async () => decision)).toBe(decision);
+    expect(service.presence.get().presence).toBe('remote');
   });
 
   it('开关读取行配置的实时值', () => {

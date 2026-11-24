@@ -9,8 +9,16 @@ import type { ApiResult, PresenceStatus } from '../src/client/api.ts';
 import { apply } from '../src/client/index.ts';
 import { type NS, zh } from '../src/client/locales.ts';
 import { PRESENCE_SLOT_ID, PresenceButton, presenceLabel } from '../src/client/presence-button.tsx';
+import {
+  type PresenceConfigFields,
+  PresenceConfigForm,
+  PresenceConfigPage,
+  type PresenceConfigPageProps,
+  type PresenceConfigState,
+  presenceSwitchField,
+} from '../src/client/presence-config.tsx';
 import { PresenceController } from '../src/client/presence-controller.ts';
-import { makeClientCtx } from './helpers.ts';
+import { makeClientCtx, makeConfigFormScope } from './helpers.ts';
 
 /** 中文翻译座。 */
 const t = ((key: keyof typeof zh) => zh[key]) as TranslateNS<typeof NS>;
@@ -225,5 +233,56 @@ describe('页脚槽位挂载', () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(footer(ctx)).toHaveLength(0);
     ctx._dispose();
+  });
+});
+
+describe('在场开关配置页', () => {
+  /** 构造开关表单。 */
+  function setupForm(value: Partial<PresenceConfigFields> = {}) {
+    const fake = makeConfigFormScope<PresenceConfigFields>({
+      value: { guiInputSetsLocal: true, larkInputSetsRemote: true, ...value },
+    });
+    const form = new PresenceConfigForm(fake.scope);
+    return { fake, form, state: () => form.inject().hooks.presenceConfig.getSnapshot() };
+  }
+
+  it('布尔字段以 true/false 文本暂存，其他文本无效', () => {
+    const spec = presenceSwitchField('guiInputSetsLocal');
+    expect(spec.format(false)).toBe('false');
+    expect(spec.format(undefined)).toBe('true');
+    expect(spec.parse('false')).toEqual({ kind: 'set', value: false });
+    expect(spec.parse('true')).toEqual({ kind: 'set', value: true });
+    expect(spec.parse('no')).toBeUndefined();
+  });
+
+  it('关闭开关后保存写入 false', async () => {
+    const { fake, form, state } = setupForm();
+    expect(state().larkInputSetsRemote.text).toBe('true');
+    const actions = form.inject();
+    actions.edit('larkInputSetsRemote', 'false');
+    await actions.save();
+    expect(fake.writes).toEqual([[{ op: 'set', path: ['larkInputSetsRemote'], value: false }]]);
+    form.dispose();
+  });
+
+  it('页面渲染两个开关，摘要视图只给文案', () => {
+    const { form } = setupForm({ guiInputSetsLocal: false });
+    const injected = form.inject();
+    const props = {
+      t,
+      view: 'page',
+      usePresenceConfig: <S>(selector: (state: PresenceConfigState) => S) =>
+        selector(injected.hooks.presenceConfig.getSnapshot()),
+      ...injected,
+    } as unknown as PresenceConfigPageProps;
+    const html = renderToStaticMarkup(createElement(PresenceConfigPage, props));
+    expect(html).toContain('网页输入时切换为在电脑旁');
+    expect(html).toContain('收到飞书消息时切换为离开');
+    expect(html).toContain('data-dsh-lark-presence-config="guiInputSetsLocal"');
+    const summary = renderToStaticMarkup(
+      createElement(PresenceConfigPage, { ...props, view: 'summary' }),
+    );
+    expect(summary).toBe('在场状态的自动更新');
+    form.dispose();
   });
 });

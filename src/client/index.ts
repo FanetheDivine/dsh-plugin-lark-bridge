@@ -13,6 +13,12 @@ import { ConfigPage } from './config-page.tsx';
 import { en, NS, zh } from './locales.ts';
 import { ModelDefaults } from './model-defaults.ts';
 import { PRESENCE_SLOT_ID, PresenceButton, RAIL_CSS } from './presence-button.tsx';
+import {
+  PRESENCE_ROW_ID,
+  PRESENCE_ROW_KEY,
+  PresenceConfigForm,
+  PresenceConfigPage,
+} from './presence-config.tsx';
 import { PresenceController } from './presence-controller.ts';
 import { PresetDefaults, type PresetRemoteLike } from './preset-defaults.ts';
 import { StatusController } from './status-controller.ts';
@@ -29,6 +35,7 @@ export function apply(ctx: Context): void {
   ctx.inject(['slots', 'locale', 'configForms', 'remote', 'remote.session'], (ctx) => {
     const form = new PluginConfigForm(ctx.configForms.get(ROW_ID));
     const injected = form.inject();
+    const presenceForm = new PresenceConfigForm(ctx.configForms.get(PRESENCE_ROW_ID));
     const models = new ModelDefaults(ctx, injected.hooks.configForm, injected.edit);
     const presets = new PresetDefaults(ctx, injected.hooks.configForm, injected.edit);
     // 预设服务是可选依赖：就绪后接入，缺失时选择器保持禁用。
@@ -48,6 +55,7 @@ export function apply(ctx: Context): void {
         controller.dispose();
         presence.dispose();
         form.dispose();
+        presenceForm.dispose();
         models.dispose();
         presets.dispose();
       },
@@ -135,6 +143,17 @@ export function apply(ctx: Context): void {
           }),
         },
         ConfigPage,
+      ),
+    );
+    ctx.slots.inject('plugins.row.config', () =>
+      ctx.slots.register(
+        {
+          name: 'plugins.row.config',
+          key: PRESENCE_ROW_KEY,
+          locale: NS,
+          inject: () => presenceForm.inject(),
+        },
+        PresenceConfigPage,
       ),
     );
   });
