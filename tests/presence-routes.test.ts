@@ -20,7 +20,13 @@ function setup() {
     switches: () => ({ guiInputSetsLocal: true, larkInputSetsRemote: true }),
     now: () => 5,
   });
-  const dispose = registerPresenceRoute({ webServer, store, logger: { warn: vi.fn() } });
+  const holidays = { status: () => ({ state: 'fresh' as const, fetchedAt: 4 }) };
+  const dispose = registerPresenceRoute({
+    webServer,
+    store,
+    holidays,
+    logger: { warn: vi.fn() },
+  });
   return { routes, store, dispose };
 }
 
@@ -61,7 +67,10 @@ describe('registerPresenceRoute', () => {
     const { routes } = setup();
     expect(await call(routes, 'GET')).toEqual({
       status: 200,
-      body: { ok: true, data: { presence: 'local', updatedAt: 5 } },
+      body: {
+        ok: true,
+        data: { presence: 'local', updatedAt: 5, holidays: { state: 'fresh', fetchedAt: 4 } },
+      },
     });
   });
 
@@ -69,7 +78,10 @@ describe('registerPresenceRoute', () => {
     const { routes, store } = setup();
     const reply = await call(routes, 'POST', JSON.stringify({ presence: 'remote' }));
     expect(reply.status).toBe(200);
-    expect(reply.body).toEqual({ ok: true, data: { presence: 'remote', updatedAt: 5 } });
+    expect(reply.body).toEqual({
+      ok: true,
+      data: { presence: 'remote', updatedAt: 5, holidays: { state: 'fresh', fetchedAt: 4 } },
+    });
     expect(store.get().presence).toBe('remote');
   });
 
@@ -99,6 +111,27 @@ describe('registerPresenceRoute', () => {
     expect(remote.status).toBe(403);
     expect(origin.status).toBe(403);
     expect(store.get().presence).toBe('local');
+  });
+
+  it('没有节假日日历时按 missing 回答', async () => {
+    const routes = new Map<string, Handler>();
+    const webServer = {
+      getOrigin: () => 'http://127.0.0.1:1234',
+      register: (route: { path: string; handler: Handler }) => {
+        routes.set(route.path, route.handler);
+        return () => routes.delete(route.path);
+      },
+    };
+    const store = new PresenceStore({
+      switches: () => ({ guiInputSetsLocal: true, larkInputSetsRemote: true }),
+      now: () => 5,
+    });
+    registerPresenceRoute({ webServer, store, logger: { warn: vi.fn() } });
+    const reply = await call(routes, 'GET');
+    expect((reply.body.data as { holidays: unknown }).holidays).toEqual({
+      state: 'missing',
+      fetchedAt: null,
+    });
   });
 
   it('注销后不再处理', () => {
