@@ -74,6 +74,12 @@ lark-cli auth status --json --verify
 
 插件加载、GUI 打开和三个检测按钮都执行带 `--verify` 的完整检测。并发检测共享同一个 Promise；定时状态刷新不执行 CLI。
 
+收发消息还需要在飞书开放平台为该应用完成配置：
+
+1. 启用机器人能力。
+2. 订阅 `im.message.receive_v1` 事件，并选择「接收单聊消息」。
+3. 授予 `im:message.p2p_msg:readonly` 与 `im:message:send_as_bot` 权限。
+
 ## 浏览器通信
 
 宿主注册两条同源 JSON 路由：
@@ -177,7 +183,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 ## 调度服务与预设叠加
 
-`lark-super-agent` 全局行提供 `larkSuperAgent` 服务，组合调度会话解析、笔记、上报存档、git 队列与消息投递。`sa-dispatch` 与 `sa-worker` 预设子行声明 `larkSuperAgent`、`systemPrompt`、`tools` 三项依赖，并通过 `ctx.inject` 注册能力。三项缺一不可，否则 Cordis 拒绝读取未声明的服务。全局行停用时，两个子行的工具与监听随依赖下线。
+`lark-super-agent` 全局行提供 `larkSuperAgent` 服务，组合调度会话解析、笔记、上报存档、git 队列与消息投递。`sa-dispatch` 与 `sa-worker` 预设子行声明 `larkSuperAgent`、`systemPrompt`、`tools` 三项依赖，并通过 `ctx.inject` 注册能力。三项缺一不可，否则 Cordis 拒绝读取未声明的服务。全局行停用时，两个子行的工具与监听随依赖下线，飞书对话与 `lark_notify` 照常工作。
 
 | 预设 | 组成 |
 | --- | --- |
@@ -187,6 +193,9 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - meta-tools 是 `SA-调度会话` 的子行，十一项能力全部开启，`session_preset` 固定为 `sa-worker`。
 - 两个预设子行用 `ctx.systemPrompt.section` 注册各自会话的提示词。
 - `SA-调度会话` 的提示词要求每个任务都派给 worker 会话，自身只在调度工作区读写笔记、任务归档与报告；建任务前按 `workspaces.json` 的 `summary` 与 `keywords` 匹配工作区。
+- 只有 `workspaces.json` 已登记的工作区可以接收任务。没有匹配时，调度会话先请用户新增工作区或补充现有工作区的说明与关键词；多个工作区都匹配时，先问清目标再派发。
+- 派发开始时，调度会话告诉用户任务 id、目标工作区与所选会话。
+- 用户对上报的回答由调度会话送回原工作会话，并追加到任务笔记。
 - 两个预设子行都监听 `agent/pre-step` 区分用户消息与注入消息。调度会话按 `source.kind` 判定：`user` 为本机消息，`lark-bridge` 为飞书消息，状态切换时插入来源为 `sa-dispatch-presence` 的系统提醒。状态记录在以会话为键的 `WeakMap` 中。
 - `SA-调度会话` 的提示词按最近的系统提醒选择渠道：远程时经 `lark_notify` 回复与转达，用户在电脑前时在正文回复与转达。
 - `SA-工作会话` 把 `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>`，保留原消息 id 与 `source`，文本中的闭标签转义。这覆盖 `session_create` 的首条任务与 `session_send` 的提醒。
@@ -215,12 +224,14 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - JSON 先写临时文件再重命名，同一工作区的写入与 git 操作串行执行。
 - 首次写笔记时，若调度工作区根目录不是 git 仓库顶层，程序执行 `git init`。
 - 程序用路径限定的 `git add` 与 `git commit` 提交本次文件，提交作者沿用本机 git 配置。
+- 本机需要安装 git，并配置 `user.name` 与 `user.email`。
 - `task_update` 把状态改为 `completed` 时，程序在同一调用内移动任务快照与上报目录，并从 `message-task-status.json` 移除该任务。
 - 程序不执行每周归档。
 
 ## 上报投递与失败监听
 
 - 服务每次调用从 `$DSH_HOME/lark-bridge/state.json` 读取桥接会话 `sessionId` 与调度工作区 `workspaceRoot`；缺省 `$DSH_HOME` 为 `~/.dsh`。`workspaceRoot` 经 `toHostWorkspacePath` 转为当前平台的原生路径后再访问文件与 git。
+- `send_report` 的 `text` 与 `files` 至少提供一项，`files` 为 Markdown 文件路径。
 - `send_report` 校验文本与 Markdown 附件，生成 `reportId`，复制附件并写入上报记录，再把 `<work_session_message>` 块投递到调度会话。
 - 投递使用 `sessionController.resolveAgent(sessionId)` 取得 agent，再调用 `agent.steer`。消息采用 `user` 角色，`source.kind` 为 `lark-super-agent`；空闲会话因此被唤醒。
 - 注入块含 `sessionid`、`reportid` 与 `taskid`，始终保留 `<text>` 与 `<files>`。闭合标签与属性值会转义，`<files>` 列出调度工作区内副本的绝对路径。

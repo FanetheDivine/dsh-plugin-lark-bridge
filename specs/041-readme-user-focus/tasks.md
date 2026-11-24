@@ -32,12 +32,12 @@ description: "Task list for README 面向使用者"
 
 **⚠️ CRITICAL**: 完成后才能改写 README。
 
-- [ ] T002 在 `docs/how-it-works.md`「鉴权」追加飞书开放平台配置：启用机器人能力；订阅 `im.message.receive_v1` 并选择接收单聊消息；授予 `im:message.p2p_msg:readonly` 与 `im:message:send_as_bot`
-- [ ] T003 在 `docs/how-it-works.md`「调度服务与预设叠加」的全局行停用一句补充「飞书对话与 `lark_notify` 照常工作」
-- [ ] T004 在 `docs/how-it-works.md`「调度服务与预设叠加」追加：只有 `workspaces.json` 已登记的工作区可接收任务；无匹配时先请用户新增或补充工作区，多个匹配时先问清目标；派发后回执目标工作区与执行会话
-- [ ] T005 在 `docs/how-it-works.md`「调度工作区存储」追加：本机需安装 git，并配置 `user.name` 与 `user.email`
-- [ ] T006 在 `docs/how-it-works.md`「上报投递与失败监听」的 `send_report` 一句补充：`text` 与 `files` 至少提供一项，`files` 为 Markdown 文件路径
-- [ ] T007 按 `specs/041-readme-user-focus/data-model.md` 逐行核对，每条当前 README 信息在 `docs/` 或目标 README 中都有归属
+- [X] T002 在 `docs/how-it-works.md`「鉴权」追加飞书开放平台配置：启用机器人能力；订阅 `im.message.receive_v1` 并选择接收单聊消息；授予 `im:message.p2p_msg:readonly` 与 `im:message:send_as_bot`
+- [X] T003 在 `docs/how-it-works.md`「调度服务与预设叠加」的全局行停用一句补充「飞书对话与 `lark_notify` 照常工作」
+- [X] T004 在 `docs/how-it-works.md`「调度服务与预设叠加」追加：只有 `workspaces.json` 已登记的工作区可接收任务；无匹配时先请用户新增或补充工作区，多个匹配时先问清目标；派发后回执目标工作区与执行会话
+- [X] T005 在 `docs/how-it-works.md`「调度工作区存储」追加：本机需安装 git，并配置 `user.name` 与 `user.email`
+- [X] T006 在 `docs/how-it-works.md`「上报投递与失败监听」的 `send_report` 一句补充：`text` 与 `files` 至少提供一项，`files` 为 Markdown 文件路径
+- [X] T007 按 `specs/041-readme-user-focus/data-model.md` 逐行核对，每条当前 README 信息在 `docs/` 或目标 README 中都有归属
 
 **Checkpoint**: 迁移完成，提交一次。
 
