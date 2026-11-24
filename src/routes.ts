@@ -1,6 +1,6 @@
 /**
  * 浏览器与宿主之间的同源 JSON 路由：安全连接状态与完整检测。
- * 导出 registerRoutes 与 RouteDeps。
+ * 导出 registerRoutes、RouteDeps，以及供其他路由复用的 send 与 rejectReason。
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
@@ -37,10 +37,12 @@ export interface RouteDeps {
 }
 
 /** 统一响应体。 */
-type Reply = { ok: true; data: unknown } | { ok: false; error: { code: string; message: string } };
+export type Reply =
+  | { ok: true; data: unknown }
+  | { ok: false; error: { code: string; message: string } };
 
 /** 写 JSON 响应。 */
-function send(res: ServerResponse, status: number, body: Reply): void {
+export function send(res: ServerResponse, status: number, body: Reply): void {
   const text = JSON.stringify(body);
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
@@ -62,7 +64,10 @@ function isLoopback(req: IncomingMessage): boolean {
 }
 
 /** 同源校验；失败返回错误说明。 */
-function rejectReason(deps: RouteDeps, req: IncomingMessage): string | undefined {
+export function rejectReason(
+  deps: Pick<RouteDeps, 'webServer' | 'connection'>,
+  req: IncomingMessage,
+): string | undefined {
   if (!isLoopback(req)) return '只允许本机请求';
   const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
   if (origin !== '' && origin !== deps.webServer.getOrigin()) return '来源不匹配';

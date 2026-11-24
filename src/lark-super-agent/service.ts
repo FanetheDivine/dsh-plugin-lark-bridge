@@ -16,6 +16,7 @@ import type {
 import { workSessionFailure, workSessionMessage } from './blocks.ts';
 import { readBridgeState } from './bridge.ts';
 import { findTaskBySession, NotesStore } from './notes.ts';
+import { PresenceStore } from './presence.ts';
 import { ReportStore, validateReportInput } from './reports.ts';
 
 export { readBridgeState } from './bridge.ts';
@@ -80,6 +81,8 @@ export interface ContextLike {
 }
 
 export interface SuperAgentServiceOptions {
+  /** 全局在场状态；缺省时新建一份，两个开关均开启。 */
+  presence?: PresenceStore;
   home?: string;
   now?: () => Date;
   taskId?: (date: Date) => string;
@@ -101,14 +104,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** 没有宿主配置时的开关取值。 */
+const DEFAULT_SWITCHES = { guiInputSetsLocal: true, larkInputSetsRemote: true } as const;
+
 /** lark-super-agent 的笔记、候选会话、上报与失败通知服务。 */
 export class SuperAgentService implements LarkSuperAgentService {
+  /** 全局在场状态；整个插件共用一份。 */
+  readonly presence: PresenceStore;
   private readonly ctx: ContextLike;
   private readonly options: SuperAgentServiceOptions;
 
   constructor(ctx: ContextLike, options: SuperAgentServiceOptions = {}) {
     this.ctx = ctx;
     this.options = options;
+    this.presence = options.presence ?? new PresenceStore({ switches: () => DEFAULT_SWITCHES });
   }
 
   /** 读取桥接状态，并把 Linux 风格的调度工作区转换为当前平台的原生路径。 */

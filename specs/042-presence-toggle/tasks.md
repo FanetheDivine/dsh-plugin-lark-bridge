@@ -32,16 +32,16 @@ description: "Tasks for 042-presence-toggle"
 
 **Purpose**: `lark-super-agent` 行提供在场状态、两个配置项与 `/lark-bridge/presence`，所有用户故事依赖它
 
-- [ ] T003 新增 `src/lark-super-agent/presence.ts`：`UserPresence` 类型从 `src/sa-dispatch/presence.ts` 移入；`PresenceStore` 含 `get(): { presence, updatedAt }`、`set(presence)`、`observe(messages)`、`subscribe(listener)`；初始 `local`；`observe` 按 data-model 迁移表判定，`guiInputSetsLocal` 与 `larkInputSetsRemote` 由构造参数的 getter 读取实时值；同批以最后一条可判定消息为准；`WeakSet` 记录已观察的消息对象
-- [ ] T004 [P] 新增 `src/lark-super-agent/config.ts`：`Config` schema `guiInputSetsLocal: Schema.boolean().default(true).volatile()`、`larkInputSetsRemote: Schema.boolean().default(true).volatile()`；`readPresenceConfig(config)` 读取实时值，缺省为 true
-- [ ] T005 在 `src/routes.ts` 导出 `rejectReason` 与 `send`，供新路由复用；行为不变
-- [ ] T006 新增 `src/lark-super-agent/routes.ts`：`registerPresenceRoute({ webServer, connection?, store, logger })` 注册 exact 路由 `/lark-bridge/presence`，GET 与 POST 行为、错误码按 `contracts/presence-route.md`；返回注销函数
-- [ ] T007 修改 `src/lark-super-agent/index.ts`：导出 `Config`；创建 `PresenceStore` 交给 `SuperAgentService`；`webServer` 经 `ctx.get` 可选读取，存在时注册路由并以 `ctx.effect` 注销；更新顶部注释
-- [ ] T008 修改 `src/lark-super-agent/service.ts` 与 `api.ts`：服务暴露只读 `presence: PresenceStore`
-- [ ] T009 在 `cordis.patch.yml` 的 `lark-super-agent` 行写入 `config: { guiInputSetsLocal: true, larkInputSetsRemote: true }` 与注释
-- [ ] T010 [P] 新增 `tests/presence.test.ts`：初始 `local`；`set` 更新时间；GUI 与飞书消息按开关更新；开关关闭不变；桥接提醒不计入；同批最后一条为准；同一消息对象只生效一次；手动与自动按先后
-- [ ] T011 [P] 新增 `tests/presence-routes.test.ts`：GET 返回快照；POST 写入；非法 `presence` 返回 400 `invalid-presence`；非回环与 `Origin` 不符返回 403；其他方法返回 `method-not-allowed`；注销后不再处理
-- [ ] T012 更新 `tests/lark-super-agent-index.test.ts`：导出 `Config`；有 `webServer` 时注册 `/lark-bridge/presence`，卸载时注销；无 `webServer` 时只提供服务；更新 `tests/presets-patch.test.ts` 断言两个默认配置
+- [X] T003 新增 `src/lark-super-agent/presence.ts`：`UserPresence` 类型从 `src/sa-dispatch/presence.ts` 移入；`PresenceStore` 含 `get(): { presence, updatedAt }`、`set(presence)`、`observe(messages)`、`subscribe(listener)`；初始 `local`；`observe` 按 data-model 迁移表判定，`guiInputSetsLocal` 与 `larkInputSetsRemote` 由构造参数的 getter 读取实时值；同批以最后一条可判定消息为准；`WeakSet` 记录已观察的消息对象
+- [X] T004 [P] 新增 `src/lark-super-agent/config.ts`：`Config` schema `guiInputSetsLocal: Schema.boolean().default(true).volatile()`、`larkInputSetsRemote: Schema.boolean().default(true).volatile()`；`readPresenceConfig(config)` 读取实时值，缺省为 true
+- [X] T005 在 `src/routes.ts` 导出 `rejectReason` 与 `send`，供新路由复用；行为不变
+- [X] T006 新增 `src/lark-super-agent/routes.ts`：`registerPresenceRoute({ webServer, connection?, store, logger })` 注册 exact 路由 `/lark-bridge/presence`，GET 与 POST 行为、错误码按 `contracts/presence-route.md`；返回注销函数
+- [X] T007 修改 `src/lark-super-agent/index.ts`：导出 `Config`；创建 `PresenceStore` 交给 `SuperAgentService`；`webServer` 经 `ctx.get` 可选读取，存在时注册路由并以 `ctx.effect` 注销；更新顶部注释
+- [X] T008 修改 `src/lark-super-agent/service.ts` 与 `api.ts`：服务暴露只读 `presence: PresenceStore`
+- [X] T009 在 `cordis.patch.yml` 的 `lark-super-agent` 行写入 `config: { guiInputSetsLocal: true, larkInputSetsRemote: true }` 与注释
+- [X] T010 [P] 新增 `tests/presence.test.ts`：初始 `local`；`set` 更新时间；GUI 与飞书消息按开关更新；开关关闭不变；桥接提醒不计入；同批最后一条为准；同一消息对象只生效一次；手动与自动按先后
+- [X] T011 [P] 新增 `tests/presence-routes.test.ts`：GET 返回快照；POST 写入；非法 `presence` 返回 400 `invalid-presence`；非回环与 `Origin` 不符返回 403；其他方法返回 `method-not-allowed`；注销后不再处理
+- [X] T012 更新 `tests/lark-super-agent-index.test.ts`：导出 `Config`；有 `webServer` 时注册 `/lark-bridge/presence`，卸载时注销；无 `webServer` 时只提供服务；更新 `tests/presets-patch.test.ts` 断言两个默认配置
 
 **Checkpoint**: commit `feat(042): 增加全局在场状态与路由`
 

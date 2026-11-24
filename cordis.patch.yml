@@ -10,6 +10,11 @@
     # 飞书任务与调度会话：共享服务。
     - id: lark-super-agent
       name: dsh-plugin-lark-bridge/lark-super-agent
+      config:
+        # GUI 文本输入把在场状态设为在电脑旁。
+        guiInputSetsLocal: true
+        # 飞书输入把在场状态设为离开。
+        larkInputSetsRemote: true
     - id: preset-sa-dispatch
       name: '@deepseek-ai/dsh-agent-preset'
       config:
