@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { LarkSuperAgentService } from '../src/lark-super-agent/api.ts';
 import { PresenceStore } from '../src/lark-super-agent/presence.ts';
-import { WorkerModelStore } from '../src/lark-super-agent/worker-model.ts';
 import { wrapDispatchMessages } from '../src/sa-worker/dispatch-message.ts';
 import { apply, name } from '../src/sa-worker/index.ts';
 import { SA_WORKER_PROMPT } from '../src/sa-worker/prompt.ts';
@@ -34,7 +33,7 @@ function makeService() {
     listCandidates: vi.fn(),
     sendReport: vi.fn(),
     notifyFailure: vi.fn().mockResolvedValue(undefined),
-    workerModel: new WorkerModelStore(() => undefined),
+    workerModel: () => undefined,
     presence: new PresenceStore({
       switches: () => ({ guiInputSetsLocal: true, larkInputSetsRemote: true }),
     }),

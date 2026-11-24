@@ -145,7 +145,7 @@ describe('SA 预设补丁', () => {
     expect(withoutThreshold(dispatchChildren)).toEqual(withoutThreshold(standardChildren));
   });
 
-  it('meta-tools 十一项全开并固定任务预设', () => {
+  it('meta-tools 关闭 session_create 由 sa-dispatch 覆写，其余十项全开', () => {
     const metaTools = dispatch.plugins.find((entry) => entry.id === 'meta-tools');
     expect(metaTools?.config).toEqual({
       workspace_list: true,
@@ -154,12 +154,11 @@ describe('SA 预设补丁', () => {
       workspace_rename: true,
       session_list: true,
       session_get: true,
-      session_create: true,
+      session_create: false,
       session_stop: true,
       session_send: true,
       session_pin: true,
       session_archive: true,
-      session_preset: 'sa-worker',
     });
   });
 
