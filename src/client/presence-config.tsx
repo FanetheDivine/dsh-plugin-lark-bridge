@@ -1,10 +1,15 @@
 /**
- * 「飞书任务与调度会话」行配置页：两个自动更新在场状态的开关。
- * 导出 PRESENCE_ROW_ID、PRESENCE_ROW_KEY、PresenceConfigForm、presenceSwitchField 与 PresenceConfigPage。
+ * 「飞书任务与调度会话」行配置页：在场状态的自动更新开关、自动切换时间与工作会话模型。
+ * 导出 PRESENCE_ROW_ID、PRESENCE_ROW_KEY、PresenceConfigForm、presenceSwitchField、
+ * presenceAlarmsField 与 PresenceConfigPage。
  */
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store';
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import {
+  Button,
+  IconCloseOutlineRegular,
+  IconPlusOutlineRegular,
+  Pill,
   type SettingsFieldSpec,
   type SettingsFieldState,
   SettingsForm,
@@ -16,10 +21,20 @@ import {
   settingsTextField,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-import type { CSSProperties } from 'react';
+import { type CSSProperties, useState } from 'react';
 
+import {
+  formatAlarmList,
+  normalizeAlarms,
+  type PresenceAction,
+  type PresenceAlarm,
+  parseAlarmList,
+} from '../lark-super-agent/alarms.ts';
 import type { NS } from './locales.ts';
 import type { ModelDefaultsInjected } from './model-defaults.ts';
+import { PresenceAlarmEditor } from './presence-alarms-editor.tsx';
+import type { PresenceController } from './presence-controller.ts';
+import { usePresenceSnapshot } from './presence-controller.ts';
 import { WORKER_MODEL_FIELD_NAMES, WorkerModelField } from './worker-model-field.tsx';
 
 /** 行 id，同时是宿主配置的条目 id。 */
@@ -34,12 +49,31 @@ export const PRESENCE_FIELDS = ['guiInputSetsLocal', 'larkInputSetsRemote'] as c
 /** 开关字段名。 */
 export type PresenceField = (typeof PRESENCE_FIELDS)[number];
 
+/** 闹钟条目的配置字段名。 */
+export const ALARMS_FIELD = 'presenceAlarms';
+
 /** 工作会话模型的三个文本字段。 */
 const WORKER_FIELDS = Object.values(WORKER_MODEL_FIELD_NAMES);
 
+/** 两个自动切换分区。 */
+const SECTIONS = [
+  {
+    action: 'local',
+    label: 'presenceConfig.local.label',
+    description: 'presenceConfig.local.description',
+  },
+  {
+    action: 'remote',
+    label: 'presenceConfig.remote.label',
+    description: 'presenceConfig.remote.description',
+  },
+] as const;
+
 /** 行配置的取值。 */
 export type PresenceConfigFields = Record<PresenceField, boolean> &
-  Record<'workerProvider' | 'workerModel' | 'workerEffort', string>;
+  Record<'workerProvider' | 'workerModel' | 'workerEffort', string> & {
+    readonly presenceAlarms?: readonly PresenceAlarm[] | undefined;
+  };
 
 /** 配置页读取的表单状态。 */
 export interface PresenceConfigState extends SettingsFormShell {
@@ -48,6 +82,7 @@ export interface PresenceConfigState extends SettingsFormShell {
   readonly workerProvider: SettingsFieldState;
   readonly workerModel: SettingsFieldState;
   readonly workerEffort: SettingsFieldState;
+  readonly presenceAlarms: SettingsFieldState;
 }
 
 /** 配置页的注入值。 */
@@ -68,7 +103,20 @@ export function presenceSwitchField(field: PresenceField): SettingsFieldSpec {
   };
 }
 
-/** 暂存两个开关的编辑，保存时写入宿主配置。 */
+/** 闹钟列表字段：暂存文本是规范化 JSON，空列表暂存为空串。 */
+export function presenceAlarmsField(): SettingsFieldSpec {
+  return {
+    field: ALARMS_FIELD,
+    format: (value) => formatAlarmList(normalizeAlarms(value)),
+    parse: (text) => {
+      if (text.trim() === '') return { kind: 'clear' };
+      const alarms = parseAlarmList(text);
+      return alarms === undefined ? undefined : { kind: 'set', value: alarms };
+    },
+  };
+}
+
+/** 暂存开关、闹钟与工作会话模型的编辑，保存时写入宿主配置。 */
 export class PresenceConfigForm {
   private readonly form: SettingsFormModel<PresenceConfigFields>;
   private readonly state: SnapshotStore<PresenceConfigState>;
@@ -78,6 +126,7 @@ export class PresenceConfigForm {
     this.form = new SettingsFormModel(scope, [
       ...PRESENCE_FIELDS.map(presenceSwitchField),
       ...WORKER_FIELDS.map((field) => settingsTextField(field)),
+      presenceAlarmsField(),
     ]);
     this.state = this.form.bind(() => ({
       ...this.form.shell(),
@@ -86,6 +135,7 @@ export class PresenceConfigForm {
       workerProvider: this.form.field('workerProvider'),
       workerModel: this.form.field('workerModel'),
       workerEffort: this.form.field('workerEffort'),
+      presenceAlarms: this.form.field(ALARMS_FIELD),
     }));
   }
 
@@ -103,7 +153,12 @@ export class PresenceConfigForm {
 /** 配置页组件 props。 */
 export type PresenceConfigPageProps = PropsRuntime<'plugins.row.config'> &
   PropsLocale<typeof NS> &
-  InjectFace<PresenceConfigInjected & { readonly modelDefaults: ModelDefaultsInjected }>;
+  InjectFace<
+    PresenceConfigInjected & {
+      readonly modelDefaults: ModelDefaultsInjected;
+      readonly controller: PresenceController;
+    }
+  >;
 
 /** 开关文案键。 */
 const FIELD_KEYS = {
@@ -117,12 +172,57 @@ const FIELD_KEYS = {
   },
 } as const;
 
+/** 正在编辑的条目：动作加被编辑的条目，缺省表示新增。 */
+interface EditorTarget {
+  readonly action: PresenceAction;
+  readonly alarm?: PresenceAlarm | undefined;
+}
+
 /** 渲染行配置页。 */
 export function PresenceConfigPage(props: PresenceConfigPageProps) {
   const { t } = props;
   const state = props.usePresenceConfig((value) => value);
   if (props.view === 'summary') return t('presenceConfig.summary');
+  return <PresenceConfigBody {...props} state={state} />;
+}
+
+/** 配置页主体：需要表单状态与交互状态，故与摘要视图分开。 */
+function PresenceConfigBody(
+  props: PresenceConfigPageProps & { readonly state: PresenceConfigState },
+) {
+  const { t, state } = props;
+  const presence = usePresenceSnapshot(props.controller);
+  const [editor, setEditor] = useState<EditorTarget | null>(null);
   const disabled = !state.available || !state.writable || state.saving;
+  const alarms = parseAlarmList(state.presenceAlarms.text) ?? [];
+  const commit = (next: readonly PresenceAlarm[]): void => {
+    props.edit(ALARMS_FIELD, formatAlarmList(next));
+  };
+  const toggle = (
+    target: PresenceAlarm,
+    key: 'enabled' | 'skipWeekends' | 'skipHolidays',
+  ): void => {
+    commit(
+      alarms.map((alarm) => (alarm.id === target.id ? { ...alarm, [key]: !alarm[key] } : alarm)),
+    );
+  };
+  const remove = (target: PresenceAlarm): void => {
+    commit(alarms.filter((alarm) => alarm.id !== target.id));
+  };
+  const submit = (next: PresenceAlarm): void => {
+    const exists = alarms.some((alarm) => alarm.id === next.id);
+    commit(
+      exists ? alarms.map((alarm) => (alarm.id === next.id ? next : alarm)) : [...alarms, next],
+    );
+  };
+  const holidayHint =
+    !alarms.some((alarm) => alarm.enabled && alarm.skipHolidays) ||
+    presence.holidays.state === 'fresh'
+      ? undefined
+      : presence.holidays.state === 'missing'
+        ? t('presenceConfig.holidays.missing')
+        : t('presenceConfig.holidays.stale');
+
   return (
     <SettingsForm
       state={state}
@@ -150,12 +250,102 @@ export function PresenceConfigPage(props: PresenceConfigPageProps) {
           <p style={descriptionStyle}>{t(FIELD_KEYS[field].description)}</p>
         </div>
       ))}
+      {SECTIONS.map((section) => {
+        const list = alarms.filter((alarm) => alarm.action === section.action);
+        return (
+          <div
+            key={section.action}
+            data-dsh-lark-presence-config={`alarms-${section.action}`}
+            style={fieldStyle}
+          >
+            <div style={rowStyle}>
+              <span style={titleStyle}>{t(section.label)}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<IconPlusOutlineRegular size={14} />}
+                disabled={disabled}
+                onClick={() => setEditor({ action: section.action })}
+              >
+                {t('presenceConfig.alarms.add')}
+              </Button>
+            </div>
+            <p style={descriptionStyle}>{t(section.description)}</p>
+            {list.length === 0 ? (
+              <p style={emptyStyle}>{t('presenceConfig.alarms.empty')}</p>
+            ) : (
+              <div style={alarmListStyle}>
+                {list.map((alarm) => (
+                  <div key={alarm.id} style={alarmRowStyle} data-dsh-lark-alarm={alarm.id}>
+                    <Pill
+                      onClick={() => setEditor({ action: section.action, alarm })}
+                      disabled={disabled}
+                      title={t('presenceConfig.alarm.edit')}
+                    >
+                      {alarm.time}
+                    </Pill>
+                    <Pill
+                      active={alarm.skipWeekends}
+                      onClick={() => toggle(alarm, 'skipWeekends')}
+                      disabled={disabled}
+                    >
+                      {t('presenceConfig.alarm.skipWeekends')}
+                    </Pill>
+                    <Pill
+                      active={alarm.skipHolidays}
+                      onClick={() => toggle(alarm, 'skipHolidays')}
+                      disabled={disabled}
+                    >
+                      {t('presenceConfig.alarm.skipHolidays')}
+                    </Pill>
+                    <span style={spacerStyle} />
+                    <Switch
+                      checked={alarm.enabled}
+                      onChange={() => toggle(alarm, 'enabled')}
+                      label={`${t('presenceConfig.alarm.enabled')} ${alarm.time}`}
+                      disabled={disabled}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`${t('presenceConfig.alarm.remove')} ${alarm.time}`}
+                      disabled={disabled}
+                      onClick={() => remove(alarm)}
+                    >
+                      <IconCloseOutlineRegular size={14} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {holidayHint === undefined ? null : (
+        <p style={warningStyle} role="status">
+          {holidayHint}
+        </p>
+      )}
       <WorkerModelField
         t={t}
         modelDefaults={props.modelDefaults}
         available={state.available}
         disabled={disabled}
       />
+      {editor === null ? null : (
+        <PresenceAlarmEditor
+          key={`${editor.action}-${editor.alarm?.id ?? 'new'}`}
+          t={t}
+          action={editor.action}
+          alarm={editor.alarm}
+          existingTimes={alarms
+            .filter((alarm) => alarm.action === editor.action && alarm.id !== editor.alarm?.id)
+            .map((alarm) => alarm.time)}
+          disabled={disabled}
+          onClose={() => setEditor(null)}
+          onSubmit={submit}
+        />
+      )}
     </SettingsForm>
   );
 }
@@ -187,4 +377,35 @@ const descriptionStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.5,
   color: 'var(--dsw-alias-label-secondary)',
+};
+
+const emptyStyle: CSSProperties = {
+  margin: 0,
+  fontSize: 12,
+  lineHeight: 1.5,
+  color: 'var(--dsw-alias-label-tertiary)',
+};
+
+const alarmListStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+};
+
+const alarmRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+};
+
+const spacerStyle: CSSProperties = {
+  flex: 1,
+};
+
+const warningStyle: CSSProperties = {
+  margin: 0,
+  padding: '8px 0 0',
+  fontSize: 12,
+  lineHeight: 1.5,
+  color: 'var(--dsw-alias-state-warn-primary)',
 };

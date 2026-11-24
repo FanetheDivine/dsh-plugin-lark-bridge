@@ -62,6 +62,28 @@ export const zh = {
   'presenceConfig.workerModel.label': '工作会话模型',
   'presenceConfig.workerModel.description':
     '调度会话新建工作会话时使用的模型与推理等级；未选择时使用宿主默认。这里不改变调度会话自身的模型，它在「用飞书和DSH对话」配置页的「模型」中设置。',
+  'presenceConfig.local.label': '自动切换在电脑旁的时间',
+  'presenceConfig.local.description': '到点时把在场状态设为在电脑旁，每条时间单独设置跳过项。',
+  'presenceConfig.remote.label': '自动切换离开的时间',
+  'presenceConfig.remote.description': '到点时把在场状态设为离开，每条时间单独设置跳过项。',
+  'presenceConfig.alarms.add': '添加时间',
+  'presenceConfig.alarms.empty': '还没有时间点',
+  'presenceConfig.alarm.skipWeekends': '跳过周末',
+  'presenceConfig.alarm.skipHolidays': '跳过节假日',
+  'presenceConfig.alarm.enabled': '启用',
+  'presenceConfig.alarm.edit': '编辑时间',
+  'presenceConfig.alarm.remove': '删除时间',
+  'presenceConfig.editor.add.title': '添加时间',
+  'presenceConfig.editor.edit.title': '编辑时间',
+  'presenceConfig.editor.time': '时间',
+  'presenceConfig.editor.hour': '小时',
+  'presenceConfig.editor.minute': '分钟',
+  'presenceConfig.editor.clock': '表盘选时间',
+  'presenceConfig.editor.cancel': '取消',
+  'presenceConfig.editor.save': '确认',
+  'presenceConfig.editor.duplicate': '该分区已有这个时间',
+  'presenceConfig.holidays.missing': '节假日数据获取失败，暂按仅跳过周末处理。',
+  'presenceConfig.holidays.stale': '节假日数据已过期，正在使用上次缓存。',
 } as const;
 
 /** 英文字典，键集与中文一致。 */
@@ -124,6 +146,30 @@ export const en: Record<BridgeKey, string> = {
   'presenceConfig.workerModel.label': 'Worker session model',
   'presenceConfig.workerModel.description':
     'The model and reasoning effort for worker sessions the dispatch session creates; the Host default applies when none is chosen. This does not change the model of the dispatch session itself, which is set under "Model" on the "Talk to DSH from Lark" settings page.',
+  'presenceConfig.local.label': 'Times that mark as at the computer',
+  'presenceConfig.local.description':
+    'At each time the presence switches to at the computer. Skip rules are set per entry.',
+  'presenceConfig.remote.label': 'Times that mark as away',
+  'presenceConfig.remote.description':
+    'At each time the presence switches to away. Skip rules are set per entry.',
+  'presenceConfig.alarms.add': 'Add time',
+  'presenceConfig.alarms.empty': 'No times yet',
+  'presenceConfig.alarm.skipWeekends': 'Skip weekends',
+  'presenceConfig.alarm.skipHolidays': 'Skip holidays',
+  'presenceConfig.alarm.enabled': 'Enabled',
+  'presenceConfig.alarm.edit': 'Edit time',
+  'presenceConfig.alarm.remove': 'Remove time',
+  'presenceConfig.editor.add.title': 'Add time',
+  'presenceConfig.editor.edit.title': 'Edit time',
+  'presenceConfig.editor.time': 'Time',
+  'presenceConfig.editor.hour': 'Hour',
+  'presenceConfig.editor.minute': 'Minute',
+  'presenceConfig.editor.clock': 'Pick time on the dial',
+  'presenceConfig.editor.cancel': 'Cancel',
+  'presenceConfig.editor.save': 'Confirm',
+  'presenceConfig.editor.duplicate': 'This section already has that time',
+  'presenceConfig.holidays.missing': 'Holiday data is unavailable; only weekend skipping applies.',
+  'presenceConfig.holidays.stale': 'Holiday data is out of date; the last cached copy is in use.',
 };
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

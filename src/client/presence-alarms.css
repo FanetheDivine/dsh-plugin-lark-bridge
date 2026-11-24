@@ -1,0 +1,71 @@
+/* 时间选择器样式：把 react-time-picker 与 react-clock 对齐到 DSH 设计令牌。 */
+
+.dsh-lark-time-picker {
+  width: 100%;
+}
+
+.dsh-lark-time-picker .react-time-picker__wrapper {
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-radius-sm);
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dsh-lark-time-picker .react-time-picker__inputGroup {
+  gap: 2px;
+}
+
+.dsh-lark-time-picker .react-time-picker__inputGroup__input,
+.dsh-lark-time-picker .react-time-picker__inputGroup__divider {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+}
+
+.dsh-lark-time-picker .react-time-picker__inputGroup__divider {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.dsh-lark-time-picker .react-time-picker__clock {
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-shadow-lv3);
+  z-index: 2;
+}
+
+.dsh-lark-time-picker .react-clock__face {
+  border-color: var(--dsw-alias-border-l4);
+}
+
+.dsh-lark-time-picker .react-clock__mark__body {
+  background: var(--dsw-alias-label-tertiary);
+}
+
+.dsh-lark-time-picker .react-clock__hand__body {
+  background: var(--dsw-alias-label-primary);
+}
+
+.dsh-lark-time-picker .react-clock__second-hand__body {
+  background: var(--dsw-alias-state-business-primary);
+}
+
+.dsh-lark-time-picker .react-time-picker__clear-button {
+  display: none;
+}
+
+.dsh-lark-time-picker .react-time-picker__clock-button {
+  color: var(--dsw-alias-label-secondary);
+  padding: 0 2px 0 6px;
+}
+
+.dsh-lark-time-picker .react-time-picker__clock-button:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.dsh-lark-time-picker .react-time-picker__clock-button svg {
+  width: 14px;
+  height: 14px;
+}

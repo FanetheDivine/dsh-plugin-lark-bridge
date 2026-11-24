@@ -81,6 +81,8 @@ export default defineConfig([
     dts: false,
     clean: false,
     css: { fileName: 'client.css' },
+    // 内联的第三方组件在模块作用域读取构建期环境，浏览器没有 process。
+    define: { 'process.env.NODE_ENV': '"production"' },
     onSuccess: inlineClientCss,
     deps: {
       // 平台种子不得内联；其余依赖（含 devDependencies）一律内联，

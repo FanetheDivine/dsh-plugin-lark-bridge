@@ -13,6 +13,7 @@ import {
   type WebServerLike,
 } from '../routes.ts';
 import { describeError } from '../utils.ts';
+import type { HolidayDataStatus } from './holidays.ts';
 import { isUserPresence, type PresenceStore } from './presence.ts';
 
 /** 在场状态路由路径。 */
@@ -26,7 +27,17 @@ export interface PresenceRouteDeps {
   readonly webServer: WebServerLike;
   readonly connection?: ConnectionLike;
   readonly store: PresenceStore;
+  /** 节假日数据状态；缺失时按没有数据处理。 */
+  readonly holidays?: { status(): HolidayDataStatus };
   readonly logger: { warn(message: string): void };
+}
+
+/** 组装回答：在场状态加节假日数据状态。 */
+function payload(deps: PresenceRouteDeps): Record<string, unknown> {
+  return {
+    ...deps.store.get(),
+    holidays: deps.holidays?.status() ?? { state: 'missing', fetchedAt: null },
+  };
 }
 
 /** 读取 JSON 请求体；超长或无法解析时抛出 invalid-presence。 */
@@ -49,7 +60,7 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
 /** 执行路由动作。 */
 async function handle(deps: PresenceRouteDeps, req: IncomingMessage): Promise<Reply> {
   const method = req.method ?? 'GET';
-  if (method === 'GET') return { ok: true, data: deps.store.get() };
+  if (method === 'GET') return { ok: true, data: payload(deps) };
   if (method !== 'POST') throw new BridgeError('method-not-allowed', '只支持 GET 与 POST');
   const body = await readJson(req);
   const presence =
@@ -59,7 +70,8 @@ async function handle(deps: PresenceRouteDeps, req: IncomingMessage): Promise<Re
   if (!isUserPresence(presence)) {
     throw new BridgeError('invalid-presence', 'presence 必须是 local 或 remote');
   }
-  return { ok: true, data: deps.store.set(presence) };
+  deps.store.set(presence);
+  return { ok: true, data: payload(deps) };
 }
 
 /** 注册在场状态路由并返回注销函数。 */

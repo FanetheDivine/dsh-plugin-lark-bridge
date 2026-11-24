@@ -5,12 +5,17 @@
  */
 
 export { Button } from '@deepseek-ai/dsh-client-ui-primitives/src/Button.tsx';
+export { Checkbox } from '@deepseek-ai/dsh-client-ui-primitives/src/Checkbox.tsx';
 export { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives/src/clipboard.ts';
 export {
   IconCheckOutlineRegular,
   IconChevronDownOutlineRegular,
+  IconCloseOutlineRegular,
+  IconPlusOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives/src/icons/index.tsx';
 export { Menu, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives/src/Menu.tsx';
+export { Modal } from '@deepseek-ai/dsh-client-ui-primitives/src/Modal.tsx';
+export { Pill } from '@deepseek-ai/dsh-client-ui-primitives/src/Pill.tsx';
 export { Switch } from '@deepseek-ai/dsh-client-ui-primitives/src/Switch.tsx';
 export type { SettingsFieldProps } from '@deepseek-ai/dsh-client-ui-primitives/src/settings-form/fields.tsx';
 export {

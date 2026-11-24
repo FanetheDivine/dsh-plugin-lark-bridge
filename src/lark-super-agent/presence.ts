@@ -93,6 +93,7 @@ function presenceOf(message: UserMessage, switches: PresenceSwitches): UserPrese
 export class PresenceStore {
   private readonly options: PresenceStoreOptions;
   private snapshot: PresenceSnapshot;
+  private lastManual = 0;
   private readonly observed = new WeakSet<object>();
   private readonly listeners = new Set<(snapshot: PresenceSnapshot) => void>();
 
@@ -108,6 +109,23 @@ export class PresenceStore {
 
   /** 手动切换到目标状态。 */
   set(presence: UserPresence): PresenceSnapshot {
+    this.lastManual = this.now();
+    return this.write(presence);
+  }
+
+  /** 自动切换到目标状态；状态相同时不更新时间。 */
+  setAuto(presence: UserPresence): PresenceSnapshot {
+    if (presence === this.snapshot.presence) return this.snapshot;
+    return this.write(presence);
+  }
+
+  /** 最近一次手动切换的时间戳；没有手动切换时为 0。 */
+  lastManualAt(): number {
+    return this.lastManual;
+  }
+
+  /** 写入状态并通知订阅者。 */
+  private write(presence: UserPresence): PresenceSnapshot {
     this.snapshot = { presence, updatedAt: this.now() };
     for (const listener of this.listeners) listener(this.snapshot);
     return this.snapshot;
@@ -127,7 +145,7 @@ export class PresenceStore {
       if (presence !== undefined) target = presence;
     }
     if (target === undefined || target === this.snapshot.presence) return this.snapshot;
-    return this.set(target);
+    return this.write(target);
   }
 
   /**

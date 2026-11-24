@@ -1,12 +1,31 @@
 // 调度全局行测试：共享服务归属当前 fiber，在场状态路由随行注册与注销。
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { readPresenceSwitches } from '../src/lark-super-agent/config.ts';
+import { readPresenceAlarms, readPresenceSwitches } from '../src/lark-super-agent/config.ts';
 import { apply, Config } from '../src/lark-super-agent/index.ts';
 import { PresenceStore } from '../src/lark-super-agent/presence.ts';
 import { PRESENCE_PATH } from '../src/lark-super-agent/routes.ts';
 import { SuperAgentService } from '../src/lark-super-agent/service.ts';
 import type { Context } from '../src/types.ts';
+
+// 行启用时会取一次节假日数据：隔离状态目录并让网络直接失败，避免写入真实目录。
+beforeEach(() => {
+  process.env['DSH_HOME'] = mkdtempSync(join(tmpdir(), 'rdt-043-dsh-'));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      throw new Error('offline');
+    }),
+  );
+});
+
+afterEach(() => {
+  delete process.env['DSH_HOME'];
+  vi.unstubAllGlobals();
+});
 
 /** 构造记录 provide、effect 与路由的最小 ctx。 */
 function makeRowCtx(services: Record<string, unknown> = {}) {
@@ -59,11 +78,26 @@ describe('lark-super-agent 全局行', () => {
     expect(service.presence.get().presence).toBe('local');
   });
 
-  it('导出两个默认开启的开关', () => {
-    expect(readPresenceSwitches(Config({}))).toEqual({
+  it('导出两个默认开启的开关与空的闹钟列表', () => {
+    const config = Config({});
+    expect(readPresenceSwitches(config)).toEqual({
       guiInputSetsLocal: true,
       larkInputSetsRemote: true,
     });
+    expect(readPresenceAlarms(config)).toEqual([]);
+  });
+
+  it('到点调度随行启停', () => {
+    vi.useFakeTimers();
+    try {
+      const { ctx, dispose } = makeRowCtx();
+      apply(ctx);
+      expect(vi.getTimerCount()).toBe(1);
+      dispose();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('webServer 作为可选依赖等待就绪', () => {

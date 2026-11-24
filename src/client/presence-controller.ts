@@ -7,6 +7,8 @@ import { useSyncExternalStore } from 'react';
 import {
   type ApiResult,
   fetchPresence,
+  type HolidayDataStatus,
+  MISSING_HOLIDAYS,
   type Presence,
   type PresenceStatus,
   writePresence,
@@ -34,6 +36,8 @@ export interface PresenceViewState {
   readonly presence: Presence;
   /** 最近一次切换失败，3 秒后清除。 */
   readonly failed: boolean;
+  /** 节假日数据状态，供配置页提示。 */
+  readonly holidays: HolidayDataStatus;
 }
 
 /** 默认的页面隐藏判断。 */
@@ -46,7 +50,12 @@ export class PresenceController {
   private readonly options: PresenceControllerOptions;
   private readonly fetchPresence: () => Promise<ApiResult<PresenceStatus>>;
   private readonly writePresence: (presence: Presence) => Promise<ApiResult<PresenceStatus>>;
-  private snapshot: PresenceViewState = { available: null, presence: 'local', failed: false };
+  private snapshot: PresenceViewState = {
+    available: null,
+    presence: 'local',
+    failed: false,
+    holidays: MISSING_HOLIDAYS,
+  };
   private failedTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly listeners = new Set<(snapshot: PresenceViewState) => void>();
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -94,7 +103,12 @@ export class PresenceController {
       const result = await this.fetchPresence();
       if (this.disposed || generation !== this.generation) return;
       if (result.ok) {
-        this.publish({ ...this.snapshot, available: true, presence: result.data.presence });
+        this.publish({
+          ...this.snapshot,
+          available: true,
+          presence: result.data.presence,
+          holidays: result.data.holidays,
+        });
       } else if (result.error.code === 'invalid-response') {
         this.publish({ ...this.snapshot, available: false });
       }
@@ -123,7 +137,12 @@ export class PresenceController {
     }
     if (this.disposed || generation !== this.generation) return;
     if (result.ok) {
-      this.publish({ ...this.snapshot, available: true, presence: result.data.presence });
+      this.publish({
+        ...this.snapshot,
+        available: true,
+        presence: result.data.presence,
+        holidays: result.data.holidays,
+      });
       return;
     }
     this.publish({ ...this.snapshot, presence: previous, failed: true });

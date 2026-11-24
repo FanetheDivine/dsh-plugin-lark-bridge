@@ -81,6 +81,27 @@ describe('PresenceStore', () => {
     expect(store.observe([message]).presence).toBe('remote');
   });
 
+  it('自动切换不记录手动时间，状态相同时不更新时间', () => {
+    const { store, tick } = setup();
+    tick();
+    expect(store.lastManualAt()).toBe(0);
+    expect(store.setAuto('remote')).toEqual({ presence: 'remote', updatedAt: 101 });
+    tick();
+    store.setAuto('remote');
+    expect(store.get().updatedAt).toBe(101);
+  });
+
+  it('手动切换记录时间戳，输入更新不记录', () => {
+    const { store, tick } = setup();
+    tick();
+    store.set('remote');
+    expect(store.lastManualAt()).toBe(101);
+    tick();
+    store.observe([gui()]);
+    expect(store.lastManualAt()).toBe(101);
+    expect(store.get()).toEqual({ presence: 'local', updatedAt: 102 });
+  });
+
   it('状态未变时不更新时间', () => {
     const { store, tick } = setup();
     tick();
