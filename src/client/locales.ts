@@ -59,6 +59,9 @@ export const zh = {
     '在任一会话的网页中发送消息时，把在场状态设为在电脑旁。',
   'presenceConfig.larkInputSetsRemote.label': '收到飞书消息时切换为离开',
   'presenceConfig.larkInputSetsRemote.description': '桥接会话收到飞书私聊时，把在场状态设为离开。',
+  'presenceConfig.workerModel.label': '工作会话模型',
+  'presenceConfig.workerModel.description':
+    '调度会话新建工作会话时使用的模型与推理等级；未选择时使用宿主默认。这里不改变调度会话自身的模型，它在「用飞书和DSH对话」配置页的「模型」中设置。',
 } as const;
 
 /** 英文字典，键集与中文一致。 */
@@ -118,6 +121,9 @@ export const en: Record<BridgeKey, string> = {
   'presenceConfig.larkInputSetsRemote.label': 'Mark as away on Lark messages',
   'presenceConfig.larkInputSetsRemote.description':
     'A Lark direct message to the bridge session marks the user as away.',
+  'presenceConfig.workerModel.label': 'Worker session model',
+  'presenceConfig.workerModel.description':
+    'The model and reasoning effort for worker sessions the dispatch session creates; the Host default applies when none is chosen. This does not change the model of the dispatch session itself, which is set under "Model" on the "Talk to DSH from Lark" settings page.',
 };
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
