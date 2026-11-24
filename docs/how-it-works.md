@@ -194,19 +194,33 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 - meta-tools 是 `SA-调度会话` 的子行，十一项能力全部开启，`session_preset` 固定为 `sa-worker`。
 - 两个预设子行用 `ctx.systemPrompt.section` 注册各自会话的提示词。
-- `SA-调度会话` 的提示词要求每个任务都派给 worker 会话，自身只在调度工作区读写笔记、任务归档与报告；建任务前按 `workspaces.json` 的 `summary` 与 `keywords` 匹配工作区。
-- 只有 `workspaces.json` 已登记的工作区可以接收任务。没有匹配时，调度会话先请用户新增工作区或补充现有工作区的说明与关键词；多个工作区都匹配时，先问清目标再派发。
+- `SA-调度会话` 的提示词要求回复只给结论、保持简短，不用礼貌用语，不讲实现细节，不提无意义的疑问与建议。
+- `SA-调度会话` 的提示词把用户指令默认理解为交给新建工作会话在工作区执行的独立任务。调度会话自身只在调度工作区读写笔记、任务归档与报告，用户明确要求时才亲自执行，也不建议由调度会话执行；建任务前按 `workspaces.json` 的 `summary` 与 `keywords` 匹配工作区。
+- 只有 `workspaces.json` 已登记的工作区可以接收任务。没有匹配或多个都匹配时，调度会话不猜测、不执行，告知「我不知道在哪个工作区」并询问目标。
+- 每个任务新建工作会话；只有用户明确要求才复用已有会话，无法判断时询问用户。`task_candidates` 仅用于查找用户要求复用的会话。
 - 派发开始时，调度会话告诉用户任务 id、目标工作区与所选会话。
 - 用户对上报的回答由调度会话送回原工作会话，并追加到任务笔记。
 - 在场状态见[在场状态](#在场状态)。
 - `SA-调度会话` 的提示词按最近的在场提醒选择渠道：离开时经 `lark_notify` 回复与转达，在电脑旁时在正文回复与转达。
 - `SA-工作会话` 把 `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>`，保留原消息 id 与 `source`，文本中的闭标签转义。这覆盖 `session_create` 的首条任务与 `session_send` 的提醒。
 - `SA-工作会话` 的提示词用 `<dispatch_session_message>` 区分调度消息与用户消息，按最近的在场提醒选择模式：离开为远程模式，经 `send_report` 交流；在电脑旁为本机模式，正文直接对话，需求变更、完成与放弃仍上报。
-- `SA-调度会话` 的提示词要求新建工作会话后先置顶，再发送任务要求；复用的候选会话保持原置顶状态。
+- `SA-调度会话` 的提示词要求新建工作会话后先置顶，再发送任务要求；用户要求复用的会话保持原置顶状态。
 - `SA-调度会话` 的提示词要求任务完成时先取得会话 id，标记完成后再逐个归档；仍被未完成任务引用的会话保持未归档，归档带 `stop_activity` 停止运行中的工作。
 - 两个预设都不含 `ask_user_question`，也不修改新会话的默认预设。
 - `SA-调度会话` 不含 `tool-jobs`，保留 `persona`、`agent-instructions`、`time-context`、`skill-filesystem` 与压缩组。压缩组的 `compaction-basic` 设 `thresholdRatio: 0.3`，上下文压力到模型窗口 30% 时触发压缩。
 - 全局行与预设子行的工具叠加。`lark_notify` 来自本插件主行，其他插件的全局工具也照常可见。
+
+## 工作会话模型
+
+`lark-super-agent` 行的 `workerProvider`、`workerModel`、`workerEffort` 保存调度会话新建工作会话时使用的模型，均为 volatile 字符串，默认空。provider 与模型同时非空才成立，effort 只在成立时生效。
+
+- 配置页复用官方 `ModelSelect` 与模型目录，字段名经 `ModelDefaults` 的第四个参数指定，effort 只能取所选模型支持的值。
+- `SA-调度会话` 用 `tools/execute` 包住自己的 `session_create`，执行期间用 `AsyncLocalStorage` 把这次调用链标记在 `WorkerModelStore`。参数里已有 `provider` 或 `model` 时不记，显式参数由 meta-tools 在创建后应用。
+- `SA-工作会话` 在 `agent/created`（来源 `startup`）读取该标记，经 `llm.resolveCallConfig` 校验后调用 `agent.model.select`。首条任务消息在创建完成后才送达，首轮请求即用该模型。
+- 校验失败、`llm` 不可用或未配置时，新会话沿用宿主默认，校验失败写一条警告。
+- 标记只在该次 `session_create` 的异步调用链内有效且只取用一次；调用链之外创建的会话取不到模型。
+- 选择只写入新会话本身（`agent.model.select`），不写任何默认模型设置。
+- 保存配置后无需重启，下一次创建生效。
 
 ## 在场状态
 

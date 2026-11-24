@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { LarkSuperAgentService } from '../src/lark-super-agent/api.ts';
 import { PresenceStore } from '../src/lark-super-agent/presence.ts';
+import { WorkerModelStore } from '../src/lark-super-agent/worker-model.ts';
 import { apply, name } from '../src/sa-dispatch/index.ts';
 import { SA_DISPATCH_PROMPT } from '../src/sa-dispatch/prompt.ts';
 import type { Context } from '../src/types.ts';
@@ -25,6 +26,7 @@ function makeService() {
     listCandidates: vi.fn(),
     sendReport: vi.fn(),
     notifyFailure: vi.fn(),
+    workerModel: new WorkerModelStore(() => undefined),
     presence: new PresenceStore({
       switches: () => ({ guiInputSetsLocal: true, larkInputSetsRemote: true }),
     }),
@@ -255,16 +257,39 @@ describe('SA-调度会话子行', () => {
     expect(SA_DISPATCH_PROMPT).toContain('## Always dispatch');
     expect(SA_DISPATCH_PROMPT).toContain('## Pick a workspace first');
     expect(SA_DISPATCH_PROMPT).toContain('## Stay in bounds');
-    expect(SA_DISPATCH_PROMPT).toContain('must be assigned to a worker session');
+    expect(SA_DISPATCH_PROMPT).toContain('independent task for a new worker session');
     expect(SA_DISPATCH_PROMPT).toContain(
-      'Do not suggest that the dispatch session do the work itself',
+      'Do the work yourself only when the user explicitly asks you to',
     );
-    expect(SA_DISPATCH_PROMPT).toContain('ask the user to register');
-    expect(SA_DISPATCH_PROMPT).toContain('Do not guess');
+    expect(SA_DISPATCH_PROMPT).toContain('Never suggest that the dispatch session do the work');
+    expect(SA_DISPATCH_PROMPT).toContain('我不知道在哪个工作区');
+    expect(SA_DISPATCH_PROMPT).toContain('do not guess and do not start work');
+    expect(SA_DISPATCH_PROMPT).not.toMatch(/register a new workspace/i);
     expect(SA_DISPATCH_PROMPT).toContain(
       'Dispatch only into a workspace registered in workspaces.json',
     );
     expect(SA_DISPATCH_PROMPT).toMatch(/Assign project inspections.*worker session/is);
+  });
+
+  it('提示词要求回复简短并只给结论', () => {
+    expect(SA_DISPATCH_PROMPT).toContain('## Reply style');
+    expect(SA_DISPATCH_PROMPT).toMatch(/State conclusions only/i);
+    expect(SA_DISPATCH_PROMPT).toMatch(
+      /Omit pleasantries, implementation details, pointless questions, and suggestions/i,
+    );
+    expect(SA_DISPATCH_PROMPT).toMatch(/Ask the user only when a decision blocks dispatching/i);
+  });
+
+  it('提示词默认新开会话，仅在用户明确要求时复用', () => {
+    expect(SA_DISPATCH_PROMPT).toMatch(/new worker session.*every task/is);
+    expect(SA_DISPATCH_PROMPT).toMatch(
+      /Reuse an existing session only when the user explicitly asks/i,
+    );
+    expect(SA_DISPATCH_PROMPT).toMatch(/When unsure, ask the user/i);
+    expect(SA_DISPATCH_PROMPT).toMatch(
+      /task_candidates only to find a session the user asked to reuse/i,
+    );
+    expect(SA_DISPATCH_PROMPT).not.toMatch(/Confirm reuse/i);
   });
 
   it('提示词要求新建工作会话先置顶', () => {
@@ -286,7 +311,9 @@ describe('SA-调度会话子行', () => {
   });
 
   it('提示词要求复用与共用会话保持原状态', () => {
-    expect(SA_DISPATCH_PROMPT).toMatch(/task_candidates keeps its current pin state/i);
+    expect(SA_DISPATCH_PROMPT).toMatch(
+      /reused through task_candidates keeps its current pin state/i,
+    );
     expect(SA_DISPATCH_PROMPT).toMatch(/Do not pin or unpin it/i);
     expect(SA_DISPATCH_PROMPT).toMatch(
       /check message-task-status\.json again.*any unfinished task lists it/is,

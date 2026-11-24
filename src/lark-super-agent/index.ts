@@ -11,6 +11,7 @@ import { PresenceStore } from './presence.ts';
 import { registerPresenceRoute } from './routes.ts';
 import { PresenceScheduler } from './schedule.ts';
 import { SuperAgentService } from './service.ts';
+import { readWorkerModel, WorkerModelStore } from './worker-model.ts';
 
 export { Config };
 
@@ -27,7 +28,10 @@ export function apply(ctx: Context, config?: unknown): void {
     calendar,
     logger: ctx.logger,
   });
-  const service = new SuperAgentService(ctx, { presence });
+  const service = new SuperAgentService(ctx, {
+    presence,
+    workerModel: new WorkerModelStore(() => readWorkerModel(config)),
+  });
   ctx.effect(() => ctx.provide('larkSuperAgent', service), 'lark-super-agent: service');
   // 到点调度随行启停；判定失败只记日志，不影响其他能力。
   ctx.effect(() => {

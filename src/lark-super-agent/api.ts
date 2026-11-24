@@ -2,6 +2,7 @@
  * lark-super-agent 的共享数据与服务接口。全局行实现服务，两个预设行只依赖这些类型。
  */
 import type { PresenceStore } from './presence.ts';
+import type { WorkerModelStore } from './worker-model.ts';
 
 /** 任务状态。 */
 export type TaskStatus = 'in_progress' | 'waiting_user' | 'failed' | 'completed';
@@ -85,6 +86,8 @@ export interface BridgeState {
 export interface LarkSuperAgentService {
   /** 全局在场状态。 */
   readonly presence: PresenceStore;
+  /** 调度会话创建工作会话时使用的模型配置。 */
+  readonly workerModel: WorkerModelStore;
   createTask(input: CreateTaskInput): Promise<{ taskId: string }>;
   updateTask(
     input: UpdateTaskInput,

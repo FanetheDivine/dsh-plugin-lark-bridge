@@ -22,6 +22,7 @@ import {
 import { PresenceController } from './presence-controller.ts';
 import { PresetDefaults, type PresetRemoteLike } from './preset-defaults.ts';
 import { StatusController } from './status-controller.ts';
+import { WORKER_MODEL_FIELD_NAMES } from './worker-model-field.tsx';
 
 /** 需要宿主注入的客户端服务。 */
 export const inject = ['slots', 'locale', 'configForms', 'remote', 'remote.session'];
@@ -37,6 +38,12 @@ export function apply(ctx: Context): void {
     const injected = form.inject();
     const presenceForm = new PresenceConfigForm(ctx.configForms.get(PRESENCE_ROW_ID));
     const models = new ModelDefaults(ctx, injected.hooks.configForm, injected.edit);
+    const workerModels = new ModelDefaults(
+      ctx,
+      presenceForm.inject().hooks.presenceConfig,
+      presenceForm.inject().edit,
+      WORKER_MODEL_FIELD_NAMES,
+    );
     const presets = new PresetDefaults(ctx, injected.hooks.configForm, injected.edit);
     // 预设服务是可选依赖：就绪后接入，缺失时选择器保持禁用。
     ctx.inject(['remote.agentPresets'], (scoped) => {
@@ -57,6 +64,7 @@ export function apply(ctx: Context): void {
         form.dispose();
         presenceForm.dispose();
         models.dispose();
+        workerModels.dispose();
         presets.dispose();
       },
       `${NS}: shared state`,
@@ -151,7 +159,10 @@ export function apply(ctx: Context): void {
           name: 'plugins.row.config',
           key: PRESENCE_ROW_KEY,
           locale: NS,
-          inject: () => presenceForm.inject(),
+          inject: () => ({
+            ...presenceForm.inject(),
+            modelDefaults: workerModels.inject(modelT, (text) => ctx.locale.resolveText(text)),
+          }),
         },
         PresenceConfigPage,
       ),
