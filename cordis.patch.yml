@@ -83,12 +83,12 @@
               workspace_rename: true
               session_list: true
               session_get: true
-              session_create: true
+              # session_create 由 sa-dispatch 子行提供，带「工作会话模型」；这里关闭以免重名。
+              session_create: false
               session_stop: true
               session_send: true
               session_pin: true
               session_archive: true
-              session_preset: sa-worker
           - id: sa-dispatch
             name: dsh-plugin-lark-bridge/sa-dispatch
     - id: preset-sa-worker

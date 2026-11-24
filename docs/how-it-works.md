@@ -189,10 +189,10 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 | 预设 | 组成 |
 | --- | --- |
-| `SA-调度会话` | 标准预设中的 11 个基础工具、meta-tools 十一项能力、`task_create`、`task_update`、`workspace_note_set`、`workspace_note_remove`、`task_candidates` 与调度提示词段 |
+| `SA-调度会话` | 标准预设中的 11 个基础工具、meta-tools 十项能力与本插件覆写的 `session_create`、`task_create`、`task_update`、`workspace_note_set`、`workspace_note_remove`、`task_candidates` 与调度提示词段 |
 | `SA-工作会话` | 标准预设去掉 `tool-ask-user`，加入 `send_report`、任务提示词段与失败监听 |
 
-- meta-tools 是 `SA-调度会话` 的子行，十一项能力全部开启，`session_preset` 固定为 `sa-worker`。
+- meta-tools 是 `SA-调度会话` 的子行，预设补丁关闭它的 `session_create`，其余十项能力开启。`session_create` 由 `sa-dispatch` 子行提供，见「工作会话模型」。
 - 两个预设子行用 `ctx.systemPrompt.section` 注册各自会话的提示词。
 - `SA-调度会话` 的提示词要求回复只给结论、保持简短，不用礼貌用语，不讲实现细节，不提无意义的疑问与建议。
 - `SA-调度会话` 的提示词把用户指令默认理解为交给新建工作会话在工作区执行的独立任务。调度会话自身只在调度工作区读写笔记、任务归档与报告，用户明确要求时才亲自执行，也不建议由调度会话执行；建任务前按 `workspaces.json` 的 `summary` 与 `keywords` 匹配工作区。
@@ -215,12 +215,14 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 `lark-super-agent` 行的 `workerProvider`、`workerModel`、`workerEffort` 保存调度会话新建工作会话时使用的模型，均为 volatile 字符串，默认空。provider 与模型同时非空才成立，effort 只在成立时生效。
 
 - 配置页复用官方 `ModelSelect` 与模型目录，字段名经 `ModelDefaults` 的第四个参数指定，effort 只能取所选模型支持的值。
-- `SA-调度会话` 用 `tools/execute` 包住自己的 `session_create`，执行期间用 `AsyncLocalStorage` 把这次调用链标记在 `WorkerModelStore`。参数里已有 `provider` 或 `model` 时不记，显式参数由 meta-tools 在创建后应用。
-- `SA-工作会话` 在 `agent/created`（来源 `startup`）读取该标记，经 `llm.resolveCallConfig` 校验后调用 `agent.model.select`。首条任务消息在创建完成后才送达，首轮请求即用该模型。
-- 校验失败、`llm` 不可用或未配置时，新会话沿用宿主默认，校验失败写一条警告。
-- 标记只在该次 `session_create` 的异步调用链内有效且只取用一次；调用链之外创建的会话取不到模型。
-- 选择只写入新会话本身（`agent.model.select`），不写任何默认模型设置。
-- 保存配置后无需重启，下一次创建生效。
+- `sa-dispatch` 子行注册自己的 `session_create`，名称、参数、描述与返回值与 meta-tools 一致。预设补丁把 meta-tools 行的 `session_create` 设为 `false`，同一作用域内只有这一个同名工具。
+- 创建流程与 meta-tools 相同：`sessionController.create` 新建会话，随后 `agent.model.select` 写入模型，再改标题、发首条提示。首条提示在选择之后才送达，首轮请求即用该模型。
+- 模型优先级：调用参数里的 `provider`、`model`、`effort`，其次是配置的「工作会话模型」，最后是宿主默认。
+- 显式参数经 `llm.resolveCallConfig` 校验，失败时报错且不创建会话，规则与 meta-tools 一致。配置的模型校验失败、`llm` 不可用或未配置时，新会话沿用宿主默认，校验失败写一条警告。
+- 未传 `agent_preset` 时使用 `sa-worker`；名册里不可用时省略，由宿主选默认预设。
+- 选择只写入新会话本身，不写任何默认模型设置；其他途径新建的会话不经过该工具。
+- 保存配置后无需重启，每次调用读取实时配置。
+- meta-tools 行自身的 `session_provider`、`session_model`、`session_effort`、`session_preset` 对该工具不再生效。
 
 ## 在场状态
 

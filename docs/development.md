@@ -137,6 +137,8 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | `tests/lark-super-agent-git.test.ts` | git 初始化、路径限定提交与串行队列 |
 | `tests/lark-super-agent-blocks.test.ts` | 上报块与失败通知块的格式与转义 |
 | `tests/sa-dispatch.test.ts` | 调度工具契约、提示词注册与按属性插入的在场提醒 |
+| `tests/session-create.test.ts` | 覆写的 `session_create`：与 meta-tools 一致的契约、工作会话模型、显式参数优先、回退与注册 |
+| `tests/worker-model.test.ts` | 工作会话模型的配置读取 |
 | `tests/sa-worker.test.ts` | `send_report`、提示词、调度消息包装、在场提醒与失败事件过滤 |
 | `tests/presets-patch.test.ts` | 补丁行、两个预设的子行与标准预设快照的差异 |
 | `tests/config-form.test.ts` | 配置页草稿与字段集、校验、保存、恢复默认、放弃与卸载 |
