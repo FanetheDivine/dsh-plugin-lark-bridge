@@ -25,5 +25,5 @@ description: "Tasks for 046-session-create-override"
 
 ## Phase 3: 验证
 
-- [ ] T008 `pnpm full-check`
-- [ ] T009 实机测试并写 `real-device-report.md`
+- [X] T008 `pnpm full-check`
+- [X] T009 实机测试并写 `real-device-report.md`

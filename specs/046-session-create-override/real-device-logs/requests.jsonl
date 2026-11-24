@@ -1,0 +1,4 @@
+{"provider":"mock","model":"mock-model","tools":["session_archive","session_create","session_get","session_list","session_pin","session_send","session_stop","workspace_create","workspace_list","workspace_note_remove","workspace_note_set","workspace_remove","workspace_rename"]}
+{"provider":"mock","model":"mock-model","tools":["session_archive","session_create","session_get","session_list","session_pin","session_send","session_stop","workspace_create","workspace_list","workspace_note_remove","workspace_note_set","workspace_remove","workspace_rename"]}
+{"provider":"mock","model":"mock-worker","reasoningEffort":"high","tools":[]}
+{"provider":"mock","model":"mock-model","tools":[]}
