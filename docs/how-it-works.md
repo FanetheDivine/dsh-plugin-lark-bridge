@@ -15,7 +15,7 @@
 | `src/sessions.ts` | 工作区会话的创建、恢复、新建标题与置顶 |
 | `src/routes.ts` | 安全状态与完整检测的同源 JSON 路由 |
 | `src/state.ts` | 会话标识、归一化路径与去重窗口的持久化 |
-| `src/lark-super-agent/` | `lark-super-agent` 行：调度服务、笔记、上报、归档、git、全局在场状态与状态路由 |
+| `src/lark-super-agent/` | `lark-super-agent` 行：调度服务、笔记、上报、归档、git、全局在场状态、自动切换调度、节假日数据与状态路由 |
 | `src/sa-dispatch/` | `SA-调度会话` 预设子行：调度工具、提示词与在场提醒插入 |
 | `src/sa-worker/` | `SA-工作会话` 预设子行：`send_report`、提示词、调度消息标记、在场提醒插入与失败通知 |
 
@@ -233,6 +233,26 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
   - `source.kind === 'lark-bridge'`、非桥接提醒且 `larkInputSetsRemote` 开启时设为 `remote`。
   - 同批以最后一条可判定消息为准。同一消息对象只观察一次，手动切换与自动更新以发生先后为准。
 - 两个开关在行配置中，均为 volatile，默认 `true`，前端为 `dsh-plugin-lark-bridge#lark-super-agent` 注册配置页。
+- 手动切换记录 `lastManualAt`；输入更新与自动切换不记录。
+
+### 自动切换时间
+
+行配置的 `presenceAlarms` 是一组闹钟条目，每条含 `id`、`time`、`action`、`enabled`、`skipWeekends`、`skipHolidays`。
+
+- `PresenceScheduler` 每 15 秒判定一次当前 `HH:mm`，命中的启用条目按「日期 + 条目 id」去重后执行一次；同一分钟两种动作并存时以 `remote` 为准。
+- 执行前比较 `lastManualAt` 与到点时刻：手动切换晚于到点则跳过本次，手动结果保持到下一个到点。
+- 行启用时先补执行当天最近一个已过且未跳过的到点，再开始周期判定；不逐条补执行。
+- 到点时刻按宿主本地时间计算，日期与时间都取自本地时钟。
+
+### 节假日数据
+
+`HolidayCalendar` 按年获取 `NateScarlet/holiday-cn` 的年度 JSON，主源 jsDelivr，备源 raw.githubusercontent。
+
+- 缓存文件为 `<DSH_HOME>/lark-bridge/holiday-cache.json`，结构是 `fetchedAt` 加每年「日期到是否放假」的映射。
+- 24 小时过期；缺年份或过期时刷新，失败后退避 1 小时；并发刷新合并为一次请求。
+- `isOffDay` 为 `true` 表示法定节假日或调休放假，`false` 表示调休上班日：前者在开启跳过节假日时跳过，后者不按周末跳过。
+- 没有某年数据时只按星期判断周末；获取失败保留旧缓存并记一条警告，配置页在有条目跳过节假日时显示提示。
+- `/lark-bridge/presence` 的回答带 `holidays: { state, fetchedAt }`，`state` 取 `fresh`、`stale` 或 `missing`。
 
 两个预设子行在 `agent/pre-step` 调用服务的 `presence.reminderFor(session, messages)`：
 
