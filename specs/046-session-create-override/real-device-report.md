@@ -11,7 +11,7 @@
 
 ## 后端用例
 
-日志见 [drive.log](./real-device-logs/drive.log)，请求记录见 [requests.jsonl](./real-device-logs/requests.jsonl)。
+日志见 [drive.log](./real-device-logs/drive.log)，结果见 [results-backend.json](./real-device-logs/results-backend.json)；`requests.jsonl` 是重启后 E11 一轮的 mock 请求记录。
 
 | 用例 | 结果 | 关键断言 |
 | --- | --- | --- |
