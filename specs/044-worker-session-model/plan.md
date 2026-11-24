@@ -50,7 +50,7 @@
 | `src/sa-worker/index.ts` | `agent/created` 应用选择 |
 | `src/client/model-defaults.ts` | 字段名参数化 |
 | `src/client/presence-config.tsx`、`index.ts`、`locales.ts` | 配置页增加模型选择器、文案与注入 |
-| `cordis.patch.yml` | `lark-super-agent` 增三个空默认字段 |
+
 | `docs/how-it-works.md`、`README.md`、`CHANGELOG.md` | 说明新配置项 |
 
 ## 风险
