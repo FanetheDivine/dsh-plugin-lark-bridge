@@ -326,6 +326,7 @@ describe('在场开关配置页', () => {
         selector(injected.hooks.presenceConfig.getSnapshot()),
       ...injected,
       modelDefaults: modelDefaultsStub(),
+      controller: new PresenceController({ autoStart: false }),
     } as unknown as PresenceConfigPageProps;
     const html = renderToStaticMarkup(createElement(PresenceConfigPage, props));
     expect(html).toContain('网页输入时切换为在电脑旁');

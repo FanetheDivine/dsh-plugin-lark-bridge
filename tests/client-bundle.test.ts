@@ -34,6 +34,9 @@ function loadRegistrations(): ClientRegistration[] {
         },
       },
     },
+    // 内联的第三方组件在模块作用域读取构建期环境与浏览器语言。
+    process: { env: { NODE_ENV: 'production' } },
+    navigator: { language: 'zh-CN', languages: ['zh-CN'] },
   });
   return registrations;
 }
@@ -50,9 +53,14 @@ describe('前端产物（dist/client.js）', () => {
       Fragment: 'Fragment',
       useState: (value: unknown) => [value, () => undefined],
       useEffect: () => undefined,
+      useLayoutEffect: () => undefined,
       useCallback: (fn: unknown) => fn,
+      useMemo: (fn: () => unknown) => fn(),
       useRef: (value: unknown) => ({ current: value }),
       useId: () => ':r0:',
+      // 内联的第三方组件在模块作用域创建记忆组件。
+      memo: (component: unknown) => component,
+      forwardRef: (render: unknown) => render,
     };
     const jsxStub = () => null;
     const reactDomStub = { createPortal: (node: unknown) => node };
@@ -98,7 +106,12 @@ describe('前端产物（dist/client.js）', () => {
       Switch: jsxStub,
       Menu: jsxStub,
       IconChevronDownOutlineRegular: jsxStub,
+      IconCloseOutlineRegular: jsxStub,
+      IconPlusOutlineRegular: jsxStub,
+      Pill: jsxStub,
       Modal: jsxStub,
+      Checkbox: jsxStub,
+      Button: jsxStub,
       Toast: jsxStub,
       settingsTextField: (field: string) => ({
         field,

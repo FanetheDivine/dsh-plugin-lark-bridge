@@ -162,6 +162,7 @@ export function apply(ctx: Context): void {
           inject: () => ({
             ...presenceForm.inject(),
             modelDefaults: workerModels.inject(modelT, (text) => ctx.locale.resolveText(text)),
+            controller: presence,
           }),
         },
         PresenceConfigPage,
