@@ -51,6 +51,11 @@ import {
 import * as clientEntry from '../src/client/index.ts';
 import { en, NS, zh } from '../src/client/locales.ts';
 import type { ModelDefaultsInjected } from '../src/client/model-defaults.ts';
+import {
+  PRESENCE_ROW_ID,
+  PRESENCE_ROW_KEY,
+  PresenceConfigPage,
+} from '../src/client/presence-config.tsx';
 import type { PresetDefaultsInjected, PresetDefaultsState } from '../src/client/preset-defaults.ts';
 import { currentText, menuItems, PresetSelect } from '../src/client/preset-select.tsx';
 import { StatusController } from '../src/client/status-controller.ts';
@@ -286,7 +291,11 @@ describe('前端入口', () => {
 
     expect(ctx._localeRegistrations.map((entry) => entry.ns)).toEqual([NS]);
     expect(Object.keys(ctx._localeRegistrations[0]?.dicts ?? {}).sort()).toEqual(['en', 'zh']);
-    expect(ctx._slotInjections).toEqual(['shell.overlay', 'plugins.row.config']);
+    expect(ctx._slotInjections).toEqual([
+      'shell.overlay',
+      'plugins.row.config',
+      'plugins.row.config',
+    ]);
     expect(ctx._slotRegistrations[0]?.options).toMatchObject({
       name: 'shell.overlay',
       id: 'lark-bridge-auth',
@@ -300,8 +309,15 @@ describe('前端入口', () => {
       locale: NS,
     });
     expect(ctx._slotRegistrations[1]?.component).toBe(ConfigPage);
-    expect(ctx._configFormRequests).toEqual([ROW_ID]);
+    expect(ctx._slotRegistrations[2]?.options).toMatchObject({
+      name: 'plugins.row.config',
+      key: PRESENCE_ROW_KEY,
+      locale: NS,
+    });
+    expect(ctx._slotRegistrations[2]?.component).toBe(PresenceConfigPage);
+    expect(ctx._configFormRequests).toEqual([ROW_ID, PRESENCE_ROW_ID]);
     expect(ROW_KEY).toBe(`${ROW_ID}#${ROW_ID}`);
+    expect(PRESENCE_ROW_KEY).toBe('dsh-plugin-lark-bridge#lark-super-agent');
 
     type SharedSlotInjected = ConfigPageInjected & {
       readonly controller: StatusController;
@@ -379,7 +395,7 @@ describe('前端服务可选', () => {
     expect(activeRegistrations(ctx).configPage).toBe(false);
     ctx._grant('configForms', 'remote', 'remote.session');
     expect(activeRegistrations(ctx)).toEqual({ dictionary: true, overlay: true, configPage: true });
-    expect(ctx._configFormRequests).toEqual([ROW_ID]);
+    expect(ctx._configFormRequests).toEqual([ROW_ID, PRESENCE_ROW_ID]);
   });
 
   it('服务撤掉后只清理依赖它的功能', () => {
@@ -394,7 +410,7 @@ describe('前端服务可选', () => {
     });
     expect(scope?.subscriberCount()).toBe(0);
     ctx._grant('configForms');
-    expect(ctx._activeSlots.size).toBe(2);
+    expect(ctx._activeSlots.size).toBe(3);
     expect(ctx._activeLocales.size).toBe(1);
   });
 

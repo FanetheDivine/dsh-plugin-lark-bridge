@@ -127,14 +127,17 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | `tests/tools.test.ts` | 参数校验、分段发送与失败返回 |
 | `tests/routes.test.ts` | 同源校验、状态投影与动作路由 |
 | `tests/state.test.ts` | 状态读写、去重窗口与损坏恢复 |
-| `tests/lark-super-agent-index.test.ts` | 调度行提供 `larkSuperAgent` 服务 |
+| `tests/lark-super-agent-index.test.ts` | 调度行提供 `larkSuperAgent` 服务、在场路由接线与全局输入观察 |
+| `tests/presence.test.ts` | 全局在场状态的初始值、手动切换、按开关自动更新与开关读取 |
+| `tests/presence-routes.test.ts` | `/lark-bridge/presence` 的读取、写入、参数与来源校验 |
+| `tests/presence-client.test.ts` | 在场控制器、页脚按钮、槽位挂载与开关配置页（jsdom） |
 | `tests/lark-super-agent-service.test.ts` | 桥接状态读取与路径转换、上报投递、失败通知、候选会话与旧数据兼容 |
 | `tests/lark-super-agent-notes.test.ts` | 任务与工作区笔记、状态转换、归档与 git 提交 |
 | `tests/lark-super-agent-reports.test.ts` | 上报记录、附件复制与任务归属 |
 | `tests/lark-super-agent-git.test.ts` | git 初始化、路径限定提交与串行队列 |
 | `tests/lark-super-agent-blocks.test.ts` | 上报块与失败通知块的格式与转义 |
-| `tests/sa-dispatch.test.ts` | 调度工具契约、提示词注册与用户在场提醒 |
-| `tests/sa-worker.test.ts` | `send_report`、提示词、调度消息包装与失败事件过滤 |
+| `tests/sa-dispatch.test.ts` | 调度工具契约、提示词注册与按属性插入的在场提醒 |
+| `tests/sa-worker.test.ts` | `send_report`、提示词、调度消息包装、在场提醒与失败事件过滤 |
 | `tests/presets-patch.test.ts` | 补丁行、两个预设的子行与标准预设快照的差异 |
 | `tests/config-form.test.ts` | 配置页草稿与字段集、校验、保存、恢复默认、放弃与卸载 |
 | `tests/release-archive.test.mjs` | CHANGELOG 归档计划 |
@@ -239,11 +242,11 @@ src/
 ├── errors.ts               # 可诊断错误
 ├── types.ts                # 宿主类型再导出
 ├── utils.ts                # 零依赖工具函数
-├── lark-super-agent/       # 调度行：服务、笔记、上报、归档与 git
-├── sa-dispatch/            # SA-调度会话子行：调度工具、提示词与在场提醒
-├── sa-worker/              # SA-工作会话子行：send_report、提示词、消息标记与失败通知
+├── lark-super-agent/       # 调度行：服务、笔记、上报、归档、git、在场状态与路由
+├── sa-dispatch/            # SA-调度会话子行：调度工具、提示词与在场提醒插入
+├── sa-worker/              # SA-工作会话子行：send_report、提示词、消息标记、在场提醒与失败通知
 └── client/
-    ├── index.ts            # 浏览器入口：字典、弹窗与配置页
+    ├── index.ts            # 浏览器入口：字典、弹窗、配置页与页脚在场按钮
     ├── api.ts              # 路由调用与状态类型
     ├── auth-overlay.tsx    # shell.overlay 共用设置弹窗与状态 reducer
     ├── auth-panel.tsx      # 三个连接状态与检测按钮
@@ -251,6 +254,9 @@ src/
     ├── status-controller.ts # 共享检测、订阅与轮询
     ├── config-form.ts      # 单工作区草稿模型与行键常量
     ├── config-page.tsx     # 注册工作区下拉（宿主 Menu）与配置页视图
+    ├── presence-controller.ts # 在场状态轮询、切换与行可用性
+    ├── presence-button.tsx # 页脚在场按钮与折叠栏样式
+    ├── presence-config.tsx # lark-super-agent 行的两个开关配置页
     └── locales.ts          # 中英文字典与命名空间
 dist/
 ├── index.mjs               # 主行宿主产物

@@ -121,7 +121,11 @@ describe('前端产物（dist/client.js）', () => {
     if (exported === undefined) throw new Error('产物工厂没有返回导出对象');
     const ctx = makeClientCtx();
     (exported.apply as (target: unknown) => void)(ctx);
-    expect(ctx._slotInjections).toEqual(['shell.overlay', 'plugins.row.config']);
+    expect(ctx._slotInjections).toEqual([
+      'shell.overlay',
+      'plugins.row.config',
+      'plugins.row.config',
+    ]);
     expect(ctx._slotRegistrations[0]?.options.id).toBe('lark-bridge-auth');
     expect(ctx._slotRegistrations[1]?.options.key).toBe(
       'dsh-plugin-lark-bridge#dsh-plugin-lark-bridge',

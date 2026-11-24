@@ -1,4 +1,4 @@
-/** SA-工作会话预设子行：注册上报工具、提示词、调度消息来源标记与轮次失败监听。 */
+/** SA-工作会话预设子行：注册上报工具、提示词、调度消息来源标记、在场提醒与轮次失败监听。 */
 import type {} from '@deepseek-ai/dsh-session';
 
 import type { Context } from '../types.ts';
@@ -37,12 +37,13 @@ export function apply(ctx: Context): void {
       text: SA_WORKER_PROMPT,
     });
     registerWorkerTools(workerCtx);
-    workerCtx.on('agent/pre-step', async (_payload, next) => {
+    workerCtx.on('agent/pre-step', async ({ agent }, next) => {
       const decision = await next();
       if (decision.kind === 'reject') return decision;
-      const messages = wrapDispatchMessages(decision.messages);
-      if (messages === decision.messages) return decision;
-      return { ...decision, messages };
+      const wrapped = wrapDispatchMessages(decision.messages);
+      const notice = workerCtx.larkSuperAgent.presence.reminderFor(agent.session, wrapped);
+      if (notice === undefined && wrapped === decision.messages) return decision;
+      return { ...decision, messages: notice === undefined ? wrapped : [notice, ...wrapped] };
     });
     workerCtx.on('session/event', (session, event) => {
       const failure = turnFailure(event);
