@@ -450,3 +450,32 @@ export function makeConfigFormScope<T>(initial: {
     subscriberCount: () => listeners.size,
   };
 }
+
+/** 会话表层模拟：按顺序保存已提交的用户消息。 */
+export interface FakeSurfaceSession {
+  readonly surface: { readonly nodes: number[] };
+  eventAt(seq: number): { type: string; data: unknown } | undefined;
+  /** 把一批消息提交到表层，模拟 pre-step 之后的落盘。 */
+  commit(messages: readonly unknown[]): void;
+  /** 清空表层，模拟压缩移除全部旧消息。 */
+  compact(): void;
+}
+
+/** 构造一个可提交消息的会话表层。 */
+export function makeSurfaceSession(): FakeSurfaceSession {
+  const events: Array<{ type: string; data: unknown }> = [];
+  const nodes: number[] = [];
+  return {
+    surface: { nodes },
+    eventAt: (seq) => events[seq],
+    commit(messages) {
+      for (const message of messages) {
+        nodes.push(events.length);
+        events.push({ type: 'user/message', data: message });
+      }
+    },
+    compact() {
+      nodes.splice(0);
+    },
+  };
+}

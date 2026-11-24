@@ -127,6 +127,7 @@ export function PresenceButton({ wide, t, controller }: PresenceButtonProps): Re
         style={triggerStyle(color, hover)}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
+        onClick={() => void controller.toggle()}
         title={label}
         aria-label={label}
         data-presence={snapshot.presence}

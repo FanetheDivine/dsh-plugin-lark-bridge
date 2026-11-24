@@ -69,14 +69,14 @@ description: "Tasks for 042-presence-toggle"
 
 **Independent Test**: 切换与提醒相关测试通过；实机「手动切换」「提醒按属性」场景
 
-- [ ] T018 [US2] 在 `PresenceController` 增加 `toggle()`：立即写入目标状态，POST `{ presence }`；失败时恢复原状态并置 `failed` 3 秒；成功后以回答为准
-- [ ] T019 [US2] `PresenceButton` 单击调用 `toggle()`；`failed` 时颜色改为 `var(--dsw-alias-state-error-primary)`，`title` 与 `aria-label` 为「切换失败，点击重试」
-- [ ] T020 [US2] 在 `src/lark-super-agent/presence.ts` 增加共用提醒：`PRESENCE_SOURCE_KIND = 'sa-presence'`；正文按 data-model「提醒正文」；`latestPresenceReminder(session)` 从 `session.surface.nodes` 末尾向前找首个 `user/message` 且 `source.kind === 'sa-presence'` 的事件，返回 `source.presence`，非 `local`/`remote` 视为 undefined；`presenceReminder(session, messages)` 先 `observe(messages)`，再与当前状态比较，不同或不存在时返回提醒消息，`source` 为 `{ kind: 'sa-presence', form: 'notice', presence }`
-- [ ] T021 [US2] 在 `src/lark-super-agent/presence.ts` 声明 `MessageSourceMap['sa-presence']`；删除 `src/sa-dispatch/presence.ts` 与 `src/sa-dispatch/index.ts` 中的 `sa-dispatch-presence` 声明和 `WeakMap`
-- [ ] T022 [US2] 修改 `src/sa-dispatch/index.ts`：`agent/pre-step` 在 `next()` 后调用 `larkSuperAgent.presence` 的提醒函数，有提醒时插到本批消息最前
-- [ ] T023 [US2] 按 research R-08 重写 `src/sa-dispatch/prompt.ts` 的 `## Track where the user is`，删除无提醒默认与「Worker reports and failures never change your presence ...」一句
-- [ ] T024 [P] [US2] 更新 `tests/sa-dispatch.test.ts`：删除旧 `presenceReminder` 用例；新增按属性查找、状态一致不插入、旧 `sa-dispatch-presence` 提醒不计入、压缩后表层无提醒时补回、提示词不含 `Without any reminder` 与 `用户在电脑前`
-- [ ] T025 [P] [US2] 在 `tests/presence-client.test.ts` 增加 `toggle` 乐观更新、失败回滚与 3 秒错误态用例
+- [X] T018 [US2] 在 `PresenceController` 增加 `toggle()`：立即写入目标状态，POST `{ presence }`；失败时恢复原状态并置 `failed` 3 秒；成功后以回答为准
+- [X] T019 [US2] `PresenceButton` 单击调用 `toggle()`；`failed` 时颜色改为 `var(--dsw-alias-state-error-primary)`，`title` 与 `aria-label` 为「切换失败，点击重试」
+- [X] T020 [US2] 在 `src/lark-super-agent/presence.ts` 增加共用提醒：`PRESENCE_SOURCE_KIND = 'sa-presence'`；正文按 data-model「提醒正文」；`latestPresenceReminder(session)` 从 `session.surface.nodes` 末尾向前找首个 `user/message` 且 `source.kind === 'sa-presence'` 的事件，返回 `source.presence`，非 `local`/`remote` 视为 undefined；`presenceReminder(session, messages)` 先 `observe(messages)`，再与当前状态比较，不同或不存在时返回提醒消息，`source` 为 `{ kind: 'sa-presence', form: 'notice', presence }`
+- [X] T021 [US2] 在 `src/lark-super-agent/presence.ts` 声明 `MessageSourceMap['sa-presence']`；删除 `src/sa-dispatch/presence.ts` 与 `src/sa-dispatch/index.ts` 中的 `sa-dispatch-presence` 声明和 `WeakMap`
+- [X] T022 [US2] 修改 `src/sa-dispatch/index.ts`：`agent/pre-step` 在 `next()` 后调用 `larkSuperAgent.presence` 的提醒函数，有提醒时插到本批消息最前
+- [X] T023 [US2] 按 research R-08 重写 `src/sa-dispatch/prompt.ts` 的 `## Track where the user is`，删除无提醒默认与「Worker reports and failures never change your presence ...」一句
+- [X] T024 [P] [US2] 更新 `tests/sa-dispatch.test.ts`：删除旧 `presenceReminder` 用例；新增按属性查找、状态一致不插入、旧 `sa-dispatch-presence` 提醒不计入、压缩后表层无提醒时补回、提示词不含 `Without any reminder` 与 `用户在电脑前`
+- [X] T025 [P] [US2] 在 `tests/presence-client.test.ts` 增加 `toggle` 乐观更新、失败回滚与 3 秒错误态用例
 
 **Checkpoint**: commit `feat(042): 单击切换在场状态并按属性提醒调度会话`
 

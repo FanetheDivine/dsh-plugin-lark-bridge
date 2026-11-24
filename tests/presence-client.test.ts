@@ -25,11 +25,23 @@ const fail = (code: string): ApiResult<PresenceStatus> => ({
 });
 
 /** 构造不自动轮询的控制器。 */
-function controllerWith(replies: ApiResult<PresenceStatus>[], hidden = () => false) {
+function controllerWith(
+  replies: ApiResult<PresenceStatus>[],
+  hidden = () => false,
+  write: (presence: 'local' | 'remote') => Promise<ApiResult<PresenceStatus>> = async (presence) =>
+    ok(presence),
+) {
   const fetchPresence = vi.fn(async () => replies.shift() ?? fail('network'));
+  const writePresence = vi.fn(write);
   return {
-    controller: new PresenceController({ autoStart: false, fetchPresence, hidden }),
+    controller: new PresenceController({
+      autoStart: false,
+      fetchPresence,
+      writePresence,
+      hidden,
+    }),
     fetchPresence,
+    writePresence,
   };
 }
 
@@ -41,7 +53,11 @@ describe('PresenceController', () => {
   it('成功回答置为可用并同步状态', async () => {
     const { controller } = controllerWith([ok('remote')]);
     await controller.refresh();
-    expect(controller.getSnapshot()).toEqual({ available: true, presence: 'remote' });
+    expect(controller.getSnapshot()).toEqual({
+      available: true,
+      presence: 'remote',
+      failed: false,
+    });
   });
 
   it('invalid-response 置为不可用，network 保持原值', async () => {
@@ -70,6 +86,60 @@ describe('PresenceController', () => {
   });
 });
 
+describe('PresenceController.toggle', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('立即显示目标状态，写入成功后以回答为准', async () => {
+    let resolve!: (value: ApiResult<PresenceStatus>) => void;
+    const { controller, writePresence } = controllerWith(
+      [],
+      () => false,
+      () => new Promise((done) => (resolve = done)),
+    );
+    const pending = controller.toggle();
+    expect(controller.getSnapshot().presence).toBe('remote');
+    expect(writePresence).toHaveBeenCalledWith('remote');
+    resolve(ok('remote'));
+    await pending;
+    expect(controller.getSnapshot()).toEqual({
+      available: true,
+      presence: 'remote',
+      failed: false,
+    });
+  });
+
+  it('写入期间跳过轮询', async () => {
+    let resolve!: (value: ApiResult<PresenceStatus>) => void;
+    const { controller, fetchPresence } = controllerWith(
+      [ok('local')],
+      () => false,
+      () => new Promise((done) => (resolve = done)),
+    );
+    const pending = controller.toggle();
+    await controller.refresh();
+    expect(fetchPresence).not.toHaveBeenCalled();
+    resolve(ok('remote'));
+    await pending;
+  });
+
+  it('失败时恢复原状态并保持 3 秒错误态', async () => {
+    vi.useFakeTimers();
+    const { controller } = controllerWith(
+      [],
+      () => false,
+      async () => fail('network'),
+    );
+    await controller.toggle();
+    expect(controller.getSnapshot()).toMatchObject({ presence: 'local', failed: true });
+    vi.advanceTimersByTime(2999);
+    expect(controller.getSnapshot().failed).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(controller.getSnapshot().failed).toBe(false);
+  });
+});
+
 describe('PresenceButton', () => {
   it('在电脑旁显示显示器与对应文案', () => {
     const { controller } = controllerWith([]);
@@ -91,6 +161,19 @@ describe('PresenceButton', () => {
     expect(html).toContain('<rect x="7" y="2.5" width="10" height="19" rx="2.5"></rect>');
     expect(html).toContain('title="离开 · 点击切换为在电脑旁"');
     expect(html).toContain('data-rail="rail"');
+  });
+
+  it('失败时显示错误色与重试文案', async () => {
+    const { controller } = controllerWith(
+      [],
+      () => false,
+      async () => fail('network'),
+    );
+    await controller.toggle();
+    const html = renderToStaticMarkup(createElement(PresenceButton, { wide: true, t, controller }));
+    expect(html).toContain('color:var(--dsw-alias-state-error-primary)');
+    expect(html).toContain('title="切换失败，点击重试"');
+    controller.dispose();
   });
 
   it('失败文案优先', () => {
