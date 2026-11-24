@@ -208,6 +208,16 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - `SA-调度会话` 不含 `tool-jobs`，保留 `persona`、`agent-instructions`、`time-context`、`skill-filesystem` 与压缩组。压缩组的 `compaction-basic` 设 `thresholdRatio: 0.3`，上下文压力到模型窗口 30% 时触发压缩。
 - 全局行与预设子行的工具叠加。`lark_notify` 来自本插件主行，其他插件的全局工具也照常可见。
 
+## 工作会话模型
+
+`lark-super-agent` 行的 `workerProvider`、`workerModel`、`workerEffort` 保存调度会话新建工作会话时使用的模型，均为 volatile 字符串，默认空。provider 与模型同时非空才成立，effort 只在成立时生效。
+
+- 配置页复用官方 `ModelSelect` 与模型目录，字段名经 `ModelDefaults` 的第四个参数指定，effort 只能取所选模型支持的值。
+- `SA-调度会话` 用 `tools/execute` 包住自己的 `session_create`，执行期间在 `WorkerModelStore` 记一次「调度创建中」。参数里已有 `provider` 或 `model` 时不记，显式参数由 meta-tools 在创建后应用。
+- `SA-工作会话` 在 `agent/created`（来源 `startup`）读取该标记，经 `llm.resolveCallConfig` 校验后调用 `agent.model.select`。首条任务消息在创建完成后才送达，首轮请求即用该模型。
+- 校验失败、`llm` 不可用或未配置时，新会话沿用宿主默认，校验失败写一条警告。
+- 保存配置后无需重启，下一次创建生效。
+
 ## 在场状态
 
 `lark-super-agent` 行持有一份内存中的全局在场状态：`local` 表示在电脑旁，`remote` 表示离开。

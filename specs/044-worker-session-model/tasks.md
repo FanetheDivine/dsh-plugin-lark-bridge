@@ -18,13 +18,13 @@ description: "Tasks for 044-worker-session-model"
 
 ## Phase 2: 配置页
 
-- [ ] T006 `ModelDefaults` 字段名参数化并更新测试
-- [ ] T007 配置页增加「工作会话模型」、文案与注入
-- [ ] T008 测试：配置页字段与草稿写入
+- [X] T006 `ModelDefaults` 字段名参数化并更新测试
+- [X] T007 配置页增加「工作会话模型」、文案与注入
+- [X] T008 测试：配置页字段与草稿写入
 
 **Checkpoint**: commit `feat(044): 配置页增加工作会话模型`
 
 ## Phase 3: 文档与验证
 
-- [ ] T009 `README.md`、`docs/how-it-works.md`、`CHANGELOG.md`
-- [ ] T010 `pnpm full-check`
+- [X] T009 `README.md`、`docs/how-it-works.md`、`CHANGELOG.md`
+- [X] T010 `pnpm full-check`
