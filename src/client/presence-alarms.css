@@ -52,7 +52,20 @@
   background: var(--dsw-alias-state-business-primary);
 }
 
-.dsh-lark-time-picker .react-time-picker__clock-button,
 .dsh-lark-time-picker .react-time-picker__clear-button {
   display: none;
+}
+
+.dsh-lark-time-picker .react-time-picker__clock-button {
+  color: var(--dsw-alias-label-secondary);
+  padding: 0 2px 0 6px;
+}
+
+.dsh-lark-time-picker .react-time-picker__clock-button:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.dsh-lark-time-picker .react-time-picker__clock-button svg {
+  width: 14px;
+  height: 14px;
 }

@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-24
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: User description: "在飞书「任务与调度会话」配置页新增在席状态自动切换配置：可添加多个自动切换为「在电脑旁」的时间点与多个自动切换为「离开」的时间点；每个时间点按闹钟处理，可自选时间，并单独设置是否跳过周末与中国法定节假日；条目以 tag 展示、可点 x 删除、可编辑；文案不出现「上班/下班」「通勤」；时间选择用成熟第三方组件；与在场状态自动判断逻辑对接并持久化到插件配置，同时保证手动切换不被自动切换覆盖。"
 
@@ -50,7 +50,8 @@
 
 ## Review Record
 
-（待填写）
+- 2026-11-24 | Decision: Approved | Scope: current full document | Open items: none | Risks: 节假日数据依赖外部数据源与网络；时间选择器新增前端依赖
+- 2026-11-24 | Decision: Approved | Scope: 修订后的闹钟模型（每条独立跳过项）与 D4/D9 | Open items: none | Risks: 同上
 
 ## User Scenarios & Testing *(mandatory)*
 

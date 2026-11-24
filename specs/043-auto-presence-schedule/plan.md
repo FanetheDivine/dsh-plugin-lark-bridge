@@ -4,7 +4,7 @@
 
 **Input**: Feature specification from `specs/043-auto-presence-schedule/spec.md`
 
-**Status**: Draft
+**Status**: Approved
 
 **Note**: This template is filled in by the `/speckit-plan` command; its definition describes the execution workflow.
 
@@ -31,7 +31,8 @@
 
 ## Review Record
 
-（待填写）
+- 2026-11-24 | Decision: Approved | Scope: current full document | Open items: none | Risks: 前端产物增加约 110 KB；节假日数据依赖 jsDelivr 与 GitHub 可达
+- 2026-11-25 | Decision: Approved | Scope: 实机验证通过后的实现 | Open items: none | Risks: 同上
 
 ## Summary
 

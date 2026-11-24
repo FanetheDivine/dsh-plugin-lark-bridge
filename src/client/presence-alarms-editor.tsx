@@ -124,7 +124,7 @@ export function PresenceAlarmEditor(props: PresenceAlarmEditorProps) {
           className="dsh-lark-time-picker"
           hourAriaLabel={t('presenceConfig.editor.hour')}
           minuteAriaLabel={t('presenceConfig.editor.minute')}
-          clockAriaLabel={t('presenceConfig.editor.time')}
+          clockAriaLabel={t('presenceConfig.editor.clock')}
         />
         {duplicate ? <p style={warningStyle}>{t('presenceConfig.editor.duplicate')}</p> : null}
         <div style={checksStyle}>
