@@ -62,6 +62,8 @@ describe('ModelDefaults 自定义字段名', () => {
     });
     const form = new PresenceConfigForm(fake.scope);
     const injected = form.inject();
+    // 主行的默认模型草稿与存储，用来确认选择 worker 模型不会触碰它们。
+    const main = setup({ sessionProvider: 'deepseek', sessionModel: 'deepseek-chat' });
     const ctx = {
       on: () => () => undefined,
       remote: {
@@ -94,6 +96,12 @@ describe('ModelDefaults 自定义字段名', () => {
       reasoningEffort: 'high',
     });
     expect(defaults.directory.getSnapshot().routable).toBe(true);
+    expect(fake.writes).toEqual([]);
+    expect(main.fake.writes).toEqual([]);
+    const defaultState = main.injected.hooks.configForm.getSnapshot();
+    expect(defaultState.sessionProvider.text).toBe('deepseek');
+    expect(defaultState.sessionModel.text).toBe('deepseek-chat');
+    expect(defaultState.sessionEffort.text).toBe('');
     form.dispose();
   });
 });

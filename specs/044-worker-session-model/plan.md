@@ -12,7 +12,7 @@
 
 ### Session 2026-11-24
 
-- [P-001] Q: 如何让 `dsh-plugin-meta-tools` 的 `session_create` 使用该模型？ -> A: 不改其配置与代码。调度子行用 `tools/execute` 包住 `session_create`，期间开启「调度创建中」标记；工作子行在 `agent/created`（`startup`）读取标记并 `agent.model.select`。创建发生在首条提示发送之前，首轮请求即用该模型。
+- [P-001] Q: 如何让 `dsh-plugin-meta-tools` 的 `session_create` 使用该模型？ -> A: 不改其配置与代码。调度子行用 `tools/execute` 包住 `session_create`，用 `AsyncLocalStorage` 把这次调用链标记在 `WorkerModelStore`；工作子行在 `agent/created`（`startup`）取用标记并 `agent.model.select`，只写入新会话本身，不改任何默认模型。创建发生在首条提示发送之前，首轮请求即用该模型。
 - [P-002] Q: 显式参数如何优先？ -> A: `meta-tools` 在创建后用显式参数再次 `select`，覆盖本插件的选择；调度子行在显式 provider 与 model 同时存在时不开标记。
 - [P-003] Q: 联动校验放在哪里？ -> A: 前端由官方 `ModelSelect` 保证 effort 属于所选模型；后端创建时调用 `llm.resolveCallConfig` 校验，失败回退宿主默认并记警告，与 `src/sessions.ts` 的主行做法一致。
 - [P-004] Q: 配置字段放在哪里？ -> A: `lark-super-agent` 行的 `workerProvider`、`workerModel`、`workerEffort`，volatile 字符串，默认空。
@@ -55,5 +55,5 @@
 
 ## 风险
 
-- 标记期内并发创建的非调度 `SA-工作会话`（用户手动新建）会被选择该模型，窗口为一次 `session_create` 的执行时长。
+- 调用链之外创建的会话取不到模型，沿用宿主默认；宿主若在调用链之外创建调度会话请求的会话，配置不生效。
 - 未在真实宿主验证；`tools/execute` 与 `agent/created` 的作用域行为依据宿主类型声明与源码阅读。

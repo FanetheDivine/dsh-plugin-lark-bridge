@@ -32,33 +32,56 @@ describe('readWorkerModel', () => {
 describe('WorkerModelStore', () => {
   const logger = { warn: vi.fn() };
 
-  it('只在调度创建期间交出已校验的选择', async () => {
+  it('只在调度创建的调用链内交出已校验的选择，且只交一次', async () => {
     const store = new WorkerModelStore(() => SELECTION as never);
     const llm = { resolveCallConfig: vi.fn(async () => ({})) };
     expect(await store.take(llm, logger)).toBeUndefined();
-    let inside: unknown;
+    let first: unknown;
+    let second: unknown;
     await store.during(async () => {
-      inside = await store.take(llm, logger);
+      await Promise.resolve();
+      first = await store.take(llm, logger);
+      second = await store.take(llm, logger);
     });
-    expect(inside).toEqual(SELECTION);
+    expect(first).toEqual(SELECTION);
+    expect(second).toBeUndefined();
+    expect(llm.resolveCallConfig).toHaveBeenCalledTimes(1);
     expect(llm.resolveCallConfig).toHaveBeenCalledWith(SELECTION);
     expect(await store.take(llm, logger)).toBeUndefined();
   });
 
-  it('并行创建全部结束后才清除标记，失败也会清除', async () => {
+  it('调度创建进行中，调用链之外创建的会话取不到模型', async () => {
     const store = new WorkerModelStore(() => SELECTION as never);
     const llm = { resolveCallConfig: vi.fn(async () => ({})) };
     let release = (): void => undefined;
-    const slow = store.during(
-      () =>
-        new Promise<void>((resolve) => {
-          release = resolve;
-        }),
-    );
-    await expect(store.during(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
-    expect(await store.take(llm, logger)).toEqual(SELECTION);
+    let inside: unknown;
+    const slow = store.during(async () => {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      inside = await store.take(llm, logger);
+    });
+    // 与调度创建并行，但不在它的调用链内：模拟用户手动新建。
+    const outside = await store.take(llm, logger);
+    expect(outside).toBeUndefined();
+    expect(llm.resolveCallConfig).not.toHaveBeenCalled();
     release();
     await slow;
+    expect(inside).toEqual(SELECTION);
+  });
+
+  it('并行的两次调度创建各取各的，失败的创建不留标记', async () => {
+    const store = new WorkerModelStore(() => SELECTION as never);
+    const llm = { resolveCallConfig: vi.fn(async () => ({})) };
+    const takeInside = () =>
+      store.during(async () => {
+        await Promise.resolve();
+        return store.take(llm, logger);
+      });
+    const [one, two] = await Promise.all([takeInside(), takeInside()]);
+    expect(one).toEqual(SELECTION);
+    expect(two).toEqual(SELECTION);
+    await expect(store.during(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
     expect(await store.take(llm, logger)).toBeUndefined();
   });
 
