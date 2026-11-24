@@ -1,5 +1,8 @@
 // 调度全局行测试：共享服务归属当前 fiber，在场状态路由随行注册与注销。
-import { describe, expect, it, vi } from 'vitest';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readPresenceAlarms, readPresenceSwitches } from '../src/lark-super-agent/config.ts';
 import { apply, Config } from '../src/lark-super-agent/index.ts';
@@ -7,6 +10,22 @@ import { PresenceStore } from '../src/lark-super-agent/presence.ts';
 import { PRESENCE_PATH } from '../src/lark-super-agent/routes.ts';
 import { SuperAgentService } from '../src/lark-super-agent/service.ts';
 import type { Context } from '../src/types.ts';
+
+// 行启用时会取一次节假日数据：隔离状态目录并让网络直接失败，避免写入真实目录。
+beforeEach(() => {
+  process.env['DSH_HOME'] = mkdtempSync(join(tmpdir(), 'rdt-043-dsh-'));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      throw new Error('offline');
+    }),
+  );
+});
+
+afterEach(() => {
+  delete process.env['DSH_HOME'];
+  vi.unstubAllGlobals();
+});
 
 /** 构造记录 provide、effect 与路由的最小 ctx。 */
 function makeRowCtx(services: Record<string, unknown> = {}) {

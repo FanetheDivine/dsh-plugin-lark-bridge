@@ -1,4 +1,6 @@
 // 节假日日历测试：解析、缓存、刷新、降级与跳过判定。
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -9,6 +11,9 @@ import {
 } from '../src/lark-super-agent/holidays.ts';
 
 const NOW = 1_763_800_000_000;
+
+/** 缓存路径：写系统临时目录，避免依赖仓库外的可写位置。 */
+const CACHE_PATH = join(tmpdir(), 'rdt-043-holiday-cache.json');
 
 /** 年度 JSON 假数据。 */
 function yearPayload(): unknown {
@@ -39,7 +44,7 @@ function setup(
   });
   const logger = { warn: vi.fn() };
   const calendar = new HolidayCalendar({
-    cachePath: '/cache/holiday-cache.json',
+    cachePath: CACHE_PATH,
     fetchJson,
     readCache: async (path) => {
       if (options.cache === undefined) throw new Error(`ENOENT ${path}`);
@@ -94,7 +99,7 @@ describe('HolidayCalendar', () => {
     expect(calendar.lookup('2025-10-01')).toBe(true);
     expect(calendar.status().state).toBe('fresh');
     expect(written).toHaveLength(1);
-    expect(written[0]?.path).toBe('/cache/holiday-cache.json');
+    expect(written[0]?.path).toBe(CACHE_PATH);
     expect(JSON.parse(written[0]?.text ?? '{}')).toHaveProperty('years.2025');
   });
 
@@ -103,7 +108,7 @@ describe('HolidayCalendar', () => {
     let calls = 0;
     const logger = { warn: vi.fn() };
     const calendar = new HolidayCalendar({
-      cachePath: '/cache/holiday-cache.json',
+      cachePath: CACHE_PATH,
       fetchJson: async (url) => {
         calls += 1;
         if (calls === 1) throw new Error('primary down');
