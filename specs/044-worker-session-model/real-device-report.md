@@ -5,11 +5,11 @@
 - 宿主：全局 `@deepseek-ai/dsh` 0.2.2-rc.5。
 - 隔离：`DSH_HOME=D:/tmp/rdt044-home`，profile `rdt-044`，插件以链接方式安装当前检出。用户正在使用的 GUI 服务与 `~/.dsh` 未触碰；测试 GUI 在 3244 端口，已结束。
 - 模型：mock provider，含 `mock-model`（默认，无 effort）、`mock-worker` 与 `mock-other`（effort 为 low、high）。`agent-default-model` 为 `mock/mock-model`。
-- 后端驱动经宿主 `runProfile` 启动，用真实 `sessionController` 创建 `sa-dispatch` 与 `sa-worker` 会话。调度会话收到 `DISPATCH_CASE` 时由 mock 发出真实的 `session_create` 工具调用（meta-tools）。
+- 驱动脚本为一次性，未入库。后端驱动经宿主 `runProfile` 启动，用真实 `sessionController` 创建 `sa-dispatch` 与 `sa-worker` 会话。调度会话收到 `DISPATCH_CASE` 时由 mock 发出真实的 `session_create` 工具调用（meta-tools）。
 - 断言依据：会话落盘事件的 `request/header` 与 `model/selection`。
 - 浏览器驱动用 Playwright 驱动本机 Chrome。
 
-## 后端用例（[rd-044.mjs](./real-device-scripts/rd-044.mjs)）
+## 后端用例
 
 | 用例 | 结果 | 关键断言 |
 | --- | --- | --- |
@@ -23,7 +23,7 @@
 | E6 半组配置 | PASS | 只有 provider 时按未配置处理 |
 | E7 默认模型 | PASS | 全程 `agentDefaultModel` 保持 `mock/mock-model` |
 
-## 浏览器流程（[browser-044.mjs](./real-device-scripts/browser-044.mjs)）
+## 浏览器流程
 
 | 流程 | 结果 | 截图 |
 | --- | --- | --- |
@@ -35,7 +35,7 @@
 | 重启 GUI 后配置页仍显示「mock-worker High」 | PASS | [b8](./real-device-shots/b8-after-restart.png) |
 | 「用飞书和DSH对话」配置页的「模型」仍为「请选择模型」，其配置 `sessionProvider`、`sessionModel`、`sessionEffort` 未写入，补丁里主行配置只有 `workspaceRoot`；`agent-default-model` 仍为 `mock/mock-model` | PASS | [b9](./real-device-shots/b9-main-config.png) |
 
-## 保存后的端到端（[rd-044b.mjs](./real-device-scripts/rd-044b.mjs)）
+## 保存后的端到端
 
 | 用例 | 结果 | 关键断言 |
 | --- | --- | --- |
