@@ -134,6 +134,7 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 
 - 独立安装的 `dsh-plugin-meta-tools` 与本插件预设子行同时启用时，同名工具会注册两次。
 - 用户应停用独立安装的行或预设内的 `meta-tools` 子行。
+- 预设内的 `meta-tools` 子行必须保持 `session_create: false`。改为 `true` 时，同一作用域的 `session_create` 注册两次：后注册者失败。`sa-dispatch` 失败时记警告，调度会话使用 meta-tools 的版本，工作会话模型不生效；meta-tools 先失败时，它的 `session_stop` 与 `session_send` 同组未注册。
 
 ### 预设默认与改选
 
@@ -160,11 +161,12 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 
 ### 工作会话模型
 
-- 模型只交给调度会话某一次 `session_create` 调用链内创建的会话，其他路径新建的会话保持宿主默认。宿主若在调用链之外创建会话，该会话取不到模型，沿用宿主默认。
+- 只有 `SA-调度会话` 的 `session_create` 套用该模型；其他路径新建的会话保持宿主默认。
 - 选择只写入新会话本身，不改变宿主默认模型，也不改变「用飞书和DSH对话」配置页的模型。
 - 恢复历史会话与 `/clear` 不重新选择模型。
-- meta-tools 自身配置了默认模型时，它在创建后覆盖这里的选择。
-- 依赖宿主的 `tools/execute` 与 `agent/created` 事件语义；宿主改变创建顺序后可能失效。
+- 覆写的 `session_create` 复制了 meta-tools 0.1.7 的创建流程。升级 meta-tools 后该工具的参数或语义变化不会同步，升级时需对照。
+- meta-tools 行配置的默认模型与默认预设对 `session_create` 不再生效。
+- 依赖宿主 `sessionController` 的 `create`、`rename`、`resolveAgent` 与 `Agent.model.select`、`Agent.steer`。
 
 ### 会话置顶与归档
 

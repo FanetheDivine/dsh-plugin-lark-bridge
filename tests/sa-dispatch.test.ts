@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { LarkSuperAgentService } from '../src/lark-super-agent/api.ts';
 import { PresenceStore } from '../src/lark-super-agent/presence.ts';
-import { WorkerModelStore } from '../src/lark-super-agent/worker-model.ts';
 import { apply, name } from '../src/sa-dispatch/index.ts';
 import { SA_DISPATCH_PROMPT } from '../src/sa-dispatch/prompt.ts';
 import type { Context } from '../src/types.ts';
@@ -26,7 +25,7 @@ function makeService() {
     listCandidates: vi.fn(),
     sendReport: vi.fn(),
     notifyFailure: vi.fn(),
-    workerModel: new WorkerModelStore(() => undefined),
+    workerModel: () => undefined,
     presence: new PresenceStore({
       switches: () => ({ guiInputSetsLocal: true, larkInputSetsRemote: true }),
     }),
@@ -103,7 +102,10 @@ describe('SA-调度会话子行', () => {
     const host = mount();
 
     expect(name).toBe('sa-dispatch');
-    expect(host.groups).toEqual([['larkSuperAgent', 'systemPrompt', 'tools']]);
+    expect(host.groups).toEqual([
+      ['larkSuperAgent', 'systemPrompt', 'tools'],
+      ['sessionController'],
+    ]);
     expect(host.sections).toEqual([
       { name: 'sa-dispatch:instructions', order: 700, text: SA_DISPATCH_PROMPT },
     ]);

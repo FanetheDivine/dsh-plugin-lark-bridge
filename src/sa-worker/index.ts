@@ -1,7 +1,6 @@
 /** SA-工作会话预设子行：注册上报工具、提示词、调度消息来源标记、在场提醒与轮次失败监听。 */
 import type {} from '@deepseek-ai/dsh-session';
 
-import type { LlmLike } from '../lark-super-agent/worker-model.ts';
 import type { Context } from '../types.ts';
 import { wrapDispatchMessages } from './dispatch-message.ts';
 import { SA_WORKER_PROMPT } from './prompt.ts';
@@ -38,20 +37,6 @@ export function apply(ctx: Context): void {
       text: SA_WORKER_PROMPT,
     });
     registerWorkerTools(workerCtx);
-    // 调度会话创建期间新建的工作会话，在首条消息之前选择配置的模型。
-    workerCtx.on('agent/created', async ({ agent, source }) => {
-      if (source !== 'startup') return;
-      const selection = await workerCtx.larkSuperAgent.workerModel.take(
-        workerCtx.get('llm') as LlmLike | undefined,
-        workerCtx.logger,
-      );
-      if (selection === undefined) return;
-      try {
-        agent.model.select(selection);
-      } catch (error) {
-        workerCtx.logger.warn('sa-worker cannot apply the worker model', error);
-      }
-    });
     workerCtx.on('agent/pre-step', async ({ agent }, next) => {
       const decision = await next();
       if (decision.kind === 'reject') return decision;

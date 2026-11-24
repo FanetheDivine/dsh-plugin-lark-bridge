@@ -1,0 +1,161 @@
+[
+  {
+    "label": "E0 装载：预设可用，默认模型为 mock/mock-model",
+    "status": "PASS",
+    "detail": {
+      "presets": ["standard", "ptc", "minimal", "cordis", "sa-dispatch", "sa-worker"],
+      "defaults": {
+        "provider": "mock",
+        "model": "mock-model"
+      }
+    }
+  },
+  {
+    "label": "E1 调度会话工具表：session_create 唯一，其余 meta-tools 工具都在",
+    "status": "PASS",
+    "detail": {
+      "tools": [
+        "session_archive",
+        "session_create",
+        "session_get",
+        "session_list",
+        "session_pin",
+        "session_send",
+        "session_stop",
+        "workspace_create",
+        "workspace_list",
+        "workspace_note_remove",
+        "workspace_note_set",
+        "workspace_remove",
+        "workspace_rename"
+      ],
+      "dispatchSession": "session-0b9ff9aa-d737-4a8b-90c0-940e7e03af38"
+    }
+  },
+  {
+    "label": "E2 未配置：调度创建的工作会话沿用宿主默认",
+    "status": "PASS",
+    "detail": {
+      "used": {
+        "provider": "mock",
+        "model": "mock-model"
+      },
+      "selections": []
+    }
+  },
+  {
+    "label": "E3 已配置 mock-worker/high：工作会话使用该模型与 effort，首轮请求即是",
+    "status": "PASS",
+    "detail": {
+      "worker": {
+        "provider": "mock",
+        "model": "mock-worker",
+        "effort": "high"
+      },
+      "sel": {
+        "provider": "mock",
+        "model": "mock-worker",
+        "reasoningEffort": "high"
+      },
+      "dispatchModels": ["mock-model", "mock-model"],
+      "defaults": {
+        "provider": "mock",
+        "model": "mock-model"
+      }
+    }
+  },
+  {
+    "label": "E4 手动新建会话不受影响（sa-worker 与默认预设）",
+    "status": "PASS",
+    "detail": [
+      {
+        "preset": "sa-worker",
+        "used": {
+          "provider": "mock",
+          "model": "mock-model"
+        }
+      },
+      {
+        "preset": "(default)",
+        "used": {
+          "provider": "mock",
+          "model": "mock-model"
+        }
+      }
+    ]
+  },
+  {
+    "label": "E5 并发：两个调度创建与手动新建互不影响",
+    "status": "PASS",
+    "detail": {
+      "dispatched": [
+        {
+          "provider": "mock",
+          "model": "mock-worker",
+          "effort": "high"
+        },
+        {
+          "provider": "mock",
+          "model": "mock-worker",
+          "effort": "high"
+        }
+      ],
+      "manual": {
+        "provider": "mock",
+        "model": "mock-model"
+      }
+    }
+  },
+  {
+    "label": "E6 显式 provider/model/effort 优先于配置",
+    "status": "PASS",
+    "detail": {
+      "provider": "mock",
+      "model": "mock-other",
+      "effort": "low"
+    }
+  },
+  {
+    "label": "E6b 显式参数非法：报错且不创建会话",
+    "status": "PASS",
+    "detail": {
+      "out": "Error: Invalid model selection: unknown model no-such-model"
+    }
+  },
+  {
+    "label": "E7 配置不可用（mock-model 配 effort high）：回退宿主默认，创建照常",
+    "status": "PASS",
+    "detail": {
+      "used": {
+        "provider": "mock",
+        "model": "mock-model"
+      }
+    }
+  },
+  {
+    "label": "E8 半组配置按未配置处理",
+    "status": "PASS",
+    "detail": {
+      "selections": []
+    }
+  },
+  {
+    "label": "E9 改配置无需重启：mock-worker/low 立即生效",
+    "status": "PASS",
+    "detail": {
+      "provider": "mock",
+      "model": "mock-worker",
+      "effort": "low"
+    }
+  },
+  {
+    "label": "E10 全程默认模型未被改",
+    "status": "PASS",
+    "detail": {
+      "defaults": {
+        "provider": "mock",
+        "model": "mock-model"
+      }
+    }
+  }
+]

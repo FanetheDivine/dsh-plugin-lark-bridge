@@ -1,5 +1,5 @@
+import type { ModelSelection } from '@deepseek-ai/dsh-agent';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
-
 import type { Context } from '../types.ts';
 import { toHostWorkspacePath } from '../workspace-path.ts';
 import type {
@@ -18,7 +18,6 @@ import { readBridgeState } from './bridge.ts';
 import { findTaskBySession, NotesStore } from './notes.ts';
 import { PresenceStore } from './presence.ts';
 import { ReportStore, validateReportInput } from './reports.ts';
-import { WorkerModelStore } from './worker-model.ts';
 
 export { readBridgeState } from './bridge.ts';
 
@@ -84,8 +83,8 @@ export interface ContextLike {
 export interface SuperAgentServiceOptions {
   /** 全局在场状态；缺省时新建一份，两个开关均开启。 */
   presence?: PresenceStore;
-  /** 工作会话模型；缺省时视为未配置。 */
-  workerModel?: WorkerModelStore;
+  /** 读取「工作会话模型」的实时值；缺省时视为未配置。 */
+  workerModel?: () => ModelSelection | undefined;
   home?: string;
   now?: () => Date;
   taskId?: (date: Date) => string;
@@ -114,8 +113,8 @@ const DEFAULT_SWITCHES = { guiInputSetsLocal: true, larkInputSetsRemote: true } 
 export class SuperAgentService implements LarkSuperAgentService {
   /** 全局在场状态；整个插件共用一份。 */
   readonly presence: PresenceStore;
-  /** 工作会话模型配置与调度创建标记。 */
-  readonly workerModel: WorkerModelStore;
+  /** 读取「工作会话模型」的实时值；未配置时返回 undefined。 */
+  readonly workerModel: () => ModelSelection | undefined;
   private readonly ctx: ContextLike;
   private readonly options: SuperAgentServiceOptions;
 
@@ -123,7 +122,7 @@ export class SuperAgentService implements LarkSuperAgentService {
     this.ctx = ctx;
     this.options = options;
     this.presence = options.presence ?? new PresenceStore({ switches: () => DEFAULT_SWITCHES });
-    this.workerModel = options.workerModel ?? new WorkerModelStore(() => undefined);
+    this.workerModel = options.workerModel ?? (() => undefined);
   }
 
   /** 读取桥接状态，并把 Linux 风格的调度工作区转换为当前平台的原生路径。 */

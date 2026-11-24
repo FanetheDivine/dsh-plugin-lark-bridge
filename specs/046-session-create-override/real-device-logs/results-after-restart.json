@@ -1,0 +1,28 @@
+[
+  {
+    "label": "E11 重启后读取 GUI 保存的配置：调度创建的工作会话用 mock-worker/high，手动新建与调度会话用默认",
+    "status": "PASS",
+    "detail": {
+      "config": {
+        "guiInputSetsLocal": true,
+        "larkInputSetsRemote": true,
+        "workerProvider": "mock",
+        "workerModel": "mock-worker",
+        "workerEffort": "high"
+      },
+      "worker": {
+        "provider": "mock",
+        "model": "mock-worker",
+        "effort": "high"
+      },
+      "manual": {
+        "provider": "mock",
+        "model": "mock-model"
+      },
+      "defaults": {
+        "provider": "mock",
+        "model": "mock-model"
+      }
+    }
+  }
+]
