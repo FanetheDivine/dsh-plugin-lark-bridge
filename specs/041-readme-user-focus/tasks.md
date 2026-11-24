@@ -63,7 +63,7 @@ description: "Task list for README 面向使用者"
 
 **Independent Test**: 只看「关于两个预设」一节，能在「插件」页找到两行并核对主行预设。
 
-- [ ] T011 [US2] 在 `README.md` 末尾追加 `specs/041-readme-user-focus/contracts/readme.md` 中「关于两个预设」一节的全文，使 `README.md` 与目标全文逐字一致
+- [X] T011 [US2] 在 `README.md` 末尾追加 `specs/041-readme-user-focus/contracts/readme.md` 中「关于两个预设」一节的全文，使 `README.md` 与目标全文逐字一致
 
 **Checkpoint**: README 完整，提交一次。
 
