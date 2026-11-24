@@ -4,11 +4,12 @@ import type { ToolDefinition } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { LarkSuperAgentService } from '../src/lark-super-agent/api.ts';
+import { PresenceStore } from '../src/lark-super-agent/presence.ts';
 import { wrapDispatchMessages } from '../src/sa-worker/dispatch-message.ts';
 import { apply, name } from '../src/sa-worker/index.ts';
 import { SA_WORKER_PROMPT } from '../src/sa-worker/prompt.ts';
 import type { Context } from '../src/types.ts';
-import { makeCtx } from './helpers.ts';
+import { type FakeSurfaceSession, makeCtx, makeSurfaceSession } from './helpers.ts';
 
 /** 可替换的宿主侧副作用：冻结消息。 */
 const hostMocks = vi.hoisted(() => ({
@@ -32,6 +33,9 @@ function makeService() {
     listCandidates: vi.fn(),
     sendReport: vi.fn(),
     notifyFailure: vi.fn().mockResolvedValue(undefined),
+    presence: new PresenceStore({
+      switches: () => ({ guiInputSetsLocal: true, larkInputSetsRemote: true }),
+    }),
   } satisfies LarkSuperAgentService;
 }
 
@@ -89,15 +93,17 @@ async function runPreStep(
   host: ReturnType<typeof mount>,
   messages: UserMessage[],
   decision?: { kind: string; messages?: UserMessage[] },
+  session: FakeSurfaceSession = makeSurfaceSession(),
 ) {
   const listener = host.base._onCallbacks.get('agent/pre-step')?.[0];
   if (listener === undefined) throw new Error('missing agent/pre-step listener');
   const next = vi.fn(async () => decision ?? { kind: 'enter', messages });
-  const result = (await listener({ agent: { session: {} } }, next)) as {
+  const result = (await listener({ agent: { session } }, next)) as {
     kind: string;
     messages?: UserMessage[];
   };
-  return { result, next };
+  if (result.kind !== 'reject') session.commit(result.messages ?? []);
+  return { result, next, session };
 }
 
 describe('SA-工作会话子行', () => {
@@ -223,9 +229,11 @@ describe('SA-工作会话子行', () => {
     expect(SA_WORKER_PROMPT).toContain('<dispatch_session_message>');
     expect(SA_WORKER_PROMPT).toContain('## Remote mode');
     expect(SA_WORKER_PROMPT).toContain('## Local mode');
-    expect(SA_WORKER_PROMPT).toMatch(/start in remote mode/i);
-    expect(SA_WORKER_PROMPT).toMatch(/direct message from the user switches you to local mode/i);
-    expect(SA_WORKER_PROMPT).toMatch(/next dispatch message switches you back to remote mode/i);
+    expect(SA_WORKER_PROMPT).toContain('## Follow where the user is');
+    expect(SA_WORKER_PROMPT).toMatch(/system reminder tells you where the user is/i);
+    expect(SA_WORKER_PROMPT).toMatch(/at the computer means local mode, away means remote mode/i);
+    expect(SA_WORKER_PROMPT).not.toMatch(/start in remote mode/i);
+    expect(SA_WORKER_PROMPT).not.toMatch(/switches you (back )?to (local|remote) mode/i);
   });
 
   it('远程模式提示词要求正文精简、send_report 交互与 Markdown 交付', () => {
@@ -243,7 +251,7 @@ describe('SA-工作会话子行', () => {
     expect(local).toMatch(/answer and ask questions directly in your response body/i);
     expect(local).toMatch(/ordinary conversation.*not reported/is);
     expect(local).toMatch(/requirement changes from the user, completion, and abandonment/i);
-    expect(local).toContain('用户在电脑前');
+    expect(SA_WORKER_PROMPT).not.toContain('用户在电脑前');
     expect(local).toMatch(/do not send a report only to announce the mode change/i);
   });
 
@@ -311,23 +319,39 @@ describe('SA-工作会话子行', () => {
     expect(wrapDispatchMessages([message])[0]).toBe(message);
   });
 
-  it('agent/pre-step 替换调度消息，本机消息与 reject 原样返回', async () => {
+  it('agent/pre-step 先插在场提醒，再替换调度消息；状态一致时本机消息原样返回', async () => {
     const host = mount();
     const dispatch = sourcedMessage('dsh-plugin-meta-tools');
     const local = sourcedMessage('user');
 
     const wrapped = await runPreStep(host, [dispatch, local]);
-    expect(wrapped.result.messages?.[0]).not.toBe(dispatch);
-    expect(JSON.stringify(wrapped.result.messages?.[0]?.content)).toContain(
-      '<dispatch_session_message>',
-    );
-    expect(wrapped.result.messages?.[1]).toBe(local);
+    const [notice, first, second] = wrapped.result.messages ?? [];
+    expect(notice?.source).toEqual({ kind: 'sa-presence', form: 'notice', presence: 'local' });
+    expect(first).not.toBe(dispatch);
+    expect(JSON.stringify(first?.content)).toContain('<dispatch_session_message>');
+    expect(second).toBe(local);
 
-    const unchanged = await runPreStep(host, [local]);
+    const unchanged = await runPreStep(host, [local], undefined, wrapped.session);
     expect(unchanged.result.messages).toEqual([local]);
 
     const decision = { kind: 'reject' };
     const rejected = await runPreStep(host, [dispatch], decision);
     expect(rejected.result).toBe(decision);
+  });
+
+  it('全局状态切到离开后插入 remote 提醒，调度消息不改变状态', async () => {
+    const host = mount();
+    const first = await runPreStep(host, [sourcedMessage('dsh-plugin-meta-tools')]);
+    host.service.presence.set('remote');
+
+    const next = await runPreStep(
+      host,
+      [sourcedMessage('dsh-plugin-meta-tools')],
+      undefined,
+      first.session,
+    );
+    expect(next.result.messages?.[0]?.source).toMatchObject({ presence: 'remote' });
+    expect(JSON.stringify(next.result.messages?.[0]?.content)).toContain('away');
+    expect(host.service.presence.get().presence).toBe('remote');
   });
 });

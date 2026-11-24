@@ -104,9 +104,9 @@ description: "Tasks for 042-presence-toggle"
 
 **Independent Test**: `tests/sa-worker.test.ts` 通过；实机「工作会话远程」「工作会话本机」「其他预设」场景
 
-- [ ] T031 [US4] 修改 `src/sa-worker/index.ts`：`agent/pre-step` 在 `wrapDispatchMessages` 之后调用共用提醒函数，有提醒时插到本批消息最前
-- [ ] T032 [US4] 按 research R-08 重写 `src/sa-worker/prompt.ts`：标题改为 `## Follow where the user is`；删除远程起始与按来源切换模式的规则；`## Local mode` 删除「用户在电脑前」首行一句
-- [ ] T033 [P] [US4] 更新 `tests/sa-worker.test.ts`：删除 `用户在电脑前` 断言；新增提醒插入、状态一致不插入、提示词不含按来源切换的规则
+- [X] T031 [US4] 修改 `src/sa-worker/index.ts`：`agent/pre-step` 在 `wrapDispatchMessages` 之后调用共用提醒函数，有提醒时插到本批消息最前
+- [X] T032 [US4] 按 research R-08 重写 `src/sa-worker/prompt.ts`：标题改为 `## Follow where the user is`；删除远程起始与按来源切换模式的规则；`## Local mode` 删除「用户在电脑前」首行一句
+- [X] T033 [P] [US4] 更新 `tests/sa-worker.test.ts`：删除 `用户在电脑前` 断言；新增提醒插入、状态一致不插入、提示词不含按来源切换的规则
 
 **Checkpoint**: commit `feat(042): 工作会话跟随在场状态`
 
