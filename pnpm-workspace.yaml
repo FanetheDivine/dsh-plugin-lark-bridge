@@ -1,6 +1,13 @@
 packages:
   - '.'
 
+# Tailwind 的 watch 依赖有原生构建脚本，本仓库只用一次性 CLI，不需要执行。
+ignoredBuiltDependencies:
+  - '@parcel/watcher'
+
+allowBuilds:
+  '@parcel/watcher': false
+
 minimumReleaseAgeExclude:
   - '@deepseek-ai/dsh-agent@0.2.2-rc.5'
   - '@deepseek-ai/dsh-agent-preset-registry@0.2.2-rc.5'

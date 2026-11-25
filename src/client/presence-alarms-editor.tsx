@@ -1,13 +1,10 @@
 /**
- * 闹钟条目编辑弹窗：表盘式时间选择与逐条跳过设置。
+ * 时间条目编辑弹窗：列式时间选择与逐条跳过设置。
  * 导出 PresenceAlarmEditor 与 defaultAlarmTime。
  */
 import { Button, Checkbox, Modal } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
-import { type CSSProperties, useEffect, useRef, useState } from 'react';
-import { TimePicker } from 'react-time-picker';
-import 'react-time-picker/dist/TimePicker.css';
-import 'react-clock/dist/Clock.css';
+import { type CSSProperties, useState } from 'react';
 
 import {
   alarmId,
@@ -16,29 +13,21 @@ import {
   type PresenceAlarm,
 } from '../lark-super-agent/alarms.ts';
 import type { NS } from './locales.ts';
-import './presence-alarms.css';
+import {
+  TimePicker,
+  TimePickerColumns,
+  TimePickerConfirm,
+  TimePickerContent,
+  TimePickerFooter,
+  TimePickerInput,
+  TimePickerNow,
+} from './ui/time-picker.tsx';
 
 /** 新条目的默认时间：当前本地时间。 */
 export function defaultAlarmTime(now: Date = new Date()): string {
   const hour = `${now.getHours()}`.padStart(2, '0');
   const minute = `${now.getMinutes()}`.padStart(2, '0');
   return `${hour}:${minute}`;
-}
-
-// react-time-picker 输入时给出不带前导零的小时，保存前统一补零。
-function padTime(value: string): string {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(value);
-  const hour = match?.[1];
-  const minute = match?.[2];
-  if (hour === undefined || minute === undefined) return value;
-  return `${hour.padStart(2, '0')}:${minute}`;
-}
-
-/** 文档语言，作为时间选择器的 locale。 */
-function documentLocale(): string | undefined {
-  if (typeof document === 'undefined') return undefined;
-  const lang = document.documentElement.lang;
-  return lang === '' ? undefined : lang;
 }
 
 /** 编辑弹窗属性。 */
@@ -61,15 +50,7 @@ export function PresenceAlarmEditor(props: PresenceAlarmEditorProps) {
   const [skipWeekends, setSkipWeekends] = useState(props.alarm?.skipWeekends ?? true);
   const [skipHolidays, setSkipHolidays] = useState(props.alarm?.skipHolidays ?? true);
   const [enabled, setEnabled] = useState(props.alarm?.enabled ?? true);
-  const [portal, setPortal] = useState<HTMLElement | null>(null);
-  const body = useRef<HTMLDivElement>(null);
 
-  // 表盘挂到弹窗内部，避免被滚动容器裁切。
-  useEffect(() => {
-    setPortal(body.current);
-  }, []);
-
-  const locale = documentLocale();
   const invalid = !isAlarmTime(time);
   const duplicate = !invalid && props.existingTimes.includes(time);
   const canSubmit = !invalid && !duplicate && !props.disabled;
@@ -108,24 +89,38 @@ export function PresenceAlarmEditor(props: PresenceAlarmEditorProps) {
         </div>
       }
     >
-      <div ref={body} style={bodyStyle} data-dsh-lark-alarm-editor>
+      <div style={bodyStyle} data-dsh-lark-alarm-editor data-dsh-lark-ui>
         <span style={labelStyle}>{t('presenceConfig.editor.time')}</span>
         <TimePicker
-          value={time}
-          onChange={(value) => {
-            setTime(typeof value === 'string' ? padTime(value) : '');
+          value={invalid ? null : time}
+          onValueChange={(next) => {
+            if (next !== null) setTime(next);
           }}
-          format="HH:mm"
-          {...(locale === undefined ? {} : { locale })}
-          portalContainer={portal}
-          openClockOnFocus={false}
-          clearIcon={null}
+          granularity="minute"
+          hourCycle={24}
           disabled={props.disabled}
-          className="dsh-lark-time-picker"
-          hourAriaLabel={t('presenceConfig.editor.hour')}
-          minuteAriaLabel={t('presenceConfig.editor.minute')}
-          clockAriaLabel={t('presenceConfig.editor.clock')}
-        />
+          aria-label={t('presenceConfig.editor.time')}
+          i18n={{
+            labels: {
+              placeholder: t('presenceConfig.editor.placeholder'),
+              hour: t('presenceConfig.editor.hour'),
+              minute: t('presenceConfig.editor.minute'),
+              panelLabel: t('presenceConfig.editor.panel'),
+              openPicker: t('presenceConfig.editor.openPicker'),
+              now: t('presenceConfig.editor.now'),
+              confirm: t('presenceConfig.editor.save'),
+            },
+          }}
+        >
+          <TimePickerInput placeholder={t('presenceConfig.editor.placeholder')} />
+          <TimePickerContent align="start">
+            <TimePickerColumns />
+            <TimePickerFooter>
+              <TimePickerNow />
+              <TimePickerConfirm />
+            </TimePickerFooter>
+          </TimePickerContent>
+        </TimePicker>
         {duplicate ? <p style={warningStyle}>{t('presenceConfig.editor.duplicate')}</p> : null}
         <div style={checksStyle}>
           <Checkbox
@@ -155,8 +150,8 @@ export function PresenceAlarmEditor(props: PresenceAlarmEditorProps) {
 const bodyStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: 8,
-  minWidth: 260,
+  gap: 10,
+  minWidth: 280,
 };
 
 const labelStyle: CSSProperties = {
@@ -174,7 +169,7 @@ const checksStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 6,
-  paddingTop: 4,
+  paddingTop: 2,
 };
 
 const footerStyle: CSSProperties = {

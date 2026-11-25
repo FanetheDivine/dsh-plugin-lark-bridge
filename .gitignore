@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# Tailwind 生成物，由 pnpm run css:build 产出
+src/client/tailwind.generated.css
 *.tsbuildinfo
 *.log
 *.zip

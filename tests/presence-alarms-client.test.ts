@@ -271,8 +271,7 @@ describe('条目交互', () => {
     });
     const { container, root } = await mount(props);
     const row = container.querySelector('[data-dsh-lark-alarm="a"]');
-    const buttons = [...(row?.querySelectorAll('button') ?? [])];
-    const remove = buttons.at(-1);
+    const remove = row?.querySelector('button[aria-label^="删除时间"]');
     await act(async () => {
       remove?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
@@ -292,7 +291,9 @@ describe('条目交互', () => {
     });
     const { container, root } = await mount(props);
     const row = container.querySelector('[data-dsh-lark-alarm="a"]');
-    const skip = [...(row?.querySelectorAll('button') ?? [])][1];
+    const skip = [...(row?.querySelectorAll('button') ?? [])].find(
+      (button) => button.textContent === '跳过周末',
+    );
     await act(async () => {
       skip?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
@@ -300,6 +301,94 @@ describe('条目交互', () => {
       ALARMS_FIELD,
       formatAlarmList([alarm({ id: 'a', skipWeekends: false })]),
     );
+    await act(async () => {
+      root.unmount();
+    });
+    form.dispose();
+  });
+
+  it('停用条目整行呈现停用态', async () => {
+    const { form, props } = await setup({
+      presenceAlarms: [alarm({ id: 'a', enabled: false })],
+    });
+    const { container, root } = await mount(props);
+    const row = container.querySelector('[data-dsh-lark-alarm="a"]');
+    expect(row?.hasAttribute('data-off')).toBe(true);
+    await act(async () => {
+      root.unmount();
+    });
+    form.dispose();
+  });
+
+  it('点时间按钮打开编辑弹窗并回填该条设置', async () => {
+    const { form, props } = await setup({
+      presenceAlarms: [alarm({ id: 'a', time: '07:30', skipWeekends: false })],
+    });
+    const { container, root } = await mount(props);
+    const open = container.querySelector('[data-dsh-lark-alarm="a"] .dsh-lark-alarm-time');
+    await act(async () => {
+      open?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const editor = document.body.querySelector('[data-dsh-lark-alarm-editor]');
+    expect(editor).not.toBeNull();
+    const input = editor?.querySelector<HTMLInputElement>('[data-slot="time-picker-input"] input');
+    expect(input?.value).toBe('07:30');
+    await act(async () => {
+      root.unmount();
+    });
+    form.dispose();
+  });
+
+  it('弹窗里的时钟按钮展开小时与分钟两列，选中小时即改时间', async () => {
+    const { form, props } = await setup({
+      presenceAlarms: [alarm({ id: 'a', time: '09:00' })],
+    });
+    const { container, root } = await mount(props);
+    const open = container.querySelector('[data-dsh-lark-alarm="a"] .dsh-lark-alarm-time');
+    await act(async () => {
+      open?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const trigger = document.body.querySelector('[data-slot="time-picker-input-trigger"]');
+    await act(async () => {
+      trigger?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const columns = document.body.querySelectorAll('[data-slot="time-picker-column"]');
+    expect(columns).toHaveLength(2);
+    const hourOption = [...document.body.querySelectorAll('[role="option"]')].find(
+      (option) => option.textContent === '10',
+    );
+    await act(async () => {
+      hourOption?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const input = document.body.querySelector<HTMLInputElement>(
+      '[data-slot="time-picker-input"] input',
+    );
+    expect(input?.value).toBe('10:00');
+    await act(async () => {
+      root.unmount();
+    });
+    form.dispose();
+  });
+
+  it('新增条目的默认时间与已有条目重合时提示重复并禁用确认', async () => {
+    // 新条目默认取当前时间，因此把已有条目设成当前时间即触发重复。
+    const now = new Date();
+    const current = `${`${now.getHours()}`.padStart(2, '0')}:${`${now.getMinutes()}`.padStart(2, '0')}`;
+    const { form, props } = await setup({
+      presenceAlarms: [alarm({ id: 'a', time: current })],
+    });
+    const { container, root } = await mount(props);
+    const open = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('添加时间'),
+    );
+    await act(async () => {
+      open?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.body.textContent).toContain('该分区已有这个时间');
+    const confirm = [...document.body.querySelectorAll('button')].find(
+      (button) => button.textContent === '确认',
+    );
+    expect(confirm?.hasAttribute('disabled')).toBe(true);
     await act(async () => {
       root.unmount();
     });

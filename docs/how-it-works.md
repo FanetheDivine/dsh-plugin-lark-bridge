@@ -264,6 +264,14 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 没有某年数据时只按星期判断周末；获取失败保留旧缓存并记一条警告，配置页在有条目跳过节假日时显示提示。
 - `/lark-bridge/presence` 的回答带 `holidays: { state, fetchedAt }`，`state` 取 `fresh`、`stale` 或 `missing`。
 
+### 配置页的时间选择控件
+
+- 时间选择控件是 ReUI 的 `@reui/time-picker`（shadcn 注册表条目，MIT）移植件，放在 `src/client/ui/time-picker.tsx`，底座是 `@radix-ui/react-popover`。
+- 只保留 24 小时制的时、分两列，`value` 直接是 `HH:mm`，与 `PresenceAlarm.time` 同格式。
+- 同目录的 `button.tsx`、`input.tsx`、`input-group.tsx`、`popover.tsx` 是 shadcn 源码移植件，`cn.ts` 对应 shadcn 的 `lib/utils`。
+- 样式由 Tailwind v4 生成：`src/client/tailwind.css` 只引入 utilities，`@theme inline` 把 shadcn 的语义色映射到 `--dsw-*` 令牌，preflight 不进产物。
+- `scripts/build-client-css.mjs` 在 tsdown 之前把 `tailwind.css` 编译成 `src/client/tailwind.generated.css`；`build`、`dev`、`check` 都会先跑它。
+
 两个预设子行在 `agent/pre-step` 调用服务的 `presence.reminderFor(session, messages)`：
 
 1. 先观察本批消息，保证提醒使用更新后的状态。

@@ -10,6 +10,7 @@ export { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives/src/clipbo
 export {
   IconCheckOutlineRegular,
   IconChevronDownOutlineRegular,
+  IconClockOutlineRegular,
   IconCloseOutlineRegular,
   IconPlusOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives/src/icons/index.tsx';
