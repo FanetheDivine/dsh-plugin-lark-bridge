@@ -277,13 +277,25 @@ describe('SA-工作会话子行', () => {
     expect(SA_WORKER_PROMPT).toMatch(/stuck|no meaningful progress/i);
   });
 
-  it('本机模式提示词要求正文对话并上报影响任务的变化', () => {
-    const local = SA_WORKER_PROMPT.split('## Local mode')[1] ?? '';
+  it('本机模式提示词要求正文对话且照常上报', () => {
+    const local = SA_WORKER_PROMPT.split('## Local mode')[1]?.split('## Report content')[0] ?? '';
     expect(local).toMatch(/answer and ask questions directly in your response body/i);
-    expect(local).toMatch(/ordinary conversation.*not reported/is);
-    expect(local).toMatch(/requirement changes from the user, completion, and abandonment/i);
+    expect(local).toMatch(/does not replace a report/i);
+    expect(local).toMatch(/question, completion, and abandonment still goes through send_report/i);
+    expect(local).not.toMatch(/not reported/i);
     expect(SA_WORKER_PROMPT).not.toContain('用户在电脑前');
-    expect(local).toMatch(/do not send a report only to announce the mode change/i);
+  });
+
+  it('上报规则两种模式共用并按 kind 区分', () => {
+    const rules =
+      SA_WORKER_PROMPT.split('## Report every task change')[1]?.split('## Remote mode')[0] ?? '';
+    expect(rules).toMatch(/in both modes/i);
+    for (const kind of ['progress', 'question', 'completed', 'abandoned']) {
+      expect(rules).toContain(`- ${kind}:`);
+    }
+    expect(rules).toMatch(/result and an open question come together, use question/i);
+    expect(rules).toMatch(/only completed and abandoned end the task/i);
+    expect(rules).toMatch(/do not send a report only to announce a mode change/i);
   });
 
   it('包装 meta-tools 来源消息并保留原 id 与 source', () => {

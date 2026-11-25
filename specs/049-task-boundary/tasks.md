@@ -43,8 +43,8 @@ description: "Task list for 049-task-boundary"
 
 **Independent Test**: 提示词断言本机模式也要求上报四类内容
 
-- [ ] T011 [US1] 改写 `src/sa-worker/prompt.ts`：新增两种模式共用的上报一节，按 `kind` 上报里程碑进度、需求变更、提问、完成与放弃；本机模式只说明另外在正文对话；结果与待决问题并存时上报 `question`
-- [ ] T012 [US1] 更新 `tests/sa-worker.test.ts` 的提示词断言：本机模式不再含「not reported」；含四个 `kind` 取值
+- [X] T011 [US1] 改写 `src/sa-worker/prompt.ts`：新增两种模式共用的上报一节，按 `kind` 上报里程碑进度、需求变更、提问、完成与放弃；本机模式只说明另外在正文对话；结果与待决问题并存时上报 `question`
+- [X] T012 [US1] 更新 `tests/sa-worker.test.ts` 的提示词断言：本机模式不再含「not reported」；含四个 `kind` 取值
 
 ---
 
