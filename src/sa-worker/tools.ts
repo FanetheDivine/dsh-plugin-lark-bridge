@@ -20,7 +20,7 @@ export function registerWorkerTools(ctx: WorkerContext): void {
           required: true,
           enum: [...REPORT_KINDS],
           description:
-            'progress: a milestone or a requirement change. question: a decision the user must make. completed: the task is done. abandoned: the task is given up. Only completed and abandoned end the task.',
+            'progress: a milestone or a requirement change. question: a decision the user must make. completed: the task is done. This is a very important value: send it only when the user has no follow-up instructions and no doubts about the current result. abandoned: the task is given up. Only completed and abandoned end the task. Use progress for routine reports.',
         },
         text: {
           type: 'string',
