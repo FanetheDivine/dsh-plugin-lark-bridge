@@ -197,6 +197,9 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - `SA-调度会话` 的提示词要求回复只给结论、保持简短，不用礼貌用语，不讲实现细节，不提无意义的疑问与建议。
 - `SA-调度会话` 的提示词把用户指令默认理解为交给新建工作会话在工作区执行的独立任务。调度会话自身只在调度工作区读写笔记、任务归档与报告，用户明确要求时才亲自执行，也不建议由调度会话执行；建任务前按 `workspaces.json` 的 `summary` 与 `keywords` 匹配工作区。
 - 只有 `workspaces.json` 已登记的工作区可以接收任务。没有匹配或多个都匹配时，调度会话不猜测、不执行，告知「我不知道在哪个工作区」并询问目标。
+- 每条用户消息默认是新任务。只有引用了未结束任务的消息，或点名未结束任务的标题或 id，才归入该任务；无法判断时询问用户。
+- 引用已结束任务的消息时新建任务，首条要求只带被引原文与本次消息。
+- 新工作会话的首条要求只含本任务的用户消息与目标工作区。
 - 每个任务新建工作会话；只有用户明确要求才复用已有会话，无法判断时询问用户。`task_candidates` 仅用于查找用户要求复用的会话。
 - 派发开始时，调度会话告诉用户任务 id、目标工作区与所选会话。
 - 用户对上报的回答由调度会话送回原工作会话，并追加到任务笔记。
@@ -204,9 +207,13 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - `SA-调度会话` 的提示词按最近的在场提醒选择渠道：离开时经 `lark_notify` 回复与转达，在电脑旁时在正文回复与转达。
 - `SA-工作会话` 把 `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>`，保留原消息 id 与 `source`，文本中的闭标签转义。这覆盖 `session_create` 的首条任务与 `session_send` 的提醒。
 - `session_send` 投递的正文已由 meta-tools 包成 `<system-reminder>` 帧。包装前若消息只有一个文本块且整段恰好是一个帧，剥掉该帧并还原正文中被转义的 `<\/system-reminder>`，使两条路径的块结构相同；多块消息与不完整帧保留原样。
-- `SA-工作会话` 的提示词用 `<dispatch_session_message>` 区分调度消息与用户消息，按最近的在场提醒选择模式：离开为远程模式，经 `send_report` 交流；在电脑旁为本机模式，正文直接对话，需求变更、完成与放弃仍上报。
+- `SA-工作会话` 的提示词用 `<dispatch_session_message>` 区分调度消息与用户消息。
+- `SA-工作会话` 在两种在场状态下都用 `send_report` 上报里程碑进度、需求变更、提问、完成与放弃。在场状态只决定正文用法：离开时正文对用户不可见；在电脑旁时另外在正文直接对话。
+- `SA-调度会话` 按上报的 `kind` 更新任务：`progress` 设为 `in_progress`，`question` 设为 `waiting_user`，`completed` 与 `abandoned` 结束任务并归档会话。其他上报、失败通知与工作会话沉默都不结束任务。
+- 用户要求取消任务时，调度会话把请求转给工作会话，等待 `abandoned` 上报。
+- 在电脑旁时，调度会话在正文转达 `question` 上报的完整问题。
 - `SA-调度会话` 的提示词要求新建工作会话后先置顶，再发送任务要求；用户要求复用的会话保持原置顶状态。
-- `SA-调度会话` 的提示词要求任务完成时先取得会话 id，标记完成后再逐个归档；仍被未完成任务引用的会话保持未归档，归档带 `stop_activity` 停止运行中的工作。
+- `SA-调度会话` 的提示词要求任务结束时先取得会话 id，标记完成后再逐个归档；仍被未完成任务引用的会话保持未归档，归档带 `stop_activity` 停止运行中的工作。
 - 两个预设都不含 `ask_user_question`，也不修改新会话的默认预设。
 - `SA-调度会话` 不含 `tool-jobs`，保留 `persona`、`agent-instructions`、`time-context`、`skill-filesystem` 与压缩组。压缩组的 `compaction-basic` 设 `thresholdRatio: 0.3`，上下文压力到模型窗口 30% 时触发压缩。
 - 全局行与预设子行的工具叠加。`lark_notify` 来自本插件主行，其他插件的全局工具也照常可见。
@@ -300,10 +307,12 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 ## 上报投递与失败监听
 
 - 服务每次调用从 `$DSH_HOME/lark-bridge/state.json` 读取桥接会话 `sessionId` 与调度工作区 `workspaceRoot`；缺省 `$DSH_HOME` 为 `~/.dsh`。`workspaceRoot` 经 `toHostWorkspacePath` 转为当前平台的原生路径后再访问文件与 git。
+- `send_report` 的 `kind` 必填，取值为 `progress`、`question`、`completed`、`abandoned`。取值之外报参数错误，不存档也不投递。
 - `send_report` 的 `text` 与 `files` 至少提供一项，`files` 为 Markdown 文件路径。
+- 上报存档的 front matter 记录 `kind`。服务不按 `kind` 修改任务状态。
 - `send_report` 校验文本与 Markdown 附件，生成 `reportId`，复制附件并写入上报记录，再把 `<work_session_message>` 块投递到调度会话。
 - 投递使用 `sessionController.resolveAgent(sessionId)` 取得 agent，再调用 `agent.steer`。消息采用 `user` 角色，`source.kind` 为 `lark-super-agent`；空闲会话因此被唤醒。
-- 注入块含 `sessionid`、`reportid` 与 `taskid`，始终保留 `<text>` 与 `<files>`。闭合标签与属性值会转义，`<files>` 列出调度工作区内副本的绝对路径。
+- 注入块含 `sessionid`、`reportid`、`taskid` 与 `kind`，始终保留 `<text>` 与 `<files>`。闭合标签与属性值会转义，`<files>` 列出调度工作区内副本的绝对路径。
 - 文件写入并投递后执行 git 提交。提交失败不撤回已投递上报，工具结果附带 `warning`。
 - `sa-worker` 监听 `session/event` 中 `reason.kind === 'error'` 的 `turn/end`，每轮失败向调度会话投递一次 `<work_session_failure>`；取消不触发通知。
 - 失败通知包含工作会话、任务标识与截断后的错误原因。它不进入上报存档，也不提交 git；调度会话不可用时只写日志。

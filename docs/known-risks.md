@@ -170,6 +170,13 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 - meta-tools 行配置的默认模型与默认预设对 `session_create` 不再生效。
 - 依赖宿主 `sessionController` 的 `create`、`rename`、`resolveAgent` 与 `Agent.model.select`、`Agent.steer`。
 
+### 任务归类与结束
+
+- 任务归类、首条要求范围与按 `kind` 更新状态都由 `SA-调度会话` 按提示词执行，程序不校验。
+- 判断引用属于哪个任务只靠调度会话的上下文；压缩后丢失通知原文时，可能需要询问用户。
+- 工作会话选错 `kind` 时，任务会提前结束或不结束。`completed` 与 `abandoned` 会归档并停止工作会话。
+- 升级前已运行的工作会话按旧提示词调用 `send_report` 时缺少 `kind`，工具报参数错误，模型需重试。
+
 ### 会话置顶与归档
 
 - 置顶与归档由 `SA-调度会话` 按提示词执行，程序不补做；模型遗漏时不置顶或不归档。

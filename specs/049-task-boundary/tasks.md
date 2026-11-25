@@ -73,11 +73,11 @@ description: "Task list for 049-task-boundary"
 
 ## Phase 6: Polish
 
-- [ ] T018 [P] 更新 `docs/how-it-works.md`：`send_report` 的 `kind`、投递块属性、存档字段、两个预设的提示词规则
-- [ ] T019 [P] 更新 `docs/known-risks.md`：归类与结束规则依赖模型遵守；旧调用缺 `kind` 时报错
-- [ ] T020 [P] 更新 `README.md` 的「关于两个预设」：工作会话总会上报，只有完成或放弃结束任务
-- [ ] T021 [P] 在 `CHANGELOG.md` 的 `## Unreleased` 增加条目
-- [ ] T022 运行 `pnpm format && pnpm check` 与 `pnpm full-check`，全部通过
+- [X] T018 [P] 更新 `docs/how-it-works.md`：`send_report` 的 `kind`、投递块属性、存档字段、两个预设的提示词规则
+- [X] T019 [P] 更新 `docs/known-risks.md`：归类与结束规则依赖模型遵守；旧调用缺 `kind` 时报错
+- [X] T020 [P] 更新 `README.md` 的「关于两个预设」：工作会话总会上报，只有完成或放弃结束任务
+- [X] T021 [P] 在 `CHANGELOG.md` 的 `## Unreleased` 增加条目
+- [X] T022 运行 `pnpm format && pnpm check` 与 `pnpm full-check`，全部通过
 - [ ] T023 按 `real-device-test` 技能在隔离 profile 实机验证，报告写入 `specs/049-task-boundary/real-device-report.md`
 
 ---
