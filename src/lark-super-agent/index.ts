@@ -1,24 +1,25 @@
 /**
- * lark-super-agent 全局行：提供笔记与上报服务，以及全局在场状态、到点调度与状态路由。
- * 两个预设子行通过 `larkSuperAgent` 服务复用同一套实现。
+ * lark-super-agent 全局行：提供任务与上报服务、被管理会话能力，以及全局在场状态、到点调度与状态路由。
+ * 调度会话子行通过 `larkSuperAgent` 服务复用同一套实现。
  */
 
 import { holidayCachePath } from '../config.ts';
 import type { Context } from '../types.ts';
 import { Config, readPresenceAlarms, readPresenceSwitches } from './config.ts';
 import { dayKeyOf, HolidayCalendar } from './holidays.ts';
+import { applyManagedSessions } from './managed/index.ts';
 import { PresenceStore } from './presence.ts';
 import { registerPresenceRoute } from './routes.ts';
 import { PresenceScheduler } from './schedule.ts';
 import { SuperAgentService } from './service.ts';
-import { readWorkerModel } from './worker-model.ts';
+import { readTaskModel, readTaskPreset } from './task-model.ts';
 
 export { Config };
 
 /** 行标识，与 cordis.patch.yml 一致。 */
 export const name = 'lark-super-agent';
 
-/** 插件启用时提供共享服务并观察全部会话的输入；宿主的 Web 服务器就绪后注册在场状态路由。 */
+/** 提供共享服务、被管理会话能力并观察全部会话的输入。 */
 export function apply(ctx: Context, config?: unknown): void {
   const presence = new PresenceStore({ switches: () => readPresenceSwitches(config) });
   const calendar = new HolidayCalendar({ cachePath: holidayCachePath(), logger: ctx.logger });
@@ -30,7 +31,8 @@ export function apply(ctx: Context, config?: unknown): void {
   });
   const service = new SuperAgentService(ctx, {
     presence,
-    workerModel: () => readWorkerModel(config),
+    taskModel: () => readTaskModel(config),
+    taskPreset: () => readTaskPreset(config),
   });
   ctx.effect(() => ctx.provide('larkSuperAgent', service), 'lark-super-agent: service');
   // 到点调度随行启停；判定失败只记日志，不影响其他能力。
@@ -47,6 +49,9 @@ export function apply(ctx: Context, config?: unknown): void {
     if (decision.kind !== 'reject') presence.observe(decision.messages);
     return decision;
   });
+
+  // 被管理会话的能力与预设无关，注册在全局作用域。
+  applyManagedSessions(ctx, service, () => service.bridgeSessionId());
 
   // webServer 是可选依赖：就绪后注册路由，下线时随作用域注销。
   ctx.inject(['webServer'], (scoped) => {
