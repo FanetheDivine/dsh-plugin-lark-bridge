@@ -1,0 +1,46 @@
+[
+  {
+    "label": "E0 插件装载与两个预设可用",
+    "status": "PASS",
+    "detail": {
+      "presets": 6
+    }
+  },
+  {
+    "label": "E1 session_create 首条任务只有一层标记块",
+    "status": "PASS",
+    "detail": {
+      "dispatchId": "session-96ae2a57-0c10-486d-a9f2-6886962fd814",
+      "workerId": "session-86122a8a-39fb-49e8-9332-dc974f5a1be6",
+      "block": "\n查一下 A\n"
+    }
+  },
+  {
+    "label": "E2 真实 session_send 剥掉 system-reminder 帧",
+    "status": "PASS",
+    "detail": {
+      "text": "<dispatch_session_message>\n继续\n</dispatch_session_message>"
+    }
+  },
+  {
+    "label": "E3 正文中被转义的闭标签被还原",
+    "status": "PASS",
+    "detail": {
+      "text": "<dispatch_session_message>\nbefore </system-reminder> after\n</dispatch_session_message>"
+    }
+  },
+  {
+    "label": "E4 多块消息保留内层帧",
+    "status": "PASS",
+    "detail": {
+      "text": "<dispatch_session_message>\n<system-reminder>\nfirst\n</system-reminder>second\n</dispatch_session_message>"
+    }
+  },
+  {
+    "label": "E5 本机消息不加标记块",
+    "status": "PASS",
+    "detail": {
+      "text": "本机直接对话"
+    }
+  }
+]
