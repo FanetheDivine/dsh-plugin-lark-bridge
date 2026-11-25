@@ -78,7 +78,7 @@ description: "Task list for 049-task-boundary"
 - [X] T020 [P] 更新 `README.md` 的「关于两个预设」：工作会话总会上报，只有完成或放弃结束任务
 - [X] T021 [P] 在 `CHANGELOG.md` 的 `## Unreleased` 增加条目
 - [X] T022 运行 `pnpm format && pnpm check` 与 `pnpm full-check`，全部通过
-- [ ] T023 按 `real-device-test` 技能在隔离 profile 实机验证，报告写入 `specs/049-task-boundary/real-device-report.md`
+- [X] T023 按 `real-device-test` 技能在隔离 profile 实机验证，报告写入 `specs/049-task-boundary/real-device-report.md`
 
 ---
 

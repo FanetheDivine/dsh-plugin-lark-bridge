@@ -1,0 +1,114 @@
+{
+  "host": "@deepseek-ai/dsh 0.2.2-rc.5",
+  "profile": "rdt-049",
+  "dispatchSessionId": "session-1a9c1a66-b58d-42b6-bd81-cc685dfaab2a",
+  "workerSessionId": "session-9828cb34-10cc-4d6a-ae1f-db81005923af",
+  "taskId": "task-20261125124402-2723",
+  "setup": {
+    "workspace_note_set": [
+      "{\"workspaceId\":\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\",\"created\":true}"
+    ],
+    "task_create": ["{\"taskId\":\"task-20261125124402-2723\"}"],
+    "session_create": ["created session session-9828cb34-10cc-4d6a-ae1f-db81005923af (prompted)"],
+    "task_update": [
+      "{\"taskId\":\"task-20261125124402-2723\",\"status\":\"in_progress\",\"archived\":false}"
+    ]
+  },
+  "results": [
+    {
+      "label": "R0 装载：插件激活，sa-dispatch、sa-worker 预设可用",
+      "status": "PASS",
+      "detail": {
+        "rows": [
+          {
+            "id": "dsh-plugin-lark-bridge",
+            "name": "dsh-plugin-lark-bridge",
+            "state": 2
+          },
+          {
+            "id": "lark-super-agent",
+            "name": "dsh-plugin-lark-bridge/lark-super-agent",
+            "state": 2
+          }
+        ],
+        "presets": [
+          {
+            "id": "sa-dispatch",
+            "name": "SA-调度会话"
+          },
+          {
+            "id": "sa-worker",
+            "name": "SA-工作会话"
+          }
+        ]
+      }
+    },
+    {
+      "label": "R1 工具声明：send_report.kind 必填，enum 四值",
+      "status": "PASS",
+      "detail": {
+        "required": ["kind"],
+        "kind": {
+          "type": "string",
+          "description": "progress: a milestone or a requirement change. question: a decision the user must make. completed: the task is done. abandoned: the task is given up. Only completed and abandoned end the task.",
+          "enum": ["progress", "question", "completed", "abandoned"]
+        }
+      }
+    },
+    {
+      "label": "R4 提示词：工作会话含 Report every task change，调度会话含 End tasks only on the report kind",
+      "status": "PASS",
+      "detail": {
+        "worker": true,
+        "dispatch": true,
+        "classifySnippet": "Classify each user message first\n\nTreat every user message as a new task by default. A message belongs to an existing task only in these cases:\n\n- It quotes a message that belongs to an unfinished task, including your own notification about that task. Example: \"<引用消息>要注意 xxx\". Append it to that task with task_update and forward it to that task's worker session.\n- It names an unfinished task by its",
+        "endSnippet": "## End tasks only on the report kind\n\nUpdate the task named by taskid according to the report kind:\n\n- progress: relay it, then set status: 'in_progress'.\n- question: relay the question, then set status: 'waiting_user'. A task in failed status moves to 'in_progress' first.\n- completed: relay the final result, then end the task.\n- abandoned: relay the reason, then end the task.\n\nOnly a completed or abandoned report ends a task. Judge by the kind attribute, never by the report wording. A result that waits for confirmation, a partial result, a worker failure, or a quiet worker does not end the ta"
+      }
+    },
+    {
+      "label": "R2 有效上报 kind=question，R5 任务关联 taskid",
+      "status": "PASS",
+      "detail": {
+        "header": "<work_session_message sessionid=\"session-9828cb34-10cc-4d6a-ae1f-db81005923af\" reportid=\"report-20261125124404-971d0d\" taskid=\"task-20261125124402-2723\" kind=\"question\">",
+        "archive": "task-20261125124402-2723\\report-20261125124404-971d0d.md",
+        "frontMatterKind": "kind: \"question\"",
+        "gitLog": [
+          "lark-super-agent: report report-20261125124404-971d0d",
+          "lark-super-agent: update task-20261125124402-2723",
+          "lark-super-agent: create task-20261125124402-2723"
+        ]
+      }
+    },
+    {
+      "label": "R3 非法上报：缺 kind、kind=finished 均为参数错误且不投递、不存档",
+      "status": "PASS",
+      "detail": {
+        "toolResults": {
+          "missing": {
+            "text": "Error: invalid arguments: missing required property \"kind\"",
+            "data": {
+              "turn": 3,
+              "step": 1,
+              "error": {
+                "name": "ToolArgsError",
+                "code": "INVALID_ARGS"
+              }
+            }
+          },
+          "finished": {
+            "text": "Error: invalid arguments: \"kind\" must be one of [\"progress\",\"question\",\"completed\",\"abandoned\"]",
+            "data": {
+              "turn": 4,
+              "step": 1,
+              "error": {
+                "name": "ToolArgsError",
+                "code": "INVALID_ARGS"
+              }
+            }
+          }
+        },
+        "serviceError": "send_report kind must be one of progress, question, completed, abandoned"
+      }
+    }
+  ]
+}
