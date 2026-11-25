@@ -167,9 +167,28 @@ describe('PresenceController.toggle', () => {
 });
 
 describe('PresenceButton', () => {
+  /** 静态渲染按钮；Radix Presence 的 useLayoutEffect 警告不影响服务端标记断言。 */
+  function renderStaticPresence(controller: PresenceController, wide: boolean): string {
+    const original = console.error;
+    const spy = vi.spyOn(console, 'error').mockImplementation((message: unknown, ...args) => {
+      if (
+        typeof message === 'string' &&
+        message.includes('useLayoutEffect does nothing on the server')
+      ) {
+        return;
+      }
+      original(message, ...args);
+    });
+    try {
+      return renderToStaticMarkup(createElement(PresenceButton, { wide, t, controller }));
+    } finally {
+      spy.mockRestore();
+    }
+  }
+
   it('在电脑旁显示显示器与对应文案', () => {
     const { controller } = controllerWith([]);
-    const html = renderToStaticMarkup(createElement(PresenceButton, { wide: true, t, controller }));
+    const html = renderStaticPresence(controller, true);
     expect(html).toContain('data-presence="local"');
     expect(html).toContain('<rect x="3" y="4" width="18" height="12" rx="2"></rect>');
     expect(html).not.toContain('title="在电脑旁 · 点击切换为离开"');
@@ -180,9 +199,7 @@ describe('PresenceButton', () => {
   it('离开时显示手机，折叠栏带 rail 标记', async () => {
     const { controller } = controllerWith([ok('remote')]);
     await controller.refresh();
-    const html = renderToStaticMarkup(
-      createElement(PresenceButton, { wide: false, t, controller }),
-    );
+    const html = renderStaticPresence(controller, false);
     expect(html).toContain('data-presence="remote"');
     expect(html).toContain('<rect x="7" y="2.5" width="10" height="19" rx="2.5"></rect>');
     expect(html).not.toContain('title="离开 · 点击切换为在电脑旁"');
@@ -196,7 +213,7 @@ describe('PresenceButton', () => {
       async () => fail('network'),
     );
     await controller.toggle();
-    const html = renderToStaticMarkup(createElement(PresenceButton, { wide: true, t, controller }));
+    const html = renderStaticPresence(controller, true);
     expect(html).toContain('color:var(--dsw-alias-state-error-primary)');
     expect(html).not.toContain('title="切换失败，点击重试"');
     controller.dispose();
@@ -265,6 +282,29 @@ describe('PresenceButton', () => {
     });
     await settle();
     expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    await act(async () => {
+      root.unmount();
+    });
+    controller.dispose();
+  });
+
+  it('点击按钮切换状态，失败后提示重试文案', async () => {
+    const { controller } = controllerWith(
+      [],
+      () => false,
+      async () => fail('network'),
+    );
+    const { root, button } = await mountButton(controller);
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(controller.getSnapshot()).toMatchObject({ presence: 'local', failed: true });
+
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
+    });
+    await settle();
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe('切换失败，点击重试');
     await act(async () => {
       root.unmount();
     });

@@ -68,11 +68,11 @@ description: "Task list for 在场状态按钮即时 tooltip"
 
 ### Tests for User Story 2
 
-- [ ] T005 [US2] 更新 `tests/presence-client.test.ts`：覆盖点击切换、失败态文案与 tooltip 的上方/碰撞配置
+- [X] T005 [US2] 更新 `tests/presence-client.test.ts`：覆盖点击切换、失败态文案与 tooltip 的上方/碰撞配置
 
 ### Implementation for User Story 2
 
-- [ ] T006 [US2] 完善 `src/client/ui/tooltip.tsx` 与 `src/client/presence-button.tsx`：Content 使用 `side="top"`、`collisionPadding={8}`，Portal 样式不阻挡按钮指针事件
+- [X] T006 [US2] 完善 `src/client/ui/tooltip.tsx` 与 `src/client/presence-button.tsx`：Content 使用 `side="top"`、`collisionPadding={8}`，Portal 样式不阻挡按钮指针事件
 
 **Checkpoint**: 两个用户故事均可独立验证
 
