@@ -84,10 +84,10 @@ description: "Task list for 在场状态按钮即时 tooltip"
 
 **Purpose**: 文档与交付门禁
 
-- [ ] T007 更新 `README.md` 的在场状态一节，说明悬停立即显示提示
-- [ ] T008 新增 `changelogs/CHANGE.0.4.2.md` 记录 tooltip 行为变化
-- [ ] T009 运行 `pnpm format && pnpm check` 并修复发现的问题
-- [ ] T010 按 `specs/051-presence-tooltip/quickstart.md` 验证产物，运行 `pnpm build`
+- [X] T007 更新 `README.md` 的在场状态一节，说明悬停立即显示提示
+- [X] T008 新增 `changelogs/CHANGE.0.4.2.md` 记录 tooltip 行为变化
+- [X] T009 运行 `pnpm format && pnpm check` 并修复发现的问题
+- [X] T010 按 `specs/051-presence-tooltip/quickstart.md` 验证产物，运行 `pnpm build`
 
 **Commit**: `docs(tooltip): document immediate presence hint`
 
