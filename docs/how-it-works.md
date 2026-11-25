@@ -203,6 +203,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 在场状态见[在场状态](#在场状态)。
 - `SA-调度会话` 的提示词按最近的在场提醒选择渠道：离开时经 `lark_notify` 回复与转达，在电脑旁时在正文回复与转达。
 - `SA-工作会话` 把 `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>`，保留原消息 id 与 `source`，文本中的闭标签转义。这覆盖 `session_create` 的首条任务与 `session_send` 的提醒。
+- `session_send` 投递的正文已由 meta-tools 包成 `<system-reminder>` 帧。包装前若消息只有一个文本块且整段恰好是一个帧，剥掉该帧并还原正文中被转义的 `<\/system-reminder>`，使两条路径的块结构相同；多块消息与不完整帧保留原样。
 - `SA-工作会话` 的提示词用 `<dispatch_session_message>` 区分调度消息与用户消息，按最近的在场提醒选择模式：离开为远程模式，经 `send_report` 交流；在电脑旁为本机模式，正文直接对话，需求变更、完成与放弃仍上报。
 - `SA-调度会话` 的提示词要求新建工作会话后先置顶，再发送任务要求；用户要求复用的会话保持原置顶状态。
 - `SA-调度会话` 的提示词要求任务完成时先取得会话 id，标记完成后再逐个归档；仍被未完成任务引用的会话保持未归档，归档带 `stop_activity` 停止运行中的工作。

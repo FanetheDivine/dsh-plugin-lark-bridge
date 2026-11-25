@@ -89,6 +89,13 @@ function sourcedMessage(kind: string, text = 'task requirements'): UserMessage {
   } as unknown as UserMessage;
 }
 
+/** 拼接消息中全部文本块。 */
+function messageText(message: UserMessage | undefined): string {
+  return (message?.content ?? [])
+    .map((block) => (block.type === 'text' ? block.text : ''))
+    .join('');
+}
+
 /** 调用子行注册的 agent/pre-step 监听。 */
 async function runPreStep(
   host: ReturnType<typeof mount>,
@@ -275,20 +282,57 @@ describe('SA-工作会话子行', () => {
     expect(hostMocks.freezeMessage).toHaveBeenCalled();
   });
 
-  it('session_send 的 system-reminder 文本被整体包进标记块', () => {
+  it('session_send 的 system-reminder 帧被剥掉，只留单层标记块', () => {
     const message = sourcedMessage(
       'dsh-plugin-meta-tools',
       '<system-reminder>\nPlease continue.\n</system-reminder>',
     );
 
     const [wrapped] = wrapDispatchMessages([message]);
-    const text = wrapped?.content
-      .map((block) => (block.type === 'text' ? block.text : ''))
-      .join('');
+    const text = messageText(wrapped);
 
-    expect(text).toBe(
-      '<dispatch_session_message>\n<system-reminder>\nPlease continue.\n</system-reminder>\n</dispatch_session_message>',
+    expect(text).toBe('<dispatch_session_message>\nPlease continue.\n</dispatch_session_message>');
+    expect(text).not.toContain('<system-reminder>');
+  });
+
+  it('session_create 首条任务与剥帧后的消息结构一致', () => {
+    const fromCreate = sourcedMessage('dsh-plugin-meta-tools', 'task requirements');
+    const fromSend = sourcedMessage(
+      'dsh-plugin-meta-tools',
+      '<system-reminder>\ntask requirements\n</system-reminder>',
     );
+
+    expect(messageText(wrapDispatchMessages([fromSend])[0])).toBe(
+      messageText(wrapDispatchMessages([fromCreate])[0]),
+    );
+  });
+
+  it('剥离时还原正文中被转义的闭标签', () => {
+    const message = sourcedMessage(
+      'dsh-plugin-meta-tools',
+      '<system-reminder>\nbefore <\\/system-reminder> after\n</system-reminder>',
+    );
+
+    expect(messageText(wrapDispatchMessages([message])[0])).toBe(
+      '<dispatch_session_message>\nbefore </system-reminder> after\n</dispatch_session_message>',
+    );
+  });
+
+  it('多块消息与不完整帧保留内层帧', () => {
+    const multi = {
+      ...sourcedMessage('dsh-plugin-meta-tools'),
+      content: [
+        { type: 'text', text: '<system-reminder>\nfirst\n</system-reminder>' },
+        { type: 'text', text: 'second' },
+      ],
+    } as UserMessage;
+    const partial = sourcedMessage(
+      'dsh-plugin-meta-tools',
+      'prefix <system-reminder>\nkeep\n</system-reminder>',
+    );
+
+    expect(messageText(wrapDispatchMessages([multi])[0])).toContain('<system-reminder>');
+    expect(messageText(wrapDispatchMessages([partial])[0])).toContain('<system-reminder>');
   });
 
   it('本机消息与其他插件来源的消息不变', () => {
