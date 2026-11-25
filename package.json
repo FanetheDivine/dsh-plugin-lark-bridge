@@ -38,13 +38,7 @@
       "import": "./dist/sa-dispatch.mjs"
     },
     "./sa-dispatch/locale/*.json": "./rows/sa-dispatch/locale/*.json",
-    "./sa-dispatch/icon": "./rows/sa-dispatch/icon.svg",
-    "./sa-worker": {
-      "types": "./dist/sa-worker/index.d.ts",
-      "import": "./dist/sa-worker.mjs"
-    },
-    "./sa-worker/locale/*.json": "./rows/sa-worker/locale/*.json",
-    "./sa-worker/icon": "./rows/sa-worker/icon.svg"
+    "./sa-dispatch/icon": "./rows/sa-dispatch/icon.svg"
   },
   "files": [
     "dist",
@@ -67,6 +61,7 @@
         "@deepseek-ai/dsh-client-ui-plugin-manager",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-tool",
         "@deepseek-ai/dsh-client-ui-workspace"
       ]
     }
@@ -154,7 +149,8 @@
     "vitest": "^4.1.10",
     "yaml": "^2.9.1",
     "zod": "4.6.6",
-    "zustand": "^5.1.0"
+    "zustand": "^5.1.0",
+    "@deepseek-ai/dsh-client-ui-tool": "0.2.2-rc.5"
   },
   "description": "配置lark-cli即可在手机和dsh对话，体验Super Agent！"
 }

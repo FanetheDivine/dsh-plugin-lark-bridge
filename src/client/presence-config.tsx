@@ -33,11 +33,13 @@ import {
 } from '../lark-super-agent/alarms.ts';
 import type { NS } from './locales.ts';
 import type { ModelDefaultsInjected } from './model-defaults.ts';
+import type { PresetDefaultsInjected } from './preset-defaults.ts';
 import './presence-alarms.css';
 import { PresenceAlarmEditor } from './presence-alarms-editor.tsx';
 import type { PresenceController } from './presence-controller.ts';
 import { usePresenceSnapshot } from './presence-controller.ts';
-import { WORKER_MODEL_FIELD_NAMES, WorkerModelField } from './worker-model-field.tsx';
+import { PresetSelect } from './preset-select.tsx';
+import { TASK_MODEL_FIELD_NAMES, TaskModelField } from './task-model-field.tsx';
 
 /** 行 id，同时是宿主配置的条目 id。 */
 export const PRESENCE_ROW_ID = 'lark-super-agent';
@@ -54,8 +56,11 @@ export type PresenceField = (typeof PRESENCE_FIELDS)[number];
 /** 闹钟条目的配置字段名。 */
 export const ALARMS_FIELD = 'presenceAlarms';
 
-/** 工作会话模型的三个文本字段。 */
-const WORKER_FIELDS = Object.values(WORKER_MODEL_FIELD_NAMES);
+/** 任务会话模型的三个文本字段。 */
+const TASK_FIELDS = Object.values(TASK_MODEL_FIELD_NAMES);
+
+/** 任务会话预设的字段名。 */
+export const TASK_PRESET_FIELD = 'taskPreset';
 
 /** 两个自动切换分区。 */
 const SECTIONS = [
@@ -73,7 +78,7 @@ const SECTIONS = [
 
 /** 行配置的取值。 */
 export type PresenceConfigFields = Record<PresenceField, boolean> &
-  Record<'workerProvider' | 'workerModel' | 'workerEffort', string> & {
+  Record<'taskProvider' | 'taskModel' | 'taskEffort' | 'taskPreset', string> & {
     readonly presenceAlarms?: readonly PresenceAlarm[] | undefined;
   };
 
@@ -81,9 +86,10 @@ export type PresenceConfigFields = Record<PresenceField, boolean> &
 export interface PresenceConfigState extends SettingsFormShell {
   readonly guiInputSetsLocal: SettingsFieldState;
   readonly larkInputSetsRemote: SettingsFieldState;
-  readonly workerProvider: SettingsFieldState;
-  readonly workerModel: SettingsFieldState;
-  readonly workerEffort: SettingsFieldState;
+  readonly taskProvider: SettingsFieldState;
+  readonly taskModel: SettingsFieldState;
+  readonly taskEffort: SettingsFieldState;
+  readonly taskPreset: SettingsFieldState;
   readonly presenceAlarms: SettingsFieldState;
 }
 
@@ -127,16 +133,18 @@ export class PresenceConfigForm {
   constructor(scope: SettingsFormScope<PresenceConfigFields>) {
     this.form = new SettingsFormModel(scope, [
       ...PRESENCE_FIELDS.map(presenceSwitchField),
-      ...WORKER_FIELDS.map((field) => settingsTextField(field)),
+      ...TASK_FIELDS.map((field) => settingsTextField(field)),
+      settingsTextField(TASK_PRESET_FIELD),
       presenceAlarmsField(),
     ]);
     this.state = this.form.bind(() => ({
       ...this.form.shell(),
       guiInputSetsLocal: this.form.field('guiInputSetsLocal'),
       larkInputSetsRemote: this.form.field('larkInputSetsRemote'),
-      workerProvider: this.form.field('workerProvider'),
-      workerModel: this.form.field('workerModel'),
-      workerEffort: this.form.field('workerEffort'),
+      taskProvider: this.form.field('taskProvider'),
+      taskModel: this.form.field('taskModel'),
+      taskEffort: this.form.field('taskEffort'),
+      taskPreset: this.form.field(TASK_PRESET_FIELD),
       presenceAlarms: this.form.field(ALARMS_FIELD),
     }));
   }
@@ -158,6 +166,7 @@ export type PresenceConfigPageProps = PropsRuntime<'plugins.row.config'> &
   InjectFace<
     PresenceConfigInjected & {
       readonly modelDefaults: ModelDefaultsInjected;
+      readonly presetDefaults: PresetDefaultsInjected;
       readonly controller: PresenceController;
     }
   >;
@@ -342,12 +351,17 @@ function PresenceConfigBody(
           {holidayHint}
         </p>
       )}
-      <WorkerModelField
+      <TaskModelField
         t={t}
         modelDefaults={props.modelDefaults}
         available={state.available}
         disabled={disabled}
       />
+      <div data-dsh-lark-presence-config="taskPreset" style={fieldStyle}>
+        <span style={titleStyle}>{t('presenceConfig.taskPreset.label')}</span>
+        <PresetSelect {...props.presetDefaults} locked={disabled} t={t} />
+        <p style={descriptionStyle}>{t('presenceConfig.taskPreset.description')}</p>
+      </div>
       {editor === null ? null : (
         <PresenceAlarmEditor
           key={`${editor.action}-${editor.alarm?.id ?? 'new'}`}

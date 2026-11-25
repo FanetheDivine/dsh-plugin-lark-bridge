@@ -33,6 +33,7 @@ import {
   presenceSwitchField,
 } from '../src/client/presence-config.tsx';
 import { PresenceController } from '../src/client/presence-controller.ts';
+import type { PresetDefaultsInjected, PresetDefaultsState } from '../src/client/preset-defaults.ts';
 import { makeClientCtx, makeConfigFormScope } from './helpers.ts';
 
 // React 18 的 act 环境标记，Radix Portal 的异步渲染也走 act。
@@ -382,6 +383,17 @@ function modelDefaultsStub(): ModelDefaultsInjected {
   };
 }
 
+/** 渲染配置页时的预设名册注入桩。 */
+function presetDefaultsStub(): PresetDefaultsInjected {
+  const store = createSnapshotStore<PresetDefaultsState>({
+    status: 'ready',
+    error: null,
+    rows: [{ id: 'sa-dispatch', name: 'SA-调度会话' }],
+    current: '',
+  });
+  return { hooks: { presetDefaults: store }, load: () => undefined, select: () => undefined };
+}
+
 describe('在场开关配置页', () => {
   /** 构造开关表单。 */
   function setupForm(value: Partial<PresenceConfigFields> = {}) {
@@ -411,21 +423,32 @@ describe('在场开关配置页', () => {
     form.dispose();
   });
 
-  it('工作会话模型三个字段成组保存，空值保存为空串', async () => {
+  it('任务会话模型三个字段成组保存，清空的推理等级写入 unset', async () => {
     const { fake, form, state } = setupForm({
-      workerProvider: 'deepseek',
-      workerModel: 'deepseek-chat',
-      workerEffort: 'high',
+      taskProvider: 'deepseek',
+      taskModel: 'deepseek-chat',
+      taskEffort: 'high',
     });
-    expect(state().workerModel.text).toBe('deepseek-chat');
+    expect(state().taskModel.text).toBe('deepseek-chat');
     const actions = form.inject();
-    actions.edit('workerProvider', 'other');
-    actions.edit('workerModel', 'big');
-    actions.edit('workerEffort', '');
+    actions.edit('taskProvider', 'other');
+    actions.edit('taskModel', 'big');
+    actions.edit('taskEffort', '');
     await actions.save();
     const ops = fake.writes.flat();
-    expect(ops).toContainEqual({ op: 'set', path: ['workerProvider'], value: 'other' });
-    expect(ops).toContainEqual({ op: 'set', path: ['workerModel'], value: 'big' });
+    expect(ops).toContainEqual({ op: 'set', path: ['taskProvider'], value: 'other' });
+    expect(ops).toContainEqual({ op: 'set', path: ['taskModel'], value: 'big' });
+    expect(ops).toContainEqual({ op: 'unset', path: ['taskEffort'] });
+    form.dispose();
+  });
+
+  it('任务会话预设写入 taskPreset 字段', async () => {
+    const { fake, form, state } = setupForm({ taskPreset: 'sa-dispatch' });
+    expect(state().taskPreset.text).toBe('sa-dispatch');
+    const actions = form.inject();
+    actions.edit('taskPreset', 'other');
+    await actions.save();
+    expect(fake.writes.flat()).toContainEqual({ op: 'set', path: ['taskPreset'], value: 'other' });
     form.dispose();
   });
 
@@ -439,16 +462,20 @@ describe('在场开关配置页', () => {
         selector(injected.hooks.presenceConfig.getSnapshot()),
       ...injected,
       modelDefaults: modelDefaultsStub(),
+      presetDefaults: presetDefaultsStub(),
       controller: new PresenceController({ autoStart: false }),
     } as unknown as PresenceConfigPageProps;
     const html = renderToStaticMarkup(createElement(PresenceConfigPage, props));
     expect(html).toContain('网页输入时切换为在电脑旁');
     expect(html).toContain('收到飞书消息时切换为离开');
     expect(html).toContain('data-dsh-lark-presence-config="guiInputSetsLocal"');
-    expect(html).toContain('data-dsh-lark-config-model="worker"');
+    expect(html).toContain('data-dsh-lark-config-model="task"');
     expect(html).toContain('data-dsh-lark-model-select');
-    expect(html).toContain('工作会话模型');
+    expect(html).toContain('任务会话模型');
     expect(html).toContain('「用飞书和DSH对话」配置页的「模型」');
+    expect(html).toContain('data-dsh-lark-presence-config="taskPreset"');
+    expect(html).toContain('任务会话预设');
+    expect(html).toContain('data-dsh-lark-preset-trigger');
     const summary = renderToStaticMarkup(
       createElement(PresenceConfigPage, { ...props, view: 'summary' }),
     );

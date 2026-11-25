@@ -18,6 +18,7 @@ import {
   presenceAlarmsField,
 } from '../src/client/presence-config.tsx';
 import { PresenceController } from '../src/client/presence-controller.ts';
+import type { PresetDefaultsInjected, PresetDefaultsState } from '../src/client/preset-defaults.ts';
 import { formatAlarmList, type PresenceAlarm } from '../src/lark-super-agent/alarms.ts';
 import { makeConfigFormScope } from './helpers.ts';
 
@@ -79,6 +80,17 @@ function modelDefaultsStub() {
   };
 }
 
+/** 预设名册注入桩。 */
+function presetDefaultsStub(): PresetDefaultsInjected {
+  const store = createSnapshotStore<PresetDefaultsState>({
+    status: 'ready',
+    error: null,
+    rows: [],
+    current: '',
+  });
+  return { hooks: { presetDefaults: store }, load: () => undefined, select: () => undefined };
+}
+
 /** 构造表单与页面 props。 */
 async function setup(
   value: Partial<PresenceConfigFields> = {},
@@ -102,6 +114,7 @@ async function setup(
     ...injected,
     edit,
     modelDefaults: modelDefaultsStub(),
+    presetDefaults: presetDefaultsStub(),
     controller,
   } as unknown as PresenceConfigPageProps;
   return {

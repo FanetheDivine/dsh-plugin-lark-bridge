@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PluginConfigForm } from '../src/client/config-form.ts';
 import { ModelDefaults } from '../src/client/model-defaults.ts';
 import { PresenceConfigForm } from '../src/client/presence-config.tsx';
+import { TASK_MODEL_FIELD_NAMES } from '../src/client/task-model-field.tsx';
 import { makeConfigFormScope } from './helpers.ts';
 
 /** 目录返回的 provider 分组。 */
@@ -56,13 +57,21 @@ async function settle(): Promise<void> {
 }
 
 describe('ModelDefaults 自定义字段名', () => {
-  it('读写 worker 字段，并随草稿显示当前选择', async () => {
+  it('任务会话模型的字段名为 taskProvider、taskModel 与 taskEffort', () => {
+    expect(TASK_MODEL_FIELD_NAMES).toEqual({
+      provider: 'taskProvider',
+      model: 'taskModel',
+      effort: 'taskEffort',
+    });
+  });
+
+  it('读写任务会话模型字段，并随草稿显示当前选择', async () => {
     const fake = makeConfigFormScope({
       value: { guiInputSetsLocal: true, larkInputSetsRemote: true },
     });
     const form = new PresenceConfigForm(fake.scope);
     const injected = form.inject();
-    // 主行的默认模型草稿与存储，用来确认选择 worker 模型不会触碰它们。
+    // 主行的默认模型草稿与存储，用来确认选择任务会话模型不会触碰它们。
     const main = setup({ sessionProvider: 'deepseek', sessionModel: 'deepseek-chat' });
     const ctx = {
       on: () => () => undefined,
@@ -73,11 +82,12 @@ describe('ModelDefaults 自定义字段名', () => {
         },
       },
     };
-    const models = new ModelDefaults(ctx as never, injected.hooks.presenceConfig, injected.edit, {
-      provider: 'workerProvider',
-      model: 'workerModel',
-      effort: 'workerEffort',
-    });
+    const models = new ModelDefaults(
+      ctx as never,
+      injected.hooks.presenceConfig,
+      injected.edit,
+      TASK_MODEL_FIELD_NAMES,
+    );
     const defaults = models.inject((() => '') as never, (text) => String(text));
     await settle();
     expect(defaults.directory.getSnapshot().current).toBeNull();
@@ -87,9 +97,9 @@ describe('ModelDefaults 自定义字段名', () => {
       reasoningEffort: 'high' as never,
     });
     const state = injected.hooks.presenceConfig.getSnapshot();
-    expect(state.workerProvider.text).toBe('deepseek');
-    expect(state.workerModel.text).toBe('deepseek-chat');
-    expect(state.workerEffort.text).toBe('high');
+    expect(state.taskProvider.text).toBe('deepseek');
+    expect(state.taskModel.text).toBe('deepseek-chat');
+    expect(state.taskEffort.text).toBe('high');
     expect(defaults.directory.getSnapshot().current).toEqual({
       provider: 'deepseek',
       model: 'deepseek-chat',
