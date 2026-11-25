@@ -54,9 +54,9 @@ description: "Task list for 049-task-boundary"
 
 **Independent Test**: 提示词断言归类规则与首条要求范围
 
-- [ ] T013 [US2] 改写 `src/sa-dispatch/prompt.ts` 的「Classify each user message first」：默认新任务；只有引用未结束任务的消息或点名其标题或 id 才归入；无法判断先问；引用已结束任务时新建任务，只带被引原文与本次消息；一条消息含多条无关指令时拆分
-- [ ] T014 [US2] 在 `src/sa-dispatch/prompt.ts` 的「Dispatch work」要求首条任务要求只含本任务的消息与目标工作区信息，不引用其他任务
-- [ ] T015 [US2] 更新 `tests/sa-dispatch.test.ts` 的提示词断言
+- [X] T013 [US2] 改写 `src/sa-dispatch/prompt.ts` 的「Classify each user message first」：默认新任务；只有引用未结束任务的消息或点名其标题或 id 才归入；无法判断先问；引用已结束任务时新建任务，只带被引原文与本次消息；一条消息含多条无关指令时拆分
+- [X] T014 [US2] 在 `src/sa-dispatch/prompt.ts` 的「Dispatch work」要求首条任务要求只含本任务的消息与目标工作区信息，不引用其他任务
+- [X] T015 [US2] 更新 `tests/sa-dispatch.test.ts` 的提示词断言
 
 ---
 

@@ -255,6 +255,26 @@ describe('SA-调度会话子行', () => {
     expect(SA_DISPATCH_PROMPT).toMatch(/stuck|no progress/i);
   });
 
+  it('提示词默认新任务，只按引用或点名归入未结束任务', () => {
+    const classify =
+      SA_DISPATCH_PROMPT.split('## Classify each user message first')[1]?.split('## ')[0] ?? '';
+    expect(classify).toMatch(/every user message as a new task by default/i);
+    expect(classify).toMatch(/quotes a message that belongs to an unfinished task/i);
+    expect(classify).toMatch(/names an unfinished task by its title or task id/i);
+    expect(classify).toMatch(/does not make a message part of that task/i);
+    expect(classify).toMatch(/several unrelated instructions becomes several tasks/i);
+    expect(classify).toMatch(/quotes a finished task starts a new task/i);
+    expect(classify).toMatch(/only the quoted text and the new message/i);
+    expect(classify).toMatch(/cannot tell.*ask the user before acting/is);
+  });
+
+  it('提示词要求首条要求只含本任务内容', () => {
+    expect(SA_DISPATCH_PROMPT).toMatch(
+      /first requirements for a new worker session contain only this task's user messages and the target workspace/i,
+    );
+    expect(SA_DISPATCH_PROMPT).toMatch(/Do not include content.*from any other task/i);
+  });
+
   it('提示词要求始终派发、先匹配工作区并守住调度边界', () => {
     expect(SA_DISPATCH_PROMPT).toContain('## Always dispatch');
     expect(SA_DISPATCH_PROMPT).toContain('## Pick a workspace first');
