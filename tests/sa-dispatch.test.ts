@@ -1,4 +1,4 @@
-// SA-调度会话子行测试：依赖注入、提示词、五个工具的参数转换与结果、用户状态提醒。
+// SA-调度会话子行测试：依赖注入、提示词、任务与会话工具的参数转换与结果、用户状态提醒。
 import type { UserMessage } from '@deepseek-ai/dsh-llm';
 import { ToolArgsError, type ToolDefinition } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it, vi } from 'vitest';
@@ -18,17 +18,24 @@ interface PromptSectionLike {
 
 function makeService() {
   return {
-    createTask: vi.fn(),
-    updateTask: vi.fn(),
-    setWorkspaceNote: vi.fn(),
-    removeWorkspaceNote: vi.fn(),
-    listCandidates: vi.fn(),
-    sendReport: vi.fn(),
-    notifyFailure: vi.fn(),
-    workerModel: () => undefined,
     presence: new PresenceStore({
       switches: () => ({ guiInputSetsLocal: true, larkInputSetsRemote: true }),
     }),
+    taskModel: () => undefined,
+    taskPreset: () => '',
+    bridgeSessionId: vi.fn(),
+    managedTask: vi.fn(),
+    createTask: vi.fn(),
+    assertDispatchable: vi.fn(),
+    manageSession: vi.fn(),
+    updateTask: vi.fn(),
+    endTask: vi.fn(),
+    pruneTasks: vi.fn(),
+    setWorkspaceNote: vi.fn(),
+    removeWorkspaceNote: vi.fn(),
+    sendReport: vi.fn(),
+    notifyFailure: vi.fn(),
+    notifyArchived: vi.fn(),
   } satisfies LarkSuperAgentService;
 }
 
@@ -69,6 +76,11 @@ function tool(tools: ToolDefinition[], toolName: string): ToolDefinition {
   return definition;
 }
 
+/** 截取提示词中一节的正文。 */
+function section(title: string): string {
+  return SA_DISPATCH_PROMPT.split(`## ${title}\n`)[1]?.split('\n## ')[0] ?? '';
+}
+
 /** 构造一条带来源的用户消息。 */
 function sourcedMessage(kind: string, extra: Record<string, unknown> = {}): UserMessage {
   return {
@@ -98,7 +110,7 @@ async function runPreStep(
 }
 
 describe('SA-调度会话子行', () => {
-  it('注入共享服务并注册提示词段与五个工具', () => {
+  it('注入共享服务并注册提示词段与六个工具', () => {
     const host = mount();
 
     expect(name).toBe('sa-dispatch');
@@ -110,11 +122,12 @@ describe('SA-调度会话子行', () => {
       { name: 'sa-dispatch:instructions', order: 700, text: SA_DISPATCH_PROMPT },
     ]);
     expect(host.tools.map((entry) => entry.name)).toEqual([
-      'task_create',
       'task_update',
+      'task_end',
+      'session_manage',
+      'session_unmanage',
       'workspace_note_set',
       'workspace_note_remove',
-      'task_candidates',
     ]);
     for (const definition of host.tools) {
       expect(definition.description).toMatch(/^[A-Za-z]/);
@@ -122,40 +135,14 @@ describe('SA-调度会话子行', () => {
     }
   });
 
-  it('task_create 转换消息字段并返回任务标识', async () => {
+  it('task_update 转换全部字段并返回任务标识与状态', async () => {
     const host = mount();
-    host.service.createTask.mockResolvedValue({ taskId: 'task-1' });
-
-    const result = await tool(host.tools, 'task_create').execute(
-      {
-        title: 'Investigate failure',
-        workspace_id: 'workspace-1',
-        message: { text: '查一下 xxx', message_id: 'message-1' },
-      },
-      {} as never,
-    );
-
-    expect(host.service.createTask).toHaveBeenCalledWith({
-      title: 'Investigate failure',
-      workspaceId: 'workspace-1',
-      message: { text: '查一下 xxx', messageId: 'message-1' },
-    });
-    expect(result).toEqual({ taskId: 'task-1' });
-  });
-
-  it('task_update 转换全部字段并传递 completed 的自动归档结果', async () => {
-    const host = mount();
-    host.service.updateTask.mockResolvedValue({
-      taskId: 'task-1',
-      status: 'completed',
-      archived: true,
-    });
+    host.service.updateTask.mockResolvedValue({ taskId: 'task-1', status: 'waiting_user' });
 
     const result = await tool(host.tools, 'task_update').execute(
       {
         task_id: 'task-1',
-        status: 'completed',
-        add_session_ids: ['session-1'],
+        status: 'waiting_user',
         add_message: { text: '补充要求', message_id: 'message-2' },
         title: 'Updated title',
       },
@@ -164,12 +151,37 @@ describe('SA-调度会话子行', () => {
 
     expect(host.service.updateTask).toHaveBeenCalledWith({
       taskId: 'task-1',
-      status: 'completed',
-      addSessionIds: ['session-1'],
+      status: 'waiting_user',
       addMessage: { text: '补充要求', messageId: 'message-2' },
       title: 'Updated title',
     });
-    expect(result).toEqual({ taskId: 'task-1', status: 'completed', archived: true });
+    expect(result).toEqual({ taskId: 'task-1', status: 'waiting_user' });
+  });
+
+  it('task_update 只传入提供的字段', async () => {
+    const host = mount();
+    host.service.updateTask.mockResolvedValue({ taskId: 'task-1', status: 'in_progress' });
+
+    await tool(host.tools, 'task_update').execute(
+      { task_id: 'task-1', add_message: { text: '追问' } },
+      {} as never,
+    );
+
+    expect(host.service.updateTask).toHaveBeenCalledWith({
+      taskId: 'task-1',
+      addMessage: { text: '追问' },
+    });
+  });
+
+  it('task_update 的状态只有 in_progress、waiting_user 与 failed', async () => {
+    const host = mount();
+    const definition = tool(host.tools, 'task_update');
+    const properties = definition.parameters.properties as Record<string, { enum?: string[] }>;
+    expect(properties.status?.enum).toEqual(['in_progress', 'waiting_user', 'failed']);
+    await expect(
+      definition.execute({ task_id: 'task-1', status: 'completed' }, {} as never),
+    ).rejects.toBeInstanceOf(ToolArgsError);
+    expect(host.service.updateTask).not.toHaveBeenCalled();
   });
 
   it('task_update 拒绝没有更新字段的调用', async () => {
@@ -179,6 +191,78 @@ describe('SA-调度会话子行', () => {
       tool(host.tools, 'task_update').execute({ task_id: 'task-1' }, {} as never),
     ).rejects.toBeInstanceOf(ToolArgsError);
     expect(host.service.updateTask).not.toHaveBeenCalled();
+  });
+
+  it('task_end 按原因结束任务并只返回任务标识', async () => {
+    const host = mount();
+    host.service.endTask.mockResolvedValue({ taskId: 'task-1', extra: true });
+
+    const completed = await tool(host.tools, 'task_end').execute(
+      { task_id: 'task-1', reason: 'completed' },
+      {} as never,
+    );
+    await tool(host.tools, 'task_end').execute(
+      { task_id: 'task-2', reason: 'cancelled' },
+      {} as never,
+    );
+
+    expect(host.service.endTask).toHaveBeenNthCalledWith(1, 'task-1', 'completed');
+    expect(host.service.endTask).toHaveBeenNthCalledWith(2, 'task-2', 'cancelled');
+    expect(completed).toEqual({ taskId: 'task-1' });
+  });
+
+  it('task_end 只接受 completed 与 cancelled，reason 必填', async () => {
+    const host = mount();
+
+    await expect(
+      tool(host.tools, 'task_end').execute({ task_id: 'task-1', reason: 'unmanaged' }, {} as never),
+    ).rejects.toBeInstanceOf(ToolArgsError);
+    await expect(
+      tool(host.tools, 'task_end').execute({ task_id: 'task-1' }, {} as never),
+    ).rejects.toBeInstanceOf(ToolArgsError);
+    expect(host.service.endTask).not.toHaveBeenCalled();
+  });
+
+  it('session_manage 传递会话与中止信号并返回服务结果', async () => {
+    const host = mount();
+    host.service.manageSession.mockResolvedValue({
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      title: 'Existing work',
+    });
+    const signal = new AbortController().signal;
+
+    const result = await tool(host.tools, 'session_manage').execute({ session_id: 'session-1' }, {
+      signal,
+    } as never);
+
+    expect(host.service.manageSession).toHaveBeenCalledWith('session-1', signal);
+    expect(result).toEqual({ sessionId: 'session-1', taskId: 'task-1', title: 'Existing work' });
+  });
+
+  it('session_unmanage 以 unmanaged 结束会话的任务并保留会话', async () => {
+    const host = mount();
+    host.service.managedTask.mockResolvedValue({ id: 'task-1', sessionId: 'session-1' });
+    host.service.endTask.mockResolvedValue({ taskId: 'task-1' });
+
+    const result = await tool(host.tools, 'session_unmanage').execute(
+      { session_id: 'session-1' },
+      {} as never,
+    );
+
+    expect(host.service.managedTask).toHaveBeenCalledWith('session-1');
+    expect(host.service.endTask).toHaveBeenCalledWith('task-1', 'unmanaged');
+    expect(result).toEqual({ sessionId: 'session-1', taskId: 'task-1' });
+  });
+
+  it('session_unmanage 对未管理的会话报错', async () => {
+    const host = mount();
+    host.service.managedTask.mockResolvedValue(undefined);
+
+    await expect(
+      tool(host.tools, 'session_unmanage').execute({ session_id: 'session-9' }, {} as never),
+    ).rejects.toThrow('session session-9 is not managed');
+    expect(host.service.endTask).not.toHaveBeenCalled();
   });
 
   it('工作区笔记工具转换可选字段并返回服务结果', async () => {
@@ -193,174 +277,141 @@ describe('SA-调度会话子行', () => {
       { workspace_id: 'workspace-1', summary: 'Project A', keywords: ['a', 'project'] },
       {} as never,
     );
+    await tool(host.tools, 'workspace_note_set').execute(
+      { workspace_id: 'workspace-1', summary: 'Project A', keywords: [], notes: 'prefer A' },
+      {} as never,
+    );
     const removeResult = await tool(host.tools, 'workspace_note_remove').execute(
       { workspace_id: 'workspace-1' },
       {} as never,
     );
 
-    expect(host.service.setWorkspaceNote).toHaveBeenCalledWith({
+    expect(host.service.setWorkspaceNote).toHaveBeenNthCalledWith(1, {
       workspaceId: 'workspace-1',
       summary: 'Project A',
       keywords: ['a', 'project'],
+    });
+    expect(host.service.setWorkspaceNote).toHaveBeenNthCalledWith(2, {
+      workspaceId: 'workspace-1',
+      summary: 'Project A',
+      keywords: [],
+      notes: 'prefer A',
     });
     expect(host.service.removeWorkspaceNote).toHaveBeenCalledWith('workspace-1');
     expect(setResult).toEqual({ workspaceId: 'workspace-1', created: true });
     expect(removeResult).toEqual({ workspaceId: 'workspace-1', removed: false });
   });
 
-  it('task_candidates 传递可选任务并按工具契约返回 tasks', async () => {
-    const host = mount();
-    host.service.listCandidates.mockResolvedValue({
-      candidates: [
-        {
-          sessionId: 'session-1',
-          title: 'Existing work',
-          running: false,
-          taskIds: ['task-1'],
-          lastActiveAt: '2026-11-21T00:00:00+08:00',
-        },
-      ],
-    });
-
-    const result = await tool(host.tools, 'task_candidates').execute(
-      { workspace_id: 'workspace-1', task_id: 'task-1' },
-      {} as never,
-    );
-
-    expect(host.service.listCandidates).toHaveBeenCalledWith('workspace-1', 'task-1');
-    expect(result).toEqual({
-      candidates: [
-        {
-          sessionId: 'session-1',
-          title: 'Existing work',
-          running: false,
-          tasks: ['task-1'],
-          lastActiveAt: '2026-11-21T00:00:00+08:00',
-        },
-      ],
-    });
+  it('工具结果渲染为 JSON 文本', () => {
+    const definition = tool(mount().tools, 'task_end');
+    expect(definition.output?.render?.({} as never, { taskId: 'task-1' } as never)).toEqual([
+      { type: 'text', text: '{"taskId":"task-1"}' },
+    ]);
   });
 
-  it('提示词保留中文分类例句并覆盖派发、上报、记忆与卡住处理', () => {
-    expect(SA_DISPATCH_PROMPT).toContain('查一下 xxx');
-    expect(SA_DISPATCH_PROMPT).toContain('之前那个 xxx 做完了吗');
-    expect(SA_DISPATCH_PROMPT).toContain('现在有哪些任务');
-    expect(SA_DISPATCH_PROMPT).toContain('<引用消息>要注意 xxx');
-    expect(SA_DISPATCH_PROMPT).toContain('task_candidates');
-    expect(SA_DISPATCH_PROMPT).toContain('AGENTS.md');
-    expect(SA_DISPATCH_PROMPT).toContain('<work_session_message');
-    expect(SA_DISPATCH_PROMPT).toContain('<work_session_failure');
-    expect(SA_DISPATCH_PROMPT).toContain("status: 'completed'");
-    expect(SA_DISPATCH_PROMPT).toMatch(/read.*copied.*file/is);
-    expect(SA_DISPATCH_PROMPT).toMatch(/stuck|no progress/i);
-  });
-
-  it('提示词默认新任务，只按引用或点名归入未结束任务', () => {
-    const classify =
-      SA_DISPATCH_PROMPT.split('## Classify each user message first')[1]?.split('## ')[0] ?? '';
-    expect(classify).toMatch(/every user message as a new task by default/i);
-    expect(classify).toMatch(/quotes a message that belongs to an unfinished task/i);
-    expect(classify).toMatch(/names an unfinished task by its title or task id/i);
-    expect(classify).toMatch(/does not make a message part of that task/i);
-    expect(classify).toMatch(/several unrelated instructions becomes several tasks/i);
-    expect(classify).toMatch(/quotes a finished task starts a new task/i);
-    expect(classify).toMatch(/only the quoted text and the new message/i);
-    expect(classify).toMatch(/cannot tell.*ask the user before acting/is);
-  });
-
-  it('提示词要求首条要求只含本任务内容', () => {
-    expect(SA_DISPATCH_PROMPT).toMatch(
-      /first requirements for a new worker session contain only this task's user messages and the target workspace/i,
-    );
-    expect(SA_DISPATCH_PROMPT).toMatch(/Do not include content.*from any other task/i);
-  });
-
-  it('提示词按上报类型更新状态，只有完成与放弃结束任务', () => {
-    const end =
-      SA_DISPATCH_PROMPT.split('## End tasks only on the report kind')[1]?.split('## ')[0] ?? '';
-    expect(SA_DISPATCH_PROMPT).toContain('taskid="<taskId>" kind="<kind>">');
-    expect(end).toMatch(/- progress:.*status: 'in_progress'/);
-    expect(end).toMatch(/- question:.*status: 'waiting_user'/);
-    expect(end).toMatch(/- completed:.*end the task/);
-    expect(end).toMatch(/- abandoned:.*end the task/);
-    expect(end).toMatch(/Only a completed or abandoned report ends a task/);
-    expect(end).toMatch(/never by the report wording/i);
-    expect(end).toMatch(/worker failure.*does not end the task/is);
-    expect(end).toMatch(/cancel a task.*abandoned report/is);
-    expect(SA_DISPATCH_PROMPT).not.toMatch(/When the work is complete/i);
-  });
-
-  it('提示词要求在电脑旁时在正文转达完整问题', () => {
-    expect(SA_DISPATCH_PROMPT).toMatch(
-      /at the computer, relay the full question in your response body/i,
-    );
-  });
-
-  it('提示词要求始终派发、先匹配工作区并守住调度边界', () => {
-    expect(SA_DISPATCH_PROMPT).toContain('## Always dispatch');
-    expect(SA_DISPATCH_PROMPT).toContain('## Pick a workspace first');
-    expect(SA_DISPATCH_PROMPT).toContain('## Stay in bounds');
-    expect(SA_DISPATCH_PROMPT).toContain('independent task for a new worker session');
-    expect(SA_DISPATCH_PROMPT).toContain(
-      'Do the work yourself only when the user explicitly asks you to',
-    );
-    expect(SA_DISPATCH_PROMPT).toContain('Never suggest that the dispatch session do the work');
-    expect(SA_DISPATCH_PROMPT).toContain('我不知道在哪个工作区');
-    expect(SA_DISPATCH_PROMPT).toContain('do not guess and do not start work');
-    expect(SA_DISPATCH_PROMPT).not.toMatch(/register a new workspace/i);
-    expect(SA_DISPATCH_PROMPT).toContain(
-      'Dispatch only into a workspace registered in workspaces.json',
-    );
-    expect(SA_DISPATCH_PROMPT).toMatch(/Assign project inspections.*worker session/is);
+  it('提示词按顺序包含全部小节', () => {
+    const titles = [...SA_DISPATCH_PROMPT.matchAll(/^## (.+)$/gm)].map((match) => match[1]);
+    expect(titles).toEqual([
+      'Reply style',
+      'Answer questions about DSH yourself',
+      'Track where the user is',
+      'Start a task',
+      'Manage existing sessions',
+      'Add messages to a task',
+      'Handle reports',
+      'Decide when a task is done',
+      'Other messages from the service',
+      'Choose tasks',
+      'Notes',
+      'Stay in bounds',
+    ]);
+    expect(SA_DISPATCH_PROMPT).toMatch(/^You are the dispatch session/);
   });
 
   it('提示词要求回复简短并只给结论', () => {
-    expect(SA_DISPATCH_PROMPT).toContain('## Reply style');
-    expect(SA_DISPATCH_PROMPT).toMatch(/State conclusions only/i);
-    expect(SA_DISPATCH_PROMPT).toMatch(
-      /Omit pleasantries, implementation details, pointless questions, and suggestions/i,
-    );
-    expect(SA_DISPATCH_PROMPT).toMatch(/Ask the user only when a decision blocks dispatching/i);
+    const reply = section('Reply style');
+    expect(reply).toMatch(/State conclusions only/);
+    expect(reply).toMatch(/Omit pleasantries, implementation details, pointless questions/);
+    expect(reply).toMatch(/Ask the user only when you cannot act/);
   });
 
-  it('提示词默认新开会话，仅在用户明确要求时复用', () => {
-    expect(SA_DISPATCH_PROMPT).toMatch(/new worker session.*every task/is);
-    expect(SA_DISPATCH_PROMPT).toMatch(
-      /Reuse an existing session only when the user explicitly asks/i,
-    );
-    expect(SA_DISPATCH_PROMPT).toMatch(/When unsure, ask the user/i);
-    expect(SA_DISPATCH_PROMPT).toMatch(
-      /task_candidates only to find a session the user asked to reuse/i,
-    );
-    expect(SA_DISPATCH_PROMPT).not.toMatch(/Confirm reuse/i);
+  it('提示词要求自己回答关于 DSH 的问题且不建任务', () => {
+    const answer = section('Answer questions about DSH yourself');
+    expect(answer).toMatch(/is not a task\. Answer it yourself and create nothing/);
+    expect(answer).toContain('workspaces.json');
+    expect(answer).toContain('message-task-status.json');
   });
 
-  it('提示词要求新建工作会话先置顶', () => {
-    expect(SA_DISPATCH_PROMPT).toContain('## Maintain the session list');
-    expect(SA_DISPATCH_PROMPT).toContain('session_pin');
-    expect(SA_DISPATCH_PROMPT).toMatch(/session_pin.*session_id.*before.*task requirements/is);
-    expect(SA_DISPATCH_PROMPT).toMatch(/pinning fails.*continue dispatching/is);
+  it('提示词要求先匹配工作区，再用 session_create 建会话', () => {
+    const start = section('Start a task');
+    expect(start).toContain('Dispatch only into a workspace registered in workspaces.json');
+    expect(start).toContain('我不知道在哪个工作区');
+    expect(start).toContain('do not guess and do not start work');
+    expect(start).toMatch(/session_create\. Pass workspace_id, a title, and a prompt/);
+    expect(start).toMatch(/leave out conclusions and content from other tasks/);
+    expect(start).toMatch(/task's only session/);
+    expect(SA_DISPATCH_PROMPT).not.toContain('task_create');
+    expect(SA_DISPATCH_PROMPT).not.toContain('task_candidates');
   });
 
-  it('提示词要求任务完成后归档工作会话', () => {
-    expect(SA_DISPATCH_PROMPT).toContain('session_archive');
-    expect(SA_DISPATCH_PROMPT).toContain('stop_activity');
-    expect(SA_DISPATCH_PROMPT).toMatch(
-      /message-task-status\.json.*status: 'completed'.*session_archive/is,
-    );
-    expect(SA_DISPATCH_PROMPT).toMatch(/archiving removes the session's pin/i);
-    expect(SA_DISPATCH_PROMPT).toMatch(/archiving a session fails.*keep the task completed/is);
-    expect(SA_DISPATCH_PROMPT).toMatch(/Do not archive the dispatch session/i);
+  it('提示词说明 session_manage 与 session_unmanage', () => {
+    const manage = section('Manage existing sessions');
+    expect(manage).toMatch(/session_manage with its session id/);
+    expect(manage).toMatch(/session_unmanage\. The task ends and the session stays/);
+    expect(manage).toMatch(/archives a session, its task ends on its own/);
   });
 
-  it('提示词要求复用与共用会话保持原状态', () => {
-    expect(SA_DISPATCH_PROMPT).toMatch(
-      /reused through task_candidates keeps its current pin state/i,
+  it('提示词要求追加消息后用 session_send 投递', () => {
+    expect(section('Add messages to a task')).toMatch(
+      /task_update, then deliver it with session_send/,
     );
-    expect(SA_DISPATCH_PROMPT).toMatch(/Do not pin or unpin it/i);
-    expect(SA_DISPATCH_PROMPT).toMatch(
-      /check message-task-status\.json again.*any unfinished task lists it/is,
+  });
+
+  it('提示词说明上报块的属性与处理方式，上报不结束任务', () => {
+    const reports = section('Handle reports');
+    expect(reports).toContain('task_session_message');
+    expect(reports).toContain('sessionid, reportid, taskid, kind, and origin');
+    expect(reports).toContain(
+      'progress keeps the task in progress. question sets the task to waiting_user',
     );
+    expect(reports).toContain('origin="turn_end"');
+    expect(reports).toContain('A report never ends a task');
+    expect(reports).toContain('read every file and relay its content instead of its path');
+    expect(reports).toMatch(/desc .*correct the task title with task_update/);
+  });
+
+  it('提示词要求用户确认后才以 completed 结束，取消时立即以 cancelled 结束', () => {
+    const done = section('Decide when a task is done');
+    expect(done).toContain('task_end(completed) only after the user confirms');
+    expect(done).toMatch(/finish or cancel a task.*task_end\(cancelled\) right away/);
+    expect(done).toContain('It leaves the session unarchived');
+    expect(done).toContain(
+      'A partial result, a failed turn, a quiet session, and a question are not a finished task',
+    );
+  });
+
+  it('提示词说明失败与归档通知', () => {
+    const other = section('Other messages from the service');
+    expect(other).toContain('task_session_failure');
+    expect(other).toContain('task_session_archived');
+  });
+
+  it('提示词默认新任务，只按引用或点名归入未结束任务', () => {
+    const choose = section('Choose tasks');
+    expect(choose).toContain('Treat every user message as a new task by default');
+    expect(choose).toContain("quotes that task's message or names its title or task id");
+    expect(choose).toContain('A message that quotes a finished task starts a new task');
+    expect(choose).toMatch(/cannot tell.*ask the user/);
+  });
+
+  it('提示词要求经工具维护状态文件，以 AGENTS.md 作为记忆并守住调度边界', () => {
+    const notes = section('Notes');
+    expect(notes).toContain('message-task-status.json only through task tools');
+    expect(notes).toContain('workspace_note_set and workspace_note_remove');
+    expect(notes).toContain('AGENTS.md');
+    const bounds = section('Stay in bounds');
+    expect(bounds).toContain('unless the user explicitly asks you to do it');
+    expect(bounds).toContain('Never edit state files, task archives, or reports by hand');
   });
 
   it('注册 agent/pre-step 在场提醒监听', () => {
@@ -444,7 +495,7 @@ describe('SA-调度会话子行', () => {
     expect(result.messages?.[0]?.source).toMatchObject({ kind: 'sa-presence', presence: 'local' });
   });
 
-  it('桥接提醒、工作会话上报与其他注入不改变状态', async () => {
+  it('桥接提醒、任务会话上报与其他注入不改变状态', async () => {
     const host = mount();
     const session = makeSurfaceSession();
     await runPreStep(host, session, [sourcedMessage('user')]);
@@ -471,15 +522,13 @@ describe('SA-调度会话子行', () => {
   });
 
   it('提示词只说明两种位置的处理方式', () => {
-    expect(SA_DISPATCH_PROMPT).toContain('## Track where the user is');
-    expect(SA_DISPATCH_PROMPT).toMatch(/system reminder tells you where the user is/i);
-    expect(SA_DISPATCH_PROMPT).toMatch(/at the computer.*response body/is);
-    expect(SA_DISPATCH_PROMPT).toMatch(/do not call lark_notify/i);
-    expect(SA_DISPATCH_PROMPT).toMatch(/away.*through lark_notify/is);
-    expect(SA_DISPATCH_PROMPT).toMatch(/Dispatch every task in both states/i);
-    expect(SA_DISPATCH_PROMPT).toMatch(/channel for the current presence/i);
-    expect(SA_DISPATCH_PROMPT).not.toMatch(/Without any reminder/i);
+    const track = section('Track where the user is');
+    expect(track).toMatch(/system reminder tells you where the user is/i);
+    expect(track).toMatch(/At the computer:.*response body/);
+    expect(track).toContain('Do not call lark_notify');
+    expect(track).toContain('Away: reply and relay through lark_notify');
+    expect(track).toContain('Dispatch every task in both states');
+    expect(section('Handle reports')).toContain('channel for the current presence');
     expect(SA_DISPATCH_PROMPT).not.toContain('用户在电脑前');
-    expect(SA_DISPATCH_PROMPT).not.toMatch(/never change your presence/i);
   });
 });

@@ -1,5 +1,5 @@
 /**
- * lark-super-agent 行配置：在场状态的自动更新开关与闹钟条目。
+ * lark-super-agent 行配置：在场状态的自动更新开关、闹钟条目与任务会话的模型与预设。
  * 导出 Config、readPresenceSwitches 与 readPresenceAlarms。
  */
 import Schema from '@deepseek-ai/schemastery';
@@ -14,12 +14,14 @@ export interface Config {
   guiInputSetsLocal: Volatile<boolean>;
   /** 飞书输入把状态设为离开。 */
   larkInputSetsRemote: Volatile<boolean>;
-  /** 调度会话创建工作会话时的 provider；与 workerModel 成对。 */
-  workerProvider: Volatile<string>;
-  /** 调度会话创建工作会话时的 model；与 workerProvider 成对。 */
-  workerModel: Volatile<string>;
-  /** 调度会话创建工作会话时的推理等级；仅在模型成对时生效。 */
-  workerEffort: Volatile<string>;
+  /** 新建任务会话时的 provider；与 taskModel 成对。 */
+  taskProvider: Volatile<string>;
+  /** 新建任务会话时的 model；与 taskProvider 成对。 */
+  taskModel: Volatile<string>;
+  /** 新建任务会话时的推理等级；仅在模型成对时生效。 */
+  taskEffort: Volatile<string>;
+  /** 新建任务会话时使用的预设；空值跟随宿主默认。 */
+  taskPreset: Volatile<string>;
   /** 在场状态自动切换的闹钟条目。 */
   presenceAlarms: Volatile<PresenceAlarm[]>;
 }
@@ -28,9 +30,10 @@ export interface Config {
 export const Config: Schema<Config> = Schema.object({
   guiInputSetsLocal: Schema.boolean().default(true).volatile(),
   larkInputSetsRemote: Schema.boolean().default(true).volatile(),
-  workerProvider: Schema.string().default('').volatile(),
-  workerModel: Schema.string().default('').volatile(),
-  workerEffort: Schema.string().default('').volatile(),
+  taskProvider: Schema.string().default('').volatile(),
+  taskModel: Schema.string().default('').volatile(),
+  taskEffort: Schema.string().default('').volatile(),
+  taskPreset: Schema.string().default('').volatile(),
   presenceAlarms: Schema.array(
     Schema.object({
       id: Schema.string(),

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "SA dispatch session",
-    "description": "Receive Lark messages, register workspaces, dispatch tasks, and coordinate worker sessions. Newly created worker sessions are pinned, and completed tasks' sessions are archived. Replies move into the response body when the user talks directly in the Web GUI. Includes task and workspace notes, candidate session queries, and dispatch instructions."
+    "description": "Receive Lark messages, register workspaces, dispatch tasks, and coordinate task sessions. Any session can be managed from here: a managed session reaches the user through reports while the user is away, and the dispatch session ends a task once the user confirms it is done. Includes task and session management, workspace notes, and dispatch instructions."
   }
 }

@@ -6,8 +6,6 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store';
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store';
 
-import type { ConfigFormState } from './config-form.ts';
-
 /** 名册里的一行预设；字段与宿主远程返回一致。 */
 export interface AgentPresetRowLike {
   readonly id: string;
@@ -19,6 +17,12 @@ export interface AgentPresetRowLike {
 
 /** 名册读取的四种结果。 */
 export type PresetRosterStatus = 'loading' | 'ready' | 'noService' | 'error';
+
+/** 一份配置草稿中预设字段的最小读取面。 */
+export interface PresetDraft {
+  getSnapshot(): unknown;
+  subscribe(listener: () => void): () => void;
+}
 
 /** 配置页预设选择器读取的状态。 */
 export interface PresetDefaultsState {
@@ -66,14 +70,16 @@ export class PresetDefaults {
 
   /**
    * @param ctx - 前端根上下文，提供连接事件。
-   * @param form - 配置页草稿状态。
-   * @param edit - 配置页草稿编辑动作。
+   * @param form - 配置草稿状态。
+   * @param edit - 配置草稿编辑动作。
+   * @param field - 草稿中保存预设的字段名。
    * @param remote - 预设名册远程命名空间；缺失时选择器保持禁用。
    */
   constructor(
     ctx: Context,
-    private readonly form: SnapshotStore<ConfigFormState>,
+    private readonly form: PresetDraft,
     private readonly edit: (field: string, text: string) => void,
+    private readonly field: string = 'sessionPreset',
     remote?: PresetRemoteLike,
   ) {
     this.remote = remote;
@@ -95,7 +101,7 @@ export class PresetDefaults {
       load: () => {
         void this.load(true);
       },
-      select: (id) => this.edit('sessionPreset', id),
+      select: (id) => this.edit(this.field, id),
     };
   }
 
@@ -152,7 +158,8 @@ export class PresetDefaults {
 
   /** 从配置草稿重建当前选择。 */
   private sync(): void {
-    const current = this.form.getSnapshot().sessionPreset?.text ?? '';
+    const snapshot = this.form.getSnapshot() as Record<string, { text?: string } | undefined>;
+    const current = snapshot[this.field]?.text ?? '';
     this.store.update((state) => {
       state.current = current.trim();
     });

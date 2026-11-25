@@ -9,6 +9,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 // Tailwind utilities 与插件样式：构建前由 scripts/build-client-css.mjs 生成。
 import './tailwind.generated.css';
+import type {} from '@deepseek-ai/dsh-client-ui-tool/client';
 import { AuthOverlay } from './auth-overlay.tsx';
 import { PluginConfigForm, ROW_ID, ROW_KEY } from './config-form.ts';
 import { ConfigPage } from './config-page.tsx';
@@ -20,11 +21,13 @@ import {
   PRESENCE_ROW_KEY,
   PresenceConfigForm,
   PresenceConfigPage,
+  TASK_PRESET_FIELD,
 } from './presence-config.tsx';
 import { PresenceController } from './presence-controller.ts';
 import { PresetDefaults, type PresetRemoteLike } from './preset-defaults.ts';
+import { ReportCard } from './report-card.tsx';
 import { StatusController } from './status-controller.ts';
-import { WORKER_MODEL_FIELD_NAMES } from './worker-model-field.tsx';
+import { TASK_MODEL_FIELD_NAMES } from './task-model-field.tsx';
 
 /** 需要宿主注入的客户端服务。 */
 export const inject = ['slots', 'locale', 'configForms', 'remote', 'remote.session'];
@@ -40,17 +43,27 @@ export function apply(ctx: Context): void {
     const injected = form.inject();
     const presenceForm = new PresenceConfigForm(ctx.configForms.get(PRESENCE_ROW_ID));
     const models = new ModelDefaults(ctx, injected.hooks.configForm, injected.edit);
-    const workerModels = new ModelDefaults(
+    const presenceInjected = presenceForm.inject();
+    const taskModels = new ModelDefaults(
       ctx,
-      presenceForm.inject().hooks.presenceConfig,
-      presenceForm.inject().edit,
-      WORKER_MODEL_FIELD_NAMES,
+      presenceInjected.hooks.presenceConfig,
+      presenceInjected.edit,
+      TASK_MODEL_FIELD_NAMES,
     );
     const presets = new PresetDefaults(ctx, injected.hooks.configForm, injected.edit);
+    const taskPresets = new PresetDefaults(
+      ctx,
+      presenceInjected.hooks.presenceConfig,
+      presenceInjected.edit,
+      TASK_PRESET_FIELD,
+    );
     // 预设服务是可选依赖：就绪后接入，缺失时选择器保持禁用。
     ctx.inject(['remote.agentPresets'], (scoped) => {
       const remote = (scoped.remote as unknown as { agentPresets?: PresetRemoteLike }).agentPresets;
-      if (remote !== undefined && typeof remote.list === 'function') presets.attach(remote);
+      if (remote !== undefined && typeof remote.list === 'function') {
+        presets.attach(remote);
+        taskPresets.attach(remote);
+      }
     });
     const modelT = ctx.locale.bind('model');
     const canPoll =
@@ -66,8 +79,9 @@ export function apply(ctx: Context): void {
         form.dispose();
         presenceForm.dispose();
         models.dispose();
-        workerModels.dispose();
+        taskModels.dispose();
         presets.dispose();
+        taskPresets.dispose();
       },
       `${NS}: shared state`,
     );
@@ -139,6 +153,17 @@ export function apply(ctx: Context): void {
       };
     }, `${NS}: presence button`);
 
+    // 上报卡片：按工具名替换 send_report 的默认行。
+    ctx.slots.inject('tool.call.toolview', () =>
+      ctx.slots.register(
+        {
+          name: 'tool.call.toolview',
+          key: 'send_report',
+          locale: NS,
+        },
+        ReportCard as never,
+      ),
+    );
     ctx.slots.inject('plugins.row.config', () =>
       ctx.slots.register(
         {
@@ -163,7 +188,8 @@ export function apply(ctx: Context): void {
           locale: NS,
           inject: () => ({
             ...presenceForm.inject(),
-            modelDefaults: workerModels.inject(modelT, (text) => ctx.locale.resolveText(text)),
+            modelDefaults: taskModels.inject(modelT, (text) => ctx.locale.resolveText(text)),
+            presetDefaults: taskPresets.inject(),
             controller: presence,
           }),
         },

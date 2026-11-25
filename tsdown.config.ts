@@ -40,7 +40,7 @@ function inlineClientCss(): void {
 
 /**
  * 两组构建：
- * 1) 宿主入口 → dist/<name>.mjs：主行、lark-super-agent 与两个预设子行。npm 依赖保持 external，
+ * 1) 宿主入口 → dist/<name>.mjs：主行、lark-super-agent 与调度会话子行。npm 依赖保持 external，
  *    类型声明由 tsc -p tsconfig.build.json 生成。
  * 2) 浏览器入口 → dist/client.js。调用
  *    window.__ModuleLoader__.load({ id, factory }) 注册插件，
@@ -55,7 +55,6 @@ export default defineConfig([
       index: 'src/index.ts',
       'lark-super-agent': 'src/lark-super-agent/index.ts',
       'sa-dispatch': 'src/sa-dispatch/index.ts',
-      'sa-worker': 'src/sa-worker/index.ts',
     },
     outDir: 'dist',
     format: ['esm'],

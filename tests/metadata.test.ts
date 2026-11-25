@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 /** 仓库根目录（tests/ 的上一级）。 */
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** 主行之外的三个行。 */
-const ROW_NAMES = ['lark-super-agent', 'sa-dispatch', 'sa-worker'] as const;
+/** 主行之外的两个行。 */
+const ROW_NAMES = ['lark-super-agent', 'sa-dispatch'] as const;
 
 /** 元数据目录：根行与各行，相对仓库根。 */
 const LOCALE_DIRS = ['locale', ...ROW_NAMES.map((row) => `rows/${row}/locale`)];

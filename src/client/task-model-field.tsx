@@ -1,7 +1,7 @@
 /**
- * 「飞书任务与调度会话」配置页的「工作会话模型」项：复用官方模型选择器，
- * 说明此处配置的是工作会话，调度会话自身的模型在「用飞书和DSH对话」配置页。
- * 导出 WORKER_MODEL_FIELD_NAMES 与 WorkerModelField。
+ * 「飞书任务与调度会话」配置页的「任务会话模型」项：复用官方模型选择器，
+ * 说明此处配置的是任务会话，调度会话自身的模型在「用飞书和DSH对话」配置页。
+ * 导出 TASK_MODEL_FIELD_NAMES 与 TaskModelField。
  */
 import { ModelSelect } from '@deepseek-ai/dsh-client-ui-model-selection/src/client/ModelSelect.tsx';
 import type { CSSProperties } from 'react';
@@ -9,28 +9,28 @@ import type { CSSProperties } from 'react';
 import { renderModelSlot } from './config-page.tsx';
 import type { ModelDefaultsInjected, ModelFieldNames } from './model-defaults.ts';
 
-/** 工作会话模型在行配置里的三个字段名。 */
-export const WORKER_MODEL_FIELD_NAMES: ModelFieldNames = {
-  provider: 'workerProvider',
-  model: 'workerModel',
-  effort: 'workerEffort',
+/** 任务会话模型在行配置里的三个字段名。 */
+export const TASK_MODEL_FIELD_NAMES: ModelFieldNames = {
+  provider: 'taskProvider',
+  model: 'taskModel',
+  effort: 'taskEffort',
 };
 
-/** 工作会话模型项的属性。 */
-export interface WorkerModelFieldProps {
+/** 任务会话模型项的属性。 */
+export interface TaskModelFieldProps {
   readonly t: (
-    key: 'presenceConfig.workerModel.label' | 'presenceConfig.workerModel.description',
+    key: 'presenceConfig.taskModel.label' | 'presenceConfig.taskModel.description',
   ) => string;
   readonly modelDefaults: ModelDefaultsInjected;
   readonly available: boolean;
   readonly disabled: boolean;
 }
 
-/** 渲染「工作会话模型」选择项。 */
-export function WorkerModelField({ t, modelDefaults, available, disabled }: WorkerModelFieldProps) {
+/** 渲染「任务会话模型」选择项。 */
+export function TaskModelField({ t, modelDefaults, available, disabled }: TaskModelFieldProps) {
   return (
-    <div data-dsh-lark-config-model="worker" style={fieldStyle}>
-      <span style={titleStyle}>{t('presenceConfig.workerModel.label')}</span>
+    <div data-dsh-lark-config-model="task" style={fieldStyle}>
+      <span style={titleStyle}>{t('presenceConfig.taskModel.label')}</span>
       <div style={{ display: 'grid' }}>
         <ModelSelect
           {...modelDefaults}
@@ -39,7 +39,7 @@ export function WorkerModelField({ t, modelDefaults, available, disabled }: Work
           renderSlot={renderModelSlot}
         />
       </div>
-      <p style={descriptionStyle}>{t('presenceConfig.workerModel.description')}</p>
+      <p style={descriptionStyle}>{t('presenceConfig.taskModel.description')}</p>
     </div>
   );
 }

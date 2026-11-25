@@ -1,10 +1,9 @@
-/** SA-调度会话预设子行：注册调度提示词、五个笔记与候选工具，并按全局在场状态插入提醒。 */
+/** SA-调度会话预设子行：注册调度提示词、任务与会话工具，并按全局在场状态插入提醒。 */
 import type { Context } from '../types.ts';
 import { SA_DISPATCH_PROMPT } from './prompt.ts';
 import {
   buildSessionCreateTool,
   type LlmLike,
-  type PresetRegistryLike,
   type SessionControllerLike,
 } from './session-create.ts';
 import { type DispatchContext, registerDispatchTools } from './tools.ts';
@@ -19,13 +18,14 @@ export const inject = ['larkSuperAgent', 'systemPrompt', 'tools'];
 export function apply(ctx: Context): void {
   ctx.inject(inject, (injected) => {
     const dispatchCtx = injected as DispatchContext;
+    const service = dispatchCtx.larkSuperAgent;
     dispatchCtx.systemPrompt.section({
       name: 'sa-dispatch:instructions',
       order: 700,
       text: SA_DISPATCH_PROMPT,
     });
     registerDispatchTools(dispatchCtx);
-    // 覆写 meta-tools 的 session_create：预设补丁关闭了 meta-tools 的同名工具，这里提供带「工作会话模型」的版本。
+    // 覆写 meta-tools 的 session_create：预设补丁关闭了 meta-tools 的同名工具，这里提供带任务会话预设的版本。
     dispatchCtx.inject(['sessionController'], (scoped) => {
       const sessionController = scoped.get('sessionController') as
         | SessionControllerLike
@@ -36,8 +36,8 @@ export function apply(ctx: Context): void {
           buildSessionCreateTool({
             sessionController,
             llm: scoped.get('llm') as LlmLike | undefined,
-            agentPresets: scoped.get('agentPresets') as PresetRegistryLike | undefined,
-            workerModel: dispatchCtx.larkSuperAgent.workerModel,
+            reads: { get: (name: string) => scoped.get(name) },
+            service,
             logger: dispatchCtx.logger,
           }),
         );
@@ -51,10 +51,7 @@ export function apply(ctx: Context): void {
     dispatchCtx.on('agent/pre-step', async ({ agent }, next) => {
       const decision = await next();
       if (decision.kind === 'reject') return decision;
-      const notice = dispatchCtx.larkSuperAgent.presence.reminderFor(
-        agent.session,
-        decision.messages,
-      );
+      const notice = service.presence.reminderFor(agent.session, decision.messages);
       if (notice === undefined) return decision;
       return { ...decision, messages: [notice, ...decision.messages] };
     });

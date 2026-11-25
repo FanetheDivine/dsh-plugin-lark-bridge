@@ -59,9 +59,12 @@ export const zh = {
     '在任一会话的网页中发送消息时，把在场状态设为在电脑旁。',
   'presenceConfig.larkInputSetsRemote.label': '收到飞书消息时切换为离开',
   'presenceConfig.larkInputSetsRemote.description': '桥接会话收到飞书私聊时，把在场状态设为离开。',
-  'presenceConfig.workerModel.label': '工作会话模型',
-  'presenceConfig.workerModel.description':
-    '调度会话新建工作会话时使用的模型与推理等级；未选择时使用宿主默认。这里不改变调度会话自身的模型，它在「用飞书和DSH对话」配置页的「模型」中设置。',
+  'presenceConfig.taskModel.label': '任务会话模型',
+  'presenceConfig.taskModel.description':
+    '调度会话新建任务会话时使用的模型与推理等级；未选择时使用宿主默认。这里不改变调度会话自身的模型，它在「用飞书和DSH对话」配置页的「模型」中设置。',
+  'presenceConfig.taskPreset.label': '任务会话预设',
+  'presenceConfig.taskPreset.description':
+    '调度会话新建任务会话时使用的预设；未选择时使用宿主默认。',
   'presenceConfig.local.label': '自动切换在电脑旁的时间',
   'presenceConfig.local.description': '到点时把在场状态设为在电脑旁，每条时间单独设置跳过项。',
   'presenceConfig.remote.label': '自动切换离开的时间',
@@ -87,6 +90,13 @@ export const zh = {
   'presenceConfig.editor.duplicate': '该分区已有这个时间',
   'presenceConfig.holidays.missing': '节假日数据获取失败，暂按仅跳过周末处理。',
   'presenceConfig.holidays.stale': '节假日数据已过期，正在使用上次缓存。',
+  'report.title': '上报',
+  'report.kind.progress': '进度',
+  'report.kind.question': '提问',
+  'report.desc': '任务',
+  'report.files': '附件',
+  'report.delivered': '已送达',
+  'report.failed': '未送达',
 } as const;
 
 /** 英文字典，键集与中文一致。 */
@@ -146,9 +156,12 @@ export const en: Record<BridgeKey, string> = {
   'presenceConfig.larkInputSetsRemote.label': 'Mark as away on Lark messages',
   'presenceConfig.larkInputSetsRemote.description':
     'A Lark direct message to the bridge session marks the user as away.',
-  'presenceConfig.workerModel.label': 'Worker session model',
-  'presenceConfig.workerModel.description':
-    'The model and reasoning effort for worker sessions the dispatch session creates; the Host default applies when none is chosen. This does not change the model of the dispatch session itself, which is set under "Model" on the "Talk to DSH from Lark" settings page.',
+  'presenceConfig.taskModel.label': 'Task session model',
+  'presenceConfig.taskModel.description':
+    'The model and reasoning effort for task sessions the dispatch session creates; the Host default applies when none is chosen. This does not change the model of the dispatch session itself, which is set under "Model" on the "Talk to DSH from Lark" settings page.',
+  'presenceConfig.taskPreset.label': 'Task session preset',
+  'presenceConfig.taskPreset.description':
+    'The preset the dispatch session uses for task sessions; the Host default applies when none is chosen.',
   'presenceConfig.local.label': 'Times that mark as at the computer',
   'presenceConfig.local.description':
     'At each time the presence switches to at the computer. Skip rules are set per entry.',
@@ -176,6 +189,13 @@ export const en: Record<BridgeKey, string> = {
   'presenceConfig.editor.duplicate': 'This section already has that time',
   'presenceConfig.holidays.missing': 'Holiday data is unavailable; only weekend skipping applies.',
   'presenceConfig.holidays.stale': 'Holiday data is out of date; the last cached copy is in use.',
+  'report.title': 'Report',
+  'report.kind.progress': 'Progress',
+  'report.kind.question': 'Question',
+  'report.desc': 'Task',
+  'report.files': 'Files',
+  'report.delivered': 'Delivered',
+  'report.failed': 'Not delivered',
 };
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

@@ -1,83 +1,33 @@
-/** SA-调度会话的五个模型工具，仅负责参数与结果的契约转换。 */
+/** SA-调度会话的工具：任务维护、会话管理与工作区笔记。参数与结果的契约转换只在这里做。 */
 import { defineTool, ToolArgsError } from '@deepseek-ai/dsh-tools';
 
-import type { LarkSuperAgentService } from '../lark-super-agent/api.ts';
+import type { LarkSuperAgentService, TaskStatus } from '../lark-super-agent/api.ts';
 import type { Context } from '../types.ts';
 
 export type DispatchContext = Context & { readonly larkSuperAgent: LarkSuperAgentService };
+
+const STATUS_VALUES: readonly TaskStatus[] = ['in_progress', 'waiting_user', 'failed'];
 
 function renderJson(value: unknown) {
   return [{ type: 'text' as const, text: JSON.stringify(value) ?? 'null' }];
 }
 
-/** 注册任务笔记、工作区笔记与候选会话工具。 */
+/** 注册任务、会话管理与工作区笔记工具。 */
 export function registerDispatchTools(ctx: DispatchContext): void {
   const service = ctx.larkSuperAgent;
 
   ctx.tools.register(
     defineTool({
-      name: 'task_create',
-      description:
-        'Create a task in a registered workspace and record its initiating user message.',
-      parameters: {
-        title: { type: 'string', required: true, description: 'Short, single-line task title.' },
-        workspace_id: {
-          type: 'string',
-          required: true,
-          description: 'Workspace id already registered in the workspace notes.',
-        },
-        message: {
-          type: 'object',
-          required: true,
-          additionalProperties: false,
-          description: 'The user message that initiates this task.',
-          properties: {
-            text: { type: 'string', required: true, description: 'Original message text.' },
-            message_id: {
-              type: 'string',
-              description: 'Optional remote message id; omit for Web GUI input.',
-            },
-          },
-        },
-      },
-      output: {
-        schema: {
-          type: 'object',
-          additionalProperties: false,
-          properties: { taskId: { type: 'string', required: true } },
-        },
-        render: (_args, value) => renderJson(value),
-      },
-      execute: (args) =>
-        service.createTask({
-          title: args.title,
-          workspaceId: args.workspace_id,
-          message: {
-            text: args.message.text,
-            ...(args.message.message_id === undefined
-              ? {}
-              : { messageId: args.message.message_id }),
-          },
-        }),
-    }),
-  );
-
-  ctx.tools.register(
-    defineTool({
       name: 'task_update',
       description:
-        'Update a task status, title, worker sessions, or messages. Completed tasks are archived automatically.',
+        'Update an unfinished task: its status, title, or messages. Ending a task needs task_end.',
       parameters: {
         task_id: { type: 'string', required: true, description: 'Existing task id.' },
         status: {
           type: 'string',
-          enum: ['in_progress', 'waiting_user', 'failed', 'completed'],
-          description: 'New task status. Setting completed also archives the task.',
-        },
-        add_session_ids: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Worker session ids to add to the task, preserving existing ids.',
+          enum: [...STATUS_VALUES],
+          description:
+            'in_progress after a progress report, waiting_user after a question report, failed when the session failed a turn.',
         },
         add_message: {
           type: 'object',
@@ -96,12 +46,7 @@ export function registerDispatchTools(ctx: DispatchContext): void {
           additionalProperties: false,
           properties: {
             taskId: { type: 'string', required: true },
-            status: {
-              type: 'string',
-              required: true,
-              enum: ['in_progress', 'waiting_user', 'failed', 'completed'],
-            },
-            archived: { type: 'boolean', required: true },
+            status: { type: 'string', required: true, enum: [...STATUS_VALUES] },
           },
         },
         render: (_args, value) => renderJson(value),
@@ -109,18 +54,17 @@ export function registerDispatchTools(ctx: DispatchContext): void {
       execute: (args) => {
         if (
           args.status === undefined &&
-          args.add_session_ids === undefined &&
           args.add_message === undefined &&
           args.title === undefined
         ) {
           throw new ToolArgsError([
-            'task_update needs at least one of status, add_session_ids, add_message, or title',
+            'task_update needs at least one of status, add_message, or title',
           ]);
         }
         return service.updateTask({
           taskId: args.task_id,
           ...(args.status === undefined ? {} : { status: args.status }),
-          ...(args.add_session_ids === undefined ? {} : { addSessionIds: args.add_session_ids }),
+          ...(args.title === undefined ? {} : { title: args.title }),
           ...(args.add_message === undefined
             ? {}
             : {
@@ -131,8 +75,90 @@ export function registerDispatchTools(ctx: DispatchContext): void {
                     : { messageId: args.add_message.message_id }),
                 },
               }),
-          ...(args.title === undefined ? {} : { title: args.title }),
         });
+      },
+    }),
+  );
+
+  ctx.tools.register(
+    defineTool({
+      name: 'task_end',
+      description:
+        'End a task and archive it with its reports. The session stays unarchived; archive it separately when the user wants that.',
+      parameters: {
+        task_id: { type: 'string', required: true, description: 'Existing task id.' },
+        reason: {
+          type: 'string',
+          required: true,
+          enum: ['completed', 'cancelled'],
+          description:
+            'completed after the user confirms the task is done. cancelled when the user asks to finish or cancel it.',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { taskId: { type: 'string', required: true } },
+        },
+        render: (_args, value) => renderJson(value),
+      },
+      execute: async (args) => {
+        const { taskId } = await service.endTask(args.task_id, args.reason);
+        return { taskId };
+      },
+    }),
+  );
+
+  ctx.tools.register(
+    defineTool({
+      name: 'session_manage',
+      description:
+        'Manage an existing session: create its task so send_report and follow-ups reach the user through this session.',
+      parameters: {
+        session_id: { type: 'string', required: true, description: 'Existing session id.' },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            sessionId: { type: 'string', required: true },
+            taskId: { type: 'string', required: true },
+            title: { type: 'string', required: true },
+          },
+        },
+        render: (_args, value) => renderJson(value),
+      },
+      execute: (args, exec) => service.manageSession(args.session_id, exec.signal),
+    }),
+  );
+
+  ctx.tools.register(
+    defineTool({
+      name: 'session_unmanage',
+      description: 'Stop managing a session: end its task and keep the session.',
+      parameters: {
+        session_id: { type: 'string', required: true, description: 'Managed session id.' },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            sessionId: { type: 'string', required: true },
+            taskId: { type: 'string', required: true },
+          },
+        },
+        render: (_args, value) => renderJson(value),
+      },
+      execute: async (args) => {
+        const task = await service.managedTask(args.session_id);
+        if (task === undefined) {
+          throw new Error(`session ${args.session_id} is not managed`);
+        }
+        await service.endTask(task.id, 'unmanaged');
+        return { sessionId: args.session_id, taskId: task.id };
       },
     }),
   );
@@ -141,7 +167,7 @@ export function registerDispatchTools(ctx: DispatchContext): void {
     defineTool({
       name: 'workspace_note_set',
       description:
-        'Create or replace a dispatch workspace note. Registered notes also authorize dispatch to that workspace.',
+        'Create or replace a workspace note. Registered notes also authorize dispatching into that workspace.',
       parameters: {
         workspace_id: {
           type: 'string',
@@ -208,62 +234,6 @@ export function registerDispatchTools(ctx: DispatchContext): void {
         render: (_args, value) => renderJson(value),
       },
       execute: (args) => service.removeWorkspaceNote(args.workspace_id),
-    }),
-  );
-
-  ctx.tools.register(
-    defineTool({
-      name: 'task_candidates',
-      description:
-        'List reusable worker sessions previously dispatched to a workspace. Read-only; does not modify notes.',
-      parameters: {
-        workspace_id: {
-          type: 'string',
-          required: true,
-          description: 'Registered workspace id to search.',
-        },
-        task_id: {
-          type: 'string',
-          description: 'Optional current task id; its existing sessions are prioritized.',
-        },
-      },
-      output: {
-        schema: {
-          type: 'object',
-          additionalProperties: false,
-          properties: {
-            candidates: {
-              type: 'array',
-              required: true,
-              items: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                  sessionId: { type: 'string', required: true },
-                  title: { type: 'string', required: true },
-                  running: { type: 'boolean', required: true },
-                  tasks: {
-                    type: 'array',
-                    required: true,
-                    items: { type: 'string' },
-                  },
-                  lastActiveAt: { type: 'string', required: true },
-                },
-              },
-            },
-          },
-        },
-        render: (_args, value) => renderJson(value),
-      },
-      execute: async (args) => {
-        const result = await service.listCandidates(args.workspace_id, args.task_id);
-        return {
-          candidates: result.candidates.map(({ taskIds, ...candidate }) => ({
-            ...candidate,
-            tasks: taskIds,
-          })),
-        };
-      },
     }),
   );
 }

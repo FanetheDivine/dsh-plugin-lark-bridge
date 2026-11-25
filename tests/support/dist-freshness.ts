@@ -24,8 +24,6 @@ const BUILD_PRODUCTS = [
   'dist/lark-super-agent/index.d.ts',
   'dist/sa-dispatch.mjs',
   'dist/sa-dispatch/index.d.ts',
-  'dist/sa-worker.mjs',
-  'dist/sa-worker/index.d.ts',
 ] as const;
 
 /** 仓库根目录（tests/support 的上两级）。 */

@@ -1,12 +1,13 @@
-// 预设目录测试：名册读取、损坏过滤、无服务、失败重试与草稿写入。
+// 预设目录测试：名册读取、损坏过滤、无服务、失败重试、草稿写入与自定义字段名。
 import { describe, expect, it, vi } from 'vitest';
 
 import { PluginConfigForm } from '../src/client/config-form.ts';
+import { PresenceConfigForm } from '../src/client/presence-config.tsx';
 import { PresetDefaults, type PresetRemoteLike } from '../src/client/preset-defaults.ts';
 import { makeConfigFormScope } from './helpers.ts';
 
 /** 构造目录依赖的客户端 ctx 与配置表单。 */
-function setup(remote?: PresetRemoteLike, preset = '') {
+function setup(remote?: PresetRemoteLike, preset = '', field?: string) {
   const ctx = {
     on: () => () => undefined,
   };
@@ -25,9 +26,10 @@ function setup(remote?: PresetRemoteLike, preset = '') {
     ctx as never,
     injected.hooks.configForm,
     injected.edit,
+    field,
     remote,
   );
-  return { presets, injected, fake };
+  return { presets, injected, fake, form };
 }
 
 /** 等待一次名册读取完成。 */
@@ -62,6 +64,27 @@ describe('PresetDefaults', () => {
     });
     presets.inject().select('bridge');
     expect(injected.hooks.configForm.getSnapshot().sessionPreset.text).toBe('bridge');
+  });
+
+  it('自定义字段名时读写该字段，并显示草稿里的当前选择', async () => {
+    const fake = makeConfigFormScope({
+      value: { guiInputSetsLocal: true, larkInputSetsRemote: true, taskPreset: 'sa-dispatch' },
+    });
+    const form = new PresenceConfigForm(fake.scope);
+    const injected = form.inject();
+    const presets = new PresetDefaults(
+      { on: () => () => undefined } as never,
+      injected.hooks.presenceConfig,
+      injected.edit,
+      'taskPreset',
+      { list: async () => ({ ok: true, value: { presets: [{ id: 'sa-dispatch' }] } }) },
+    );
+    await presets.load(true);
+    expect(presets.inject().hooks.presetDefaults.getSnapshot().current).toBe('sa-dispatch');
+    presets.inject().select('other');
+    expect(injected.hooks.presenceConfig.getSnapshot().taskPreset.text).toBe('other');
+    expect(fake.writes).toEqual([]);
+    form.dispose();
   });
 
   it('缺少远程命名空间时进入 noService', async () => {
