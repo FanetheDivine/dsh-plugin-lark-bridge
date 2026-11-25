@@ -22,7 +22,7 @@ description: "Task list for 在场状态按钮即时 tooltip"
 
 **Purpose**: 准备 tooltip 依赖
 
-- [ ] T001 添加 `@radix-ui/react-tooltip` 1.4.1 到 `package.json` 的 devDependencies，并更新 `pnpm-lock.yaml`
+- [X] T001 添加 `@radix-ui/react-tooltip` 1.4.1 到 `package.json` 的 devDependencies，并更新 `pnpm-lock.yaml`
 
 **Commit**: `chore(tooltip): add radix tooltip dependency`
 
@@ -32,7 +32,7 @@ description: "Task list for 在场状态按钮即时 tooltip"
 
 **Purpose**: 提供两个用户故事共用的 shadcn tooltip 封装
 
-- [ ] T002 在 `src/client/ui/tooltip.tsx` 新增 shadcn Tooltip 封装：Radix Portal、`data-dsh-lark-ui`、语义色类名、`TooltipProvider` 支持 `delayDuration={0}`
+- [X] T002 在 `src/client/ui/tooltip.tsx` 新增 shadcn Tooltip 封装：Radix Portal、`data-dsh-lark-ui`、语义色类名、`TooltipProvider` 支持 `delayDuration={0}`
 
 **Checkpoint**: tooltip 封装可被按钮直接引用
 
