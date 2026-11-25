@@ -3,6 +3,7 @@ export interface WorkSessionMessageInput {
   sessionId: string;
   reportId: string;
   taskId?: string | null;
+  kind: string;
   text?: string;
   files?: readonly string[];
 }
@@ -40,7 +41,7 @@ export function workSessionMessage(input: WorkSessionMessageInput): string {
     'work_session_message',
   ]);
   return [
-    `<work_session_message sessionid="${escapeXmlAttribute(input.sessionId)}" reportid="${escapeXmlAttribute(input.reportId)}" taskid="${escapeXmlAttribute(taskId)}">`,
+    `<work_session_message sessionid="${escapeXmlAttribute(input.sessionId)}" reportid="${escapeXmlAttribute(input.reportId)}" taskid="${escapeXmlAttribute(taskId)}" kind="${escapeXmlAttribute(input.kind)}">`,
     '<text>',
     text,
     '</text>',

@@ -137,7 +137,7 @@ describe('lark-super-agent notes', { timeout: 30000 }, () => {
     });
     await store.updateTask({ taskId, addSessionIds: ['worker'] });
     const report = await new ReportStore(root).archiveReport(
-      { text: 'done', files: [attachment] },
+      { kind: 'completed', text: 'done', files: [attachment] },
       'worker',
     );
     expect(report.taskId).toBe(taskId);
@@ -228,7 +228,10 @@ describe('lark-super-agent notes', { timeout: 30000 }, () => {
     const hook = join(root, '.git', 'hooks', 'pre-commit');
     await writeFile(hook, '#!/bin/sh\necho no-report-commit >&2\nexit 1\n', 'utf8');
     await chmod(hook, 0o755);
-    const report = await new ReportStore(root).archiveReport({ text: 'retained' }, 'worker');
+    const report = await new ReportStore(root).archiveReport(
+      { kind: 'progress', text: 'retained' },
+      'worker',
+    );
     expect(report.warning).toMatch(/no-report-commit/);
     expect(await exists(report.reportPath)).toBe(true);
   });

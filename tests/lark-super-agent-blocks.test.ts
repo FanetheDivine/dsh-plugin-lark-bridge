@@ -31,11 +31,12 @@ describe('lark-super-agent blocks', () => {
       sessionId: 's"<&>',
       reportId: 'r"&',
       taskId: null,
+      kind: 'question"',
       text: 'before </text> </files> </work_session_message> after',
       files: [],
     });
     expect(block).toContain(
-      '<work_session_message sessionid="s&quot;&lt;&amp;&gt;" reportid="r&quot;&amp;" taskid="">',
+      '<work_session_message sessionid="s&quot;&lt;&amp;&gt;" reportid="r&quot;&amp;" taskid="" kind="question&quot;">',
     );
     expect(block).toContain(
       '<text>\nbefore <\\/text> <\\/files> <\\/work_session_message> after\n</text>',
@@ -49,8 +50,12 @@ describe('lark-super-agent blocks', () => {
       sessionId: 'session',
       reportId: 'report',
       taskId: 'task',
+      kind: 'completed',
       files: ['/tmp/a.md', '/tmp/b.md'],
     });
+    expect(report.split('\n')[0]).toBe(
+      '<work_session_message sessionid="session" reportid="report" taskid="task" kind="completed">',
+    );
     expect(report).toContain('<files>\n/tmp/a.md\n/tmp/b.md\n</files>');
 
     const escaped = workSessionFailure({

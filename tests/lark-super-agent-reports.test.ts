@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { REPORT_KINDS, type SendReportInput } from '../src/lark-super-agent/api.ts';
 import { runGit } from '../src/lark-super-agent/git.ts';
 import { NotesStore, readTaskState } from '../src/lark-super-agent/notes.ts';
 import { ReportStore, validateReportInput } from '../src/lark-super-agent/reports.ts';
@@ -68,7 +69,10 @@ describe('lark-super-agent reports', { timeout: 30000 }, () => {
     const reportId = 'report-20260102030405-aabbcc';
     const result = await new ReportStore(root, {
       reportId: () => reportId,
-    }).archiveReport({ text: '  exact text\nsecond line  ', files: [attachment] }, 'worker');
+    }).archiveReport(
+      { kind: 'completed', text: '  exact text\nsecond line  ', files: [attachment] },
+      'worker',
+    );
 
     expect(result).toMatchObject({ reportId, taskId });
     expect(result.warning).toBeUndefined();
@@ -78,7 +82,7 @@ describe('lark-super-agent reports', { timeout: 30000 }, () => {
     const markdown = await readFile(result.reportPath, 'utf8');
     expect(markdown).toContain(`reportId: "${reportId}"`);
     expect(markdown).toContain('sessionId: "worker"');
-    expect(markdown).toContain(`taskId: "${taskId}"`);
+    expect(markdown).toContain(`taskId: "${taskId}"\nkind: "completed"`);
     expect(markdown).toContain('time: "');
     expect(markdown).toContain(`files:\n  - "${reportId}-1-answer.md"`);
     expect(markdown.endsWith('\n  exact text\nsecond line  \n')).toBe(true);
@@ -95,8 +99,8 @@ describe('lark-super-agent reports', { timeout: 30000 }, () => {
       reportId: () => ids.shift() ?? 'report-20260102030405-000003',
     });
 
-    const first = await reports.archiveReport({ text: 'one' }, 'worker');
-    const second = await reports.archiveReport({ text: 'two' }, 'worker');
+    const first = await reports.archiveReport({ kind: 'progress', text: 'one' }, 'worker');
+    const second = await reports.archiveReport({ kind: 'question', text: 'two' }, 'worker');
     expect(first.taskId).toBe(latest);
     expect(second.taskId).toBe(latest);
     expect(second.reportId).not.toBe(first.reportId);
@@ -106,7 +110,10 @@ describe('lark-super-agent reports', { timeout: 30000 }, () => {
 
   it('stores reports without a matching active task under _unassigned', async () => {
     const root = await temporaryDirectory();
-    const result = await new ReportStore(root).archiveReport({ text: 'standalone' }, 'unknown');
+    const result = await new ReportStore(root).archiveReport(
+      { kind: 'progress', text: 'standalone' },
+      'unknown',
+    );
     expect(result.taskId).toBeNull();
     expect(result.reportPath).toBe(join(root, 'reports', '_unassigned', `${result.reportId}.md`));
     expect(await readFile(result.reportPath, 'utf8')).toContain('taskId: null');
@@ -117,17 +124,39 @@ describe('lark-super-agent reports', { timeout: 30000 }, () => {
     const caller = await temporaryDirectory();
     const text = join(caller, 'not-markdown.txt');
     await writeFile(text, 'text', 'utf8');
-    await expect(validateReportInput({})).rejects.toThrow('send_report needs text or files');
-    await expect(validateReportInput({ text: '   ', files: [] })).rejects.toThrow(
+    await expect(validateReportInput({ kind: 'progress' })).rejects.toThrow(
+      'send_report needs text or files',
+    );
+    await expect(validateReportInput({ kind: 'progress', text: '   ', files: [] })).rejects.toThrow(
       'send_report needs text or files',
     );
     await expect(
       new ReportStore(root, { cwd: caller }).archiveReport(
-        { files: ['not-markdown.txt', 'missing.md'] },
+        { kind: 'completed', files: ['not-markdown.txt', 'missing.md'] },
         'worker',
       ),
     ).rejects.toThrow(/not-markdown\.txt, missing\.md/);
     expect(await exists(join(root, 'reports'))).toBe(false);
     expect(await exists(join(root, '.git'))).toBe(false);
+  });
+
+  it('rejects a missing or unknown kind before creating any storage', async () => {
+    const root = await temporaryDirectory();
+    const store = new ReportStore(root);
+    await expect(
+      store.archiveReport({ text: 'done' } as unknown as SendReportInput, 'worker'),
+    ).rejects.toThrow('send_report kind must be one of progress, question, completed, abandoned');
+    await expect(
+      store.archiveReport({ kind: 'done', text: 'done' } as unknown as SendReportInput, 'worker'),
+    ).rejects.toThrow('send_report kind must be one of');
+    expect(await exists(join(root, 'reports'))).toBe(false);
+  });
+
+  it('accepts every report kind and records it', async () => {
+    const root = await temporaryDirectory();
+    for (const kind of REPORT_KINDS) {
+      const result = await new ReportStore(root).archiveReport({ kind, text: kind }, 'worker');
+      expect(await readFile(result.reportPath, 'utf8')).toContain(`kind: "${kind}"`);
+    }
   });
 });

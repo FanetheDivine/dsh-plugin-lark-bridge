@@ -54,8 +54,15 @@ export interface UpdateTaskInput {
   title?: string;
 }
 
+/** 上报类型的全部取值；调度会话按类型更新任务状态。 */
+export const REPORT_KINDS = ['progress', 'question', 'completed', 'abandoned'] as const;
+
+/** 上报类型：进度、提问、完成、放弃。 */
+export type ReportKind = (typeof REPORT_KINDS)[number];
+
 /** 上报参数。 */
 export interface SendReportInput {
+  kind: ReportKind;
   text?: string;
   files?: string[];
 }

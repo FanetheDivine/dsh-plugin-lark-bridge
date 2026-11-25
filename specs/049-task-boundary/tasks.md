@@ -25,15 +25,15 @@ description: "Task list for 049-task-boundary"
 
 **Purpose**: `send_report` 的 `kind`，US1 与 US3 共用
 
-- [ ] T002 在 `src/lark-super-agent/api.ts` 新增 `ReportKind` 与 `REPORT_KINDS`，取值 `progress`、`question`、`completed`、`abandoned`；`SendReportInput.kind` 必填
-- [ ] T003 在 `src/lark-super-agent/reports.ts` 的 `validateReportInput` 校验 `kind`，取值之外抛错；`reportMarkdown` 的 front matter 在 `taskId` 之后写 `kind`
-- [ ] T004 在 `src/lark-super-agent/blocks.ts` 的 `workSessionMessage` 增加 `kind` 属性，位于 `taskid` 之后并转义
-- [ ] T005 在 `src/lark-super-agent/service.ts` 的 `sendReport` 投递时传入 `kind`
-- [ ] T006 在 `src/sa-worker/tools.ts` 的 `send_report` 增加必填 `kind` 参数，`enum` 为四个取值，描述说明各取值含义
-- [ ] T007 [P] 更新 `tests/lark-super-agent-blocks.test.ts`：投递块含 `kind` 属性
-- [ ] T008 [P] 更新 `tests/lark-super-agent-reports.test.ts`：存档含 `kind`；缺少或非法 `kind` 时抛错且不写文件
-- [ ] T009 [P] 更新 `tests/lark-super-agent-service.test.ts`：投递块带 `kind`；非法 `kind` 不投递
-- [ ] T010 [P] 更新 `tests/sa-worker.test.ts`：`send_report` 透传 `kind`；schema 中 `kind` 必填且为四值枚举
+- [X] T002 在 `src/lark-super-agent/api.ts` 新增 `ReportKind` 与 `REPORT_KINDS`，取值 `progress`、`question`、`completed`、`abandoned`；`SendReportInput.kind` 必填
+- [X] T003 在 `src/lark-super-agent/reports.ts` 的 `validateReportInput` 校验 `kind`，取值之外抛错；`reportMarkdown` 的 front matter 在 `taskId` 之后写 `kind`
+- [X] T004 在 `src/lark-super-agent/blocks.ts` 的 `workSessionMessage` 增加 `kind` 属性，位于 `taskid` 之后并转义
+- [X] T005 在 `src/lark-super-agent/service.ts` 的 `sendReport` 投递时传入 `kind`
+- [X] T006 在 `src/sa-worker/tools.ts` 的 `send_report` 增加必填 `kind` 参数，`enum` 为四个取值，描述说明各取值含义
+- [X] T007 [P] 更新 `tests/lark-super-agent-blocks.test.ts`：投递块含 `kind` 属性
+- [X] T008 [P] 更新 `tests/lark-super-agent-reports.test.ts`：存档含 `kind`；缺少或非法 `kind` 时抛错且不写文件
+- [X] T009 [P] 更新 `tests/lark-super-agent-service.test.ts`：投递块带 `kind`；非法 `kind` 不投递
+- [X] T010 [P] 更新 `tests/sa-worker.test.ts`：`send_report` 透传 `kind`；schema 中 `kind` 必填且为四值枚举
 
 ---
 
