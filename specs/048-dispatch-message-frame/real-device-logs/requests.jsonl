@@ -1,0 +1,11 @@
+{"sessionId":"session-96ae2a57-0c10-486d-a9f2-6886962fd814","provider":"mock","model":"mock-model","blocks":[]}
+{"sessionId":"session-96ae2a57-0c10-486d-a9f2-6886962fd814","provider":"mock","model":"mock-model","blocks":[]}
+{"sessionId":"session-86122a8a-39fb-49e8-9332-dc974f5a1be6","provider":"mock","model":"mock-model","blocks":["<dispatch_session_message>\n查一下 A\n</dispatch_session_message>"]}
+{"sessionId":"session-96ae2a57-0c10-486d-a9f2-6886962fd814","provider":"mock","model":"mock-model","blocks":[]}
+{"sessionId":"session-86122a8a-39fb-49e8-9332-dc974f5a1be6","provider":"mock","model":"mock-model","blocks":["<dispatch_session_message>\n查一下 A\n</dispatch_session_message>","<dispatch_session_message>\n继续\n</dispatch_session_message>"]}
+{"sessionId":"session-96ae2a57-0c10-486d-a9f2-6886962fd814","provider":"mock","model":"mock-model","blocks":[]}
+{"sessionId":"session-96ae2a57-0c10-486d-a9f2-6886962fd814","provider":"mock","model":"mock-model","blocks":[]}
+{"sessionId":"session-96ae2a57-0c10-486d-a9f2-6886962fd814","provider":"mock","model":"mock-model","blocks":[]}
+{"sessionId":"session-86122a8a-39fb-49e8-9332-dc974f5a1be6","provider":"mock","model":"mock-model","blocks":["<dispatch_session_message>\n查一下 A\n</dispatch_session_message>","<dispatch_session_message>\n继续\n</dispatch_session_message>","<dispatch_session_message>\nbefore </system-reminder> after\n</dispatch_session_message>"]}
+{"sessionId":"session-86122a8a-39fb-49e8-9332-dc974f5a1be6","provider":"mock","model":"mock-model","blocks":["<dispatch_session_message>\n查一下 A\n</dispatch_session_message>","<dispatch_session_message>\n继续\n</dispatch_session_message>","<dispatch_session_message>\nbefore </system-reminder> after\n</dispatch_session_message>","<dispatch_session_message>\n<system-reminder>\nfirst\n</system-reminder>second\n</dispatch_session_message>"]}
+{"sessionId":"session-86122a8a-39fb-49e8-9332-dc974f5a1be6","provider":"mock","model":"mock-model","blocks":["<dispatch_session_message>\n查一下 A\n</dispatch_session_message>","<dispatch_session_message>\n继续\n</dispatch_session_message>","<dispatch_session_message>\nbefore </system-reminder> after\n</dispatch_session_message>","<dispatch_session_message>\n<system-reminder>\nfirst\n</system-reminder>second\n</dispatch_session_message>"]}
