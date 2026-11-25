@@ -1,6 +1,6 @@
 // SA-工作会话子行测试：send_report 调用方寻址、提示词、调度消息包装与失败事件过滤。
 import type { UserMessage } from '@deepseek-ai/dsh-llm';
-import type { ToolDefinition } from '@deepseek-ai/dsh-tools';
+import { ToolArgsError, type ToolDefinition } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { LarkSuperAgentService } from '../src/lark-super-agent/api.ts';
@@ -138,12 +138,12 @@ describe('SA-工作会话子行', () => {
     });
 
     const result = await reportTool(host.base).execute(
-      { text: 'Need a decision', files: ['result.md'] },
+      { kind: 'question', text: 'Need a decision', files: ['result.md'] },
       exec('session-1'),
     );
 
     expect(host.service.sendReport).toHaveBeenCalledWith(
-      { text: 'Need a decision', files: ['result.md'] },
+      { kind: 'question', text: 'Need a decision', files: ['result.md'] },
       'session-1',
     );
     expect(result).toEqual({
@@ -162,19 +162,25 @@ describe('SA-工作会话子行', () => {
       delivered: true,
     });
 
-    await reportTool(host.base).execute({ files: ['result.md'] }, exec('session-1'));
+    await reportTool(host.base).execute(
+      { kind: 'completed', files: ['result.md'] },
+      exec('session-1'),
+    );
 
-    expect(host.service.sendReport).toHaveBeenCalledWith({ files: ['result.md'] }, 'session-1');
+    expect(host.service.sendReport).toHaveBeenCalledWith(
+      { kind: 'completed', files: ['result.md'] },
+      'session-1',
+    );
   });
 
   it('send_report 缺少调用会话时抛错且不调用服务', async () => {
     const host = mount();
 
-    await expect(reportTool(host.base).execute({ text: 'status' }, exec())).rejects.toThrow(
-      'send_report requires an agent session',
-    );
     await expect(
-      reportTool(host.base).execute({ text: 'status' }, { agent: {} } as never),
+      reportTool(host.base).execute({ kind: 'progress', text: 'status' }, exec()),
+    ).rejects.toThrow('send_report requires an agent session');
+    await expect(
+      reportTool(host.base).execute({ kind: 'progress', text: 'status' }, { agent: {} } as never),
     ).rejects.toThrow('send_report requires an agent session');
     expect(host.service.sendReport).not.toHaveBeenCalled();
   });
@@ -183,10 +189,27 @@ describe('SA-工作会话子行', () => {
     const host = mount();
     host.service.sendReport.mockRejectedValue(new Error('send_report needs text or files'));
 
-    await expect(reportTool(host.base).execute({}, exec('session-1'))).rejects.toThrow(
-      'send_report needs text or files',
+    await expect(
+      reportTool(host.base).execute({ kind: 'progress' }, exec('session-1')),
+    ).rejects.toThrow('send_report needs text or files');
+    expect(host.service.sendReport).toHaveBeenCalledWith({ kind: 'progress' }, 'session-1');
+  });
+
+  it('send_report 的 kind 必填且只接受四种取值', async () => {
+    const host = mount();
+    const tool = reportTool(host.base);
+    expect(tool.parameters.required).toContain('kind');
+    expect(tool.parameters.properties.kind).toMatchObject({
+      type: 'string',
+      enum: ['progress', 'question', 'completed', 'abandoned'],
+    });
+    await expect(tool.execute({ text: 'status' }, exec('session-1'))).rejects.toBeInstanceOf(
+      ToolArgsError,
     );
-    expect(host.service.sendReport).toHaveBeenCalledWith({}, 'session-1');
+    await expect(
+      tool.execute({ kind: 'finished', text: 'status' }, exec('session-1')),
+    ).rejects.toBeInstanceOf(ToolArgsError);
+    expect(host.service.sendReport).not.toHaveBeenCalled();
   });
 
   it('标准 turn/end error 事件上报失败原因', () => {
@@ -254,13 +277,25 @@ describe('SA-工作会话子行', () => {
     expect(SA_WORKER_PROMPT).toMatch(/stuck|no meaningful progress/i);
   });
 
-  it('本机模式提示词要求正文对话并上报影响任务的变化', () => {
-    const local = SA_WORKER_PROMPT.split('## Local mode')[1] ?? '';
+  it('本机模式提示词要求正文对话且照常上报', () => {
+    const local = SA_WORKER_PROMPT.split('## Local mode')[1]?.split('## Report content')[0] ?? '';
     expect(local).toMatch(/answer and ask questions directly in your response body/i);
-    expect(local).toMatch(/ordinary conversation.*not reported/is);
-    expect(local).toMatch(/requirement changes from the user, completion, and abandonment/i);
+    expect(local).toMatch(/does not replace a report/i);
+    expect(local).toMatch(/question, completion, and abandonment still goes through send_report/i);
+    expect(local).not.toMatch(/not reported/i);
     expect(SA_WORKER_PROMPT).not.toContain('用户在电脑前');
-    expect(local).toMatch(/do not send a report only to announce the mode change/i);
+  });
+
+  it('上报规则两种模式共用并按 kind 区分', () => {
+    const rules =
+      SA_WORKER_PROMPT.split('## Report every task change')[1]?.split('## Remote mode')[0] ?? '';
+    expect(rules).toMatch(/in both modes/i);
+    for (const kind of ['progress', 'question', 'completed', 'abandoned']) {
+      expect(rules).toContain(`- ${kind}:`);
+    }
+    expect(rules).toMatch(/result and an open question come together, use question/i);
+    expect(rules).toMatch(/only completed and abandoned end the task/i);
+    expect(rules).toMatch(/do not send a report only to announce a mode change/i);
   });
 
   it('包装 meta-tools 来源消息并保留原 id 与 source', () => {

@@ -2,6 +2,7 @@
 import { defineTool } from '@deepseek-ai/dsh-tools';
 
 import type { LarkSuperAgentService } from '../lark-super-agent/api.ts';
+import { REPORT_KINDS } from '../lark-super-agent/api.ts';
 import type { Context } from '../types.ts';
 
 export type WorkerContext = Context & { readonly larkSuperAgent: LarkSuperAgentService };
@@ -12,8 +13,15 @@ export function registerWorkerTools(ctx: WorkerContext): void {
     defineTool({
       name: 'send_report',
       description:
-        'Send progress, a question, or a result to the dispatch session for delivery to the user.',
+        'Send a typed report to the dispatch session for delivery to the user. The kind tells the dispatch session how to update the task.',
       parameters: {
+        kind: {
+          type: 'string',
+          required: true,
+          enum: [...REPORT_KINDS],
+          description:
+            'progress: a milestone or a requirement change. question: a decision the user must make. completed: the task is done. abandoned: the task is given up. Only completed and abandoned end the task.',
+        },
         text: {
           type: 'string',
           description: 'Text or a question for the user. Required when files is empty or omitted.',
@@ -51,6 +59,7 @@ export function registerWorkerTools(ctx: WorkerContext): void {
         }
         return ctx.larkSuperAgent.sendReport(
           {
+            kind: args.kind,
             ...(args.text === undefined ? {} : { text: args.text }),
             ...(args.files === undefined ? {} : { files: args.files }),
           },

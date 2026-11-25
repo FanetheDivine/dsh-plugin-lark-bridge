@@ -255,6 +255,47 @@ describe('SA-调度会话子行', () => {
     expect(SA_DISPATCH_PROMPT).toMatch(/stuck|no progress/i);
   });
 
+  it('提示词默认新任务，只按引用或点名归入未结束任务', () => {
+    const classify =
+      SA_DISPATCH_PROMPT.split('## Classify each user message first')[1]?.split('## ')[0] ?? '';
+    expect(classify).toMatch(/every user message as a new task by default/i);
+    expect(classify).toMatch(/quotes a message that belongs to an unfinished task/i);
+    expect(classify).toMatch(/names an unfinished task by its title or task id/i);
+    expect(classify).toMatch(/does not make a message part of that task/i);
+    expect(classify).toMatch(/several unrelated instructions becomes several tasks/i);
+    expect(classify).toMatch(/quotes a finished task starts a new task/i);
+    expect(classify).toMatch(/only the quoted text and the new message/i);
+    expect(classify).toMatch(/cannot tell.*ask the user before acting/is);
+  });
+
+  it('提示词要求首条要求只含本任务内容', () => {
+    expect(SA_DISPATCH_PROMPT).toMatch(
+      /first requirements for a new worker session contain only this task's user messages and the target workspace/i,
+    );
+    expect(SA_DISPATCH_PROMPT).toMatch(/Do not include content.*from any other task/i);
+  });
+
+  it('提示词按上报类型更新状态，只有完成与放弃结束任务', () => {
+    const end =
+      SA_DISPATCH_PROMPT.split('## End tasks only on the report kind')[1]?.split('## ')[0] ?? '';
+    expect(SA_DISPATCH_PROMPT).toContain('taskid="<taskId>" kind="<kind>">');
+    expect(end).toMatch(/- progress:.*status: 'in_progress'/);
+    expect(end).toMatch(/- question:.*status: 'waiting_user'/);
+    expect(end).toMatch(/- completed:.*end the task/);
+    expect(end).toMatch(/- abandoned:.*end the task/);
+    expect(end).toMatch(/Only a completed or abandoned report ends a task/);
+    expect(end).toMatch(/never by the report wording/i);
+    expect(end).toMatch(/worker failure.*does not end the task/is);
+    expect(end).toMatch(/cancel a task.*abandoned report/is);
+    expect(SA_DISPATCH_PROMPT).not.toMatch(/When the work is complete/i);
+  });
+
+  it('提示词要求在电脑旁时在正文转达完整问题', () => {
+    expect(SA_DISPATCH_PROMPT).toMatch(
+      /at the computer, relay the full question in your response body/i,
+    );
+  });
+
   it('提示词要求始终派发、先匹配工作区并守住调度边界', () => {
     expect(SA_DISPATCH_PROMPT).toContain('## Always dispatch');
     expect(SA_DISPATCH_PROMPT).toContain('## Pick a workspace first');

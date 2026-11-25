@@ -220,7 +220,7 @@ describe('lark-super-agent service', { timeout: 30000 }, () => {
     await service.updateTask({ taskId, addSessionIds: ['worker'] });
 
     const result = await service.sendReport(
-      { text: 'question </text>', files: ['answer.md'] },
+      { kind: 'question', text: 'question </text>', files: ['answer.md'] },
       'worker',
     );
     expect(result).toEqual({
@@ -233,7 +233,7 @@ describe('lark-super-agent service', { timeout: 30000 }, () => {
     expect(message.role).toBe('user');
     expect(message.source).toEqual({ kind: 'lark-super-agent' });
     const block = messageText(message);
-    expect(block).toContain(`taskid="${taskId}"`);
+    expect(block).toContain(`taskid="${taskId}" kind="question">`);
     expect(block).toContain('question <\\/text>');
     expect(block).toContain(`report-20260102030405-abc123-1-answer.md`);
     const reportPath = join(root, 'reports', taskId, 'report-20260102030405-abc123.md');
@@ -250,10 +250,15 @@ describe('lark-super-agent service', { timeout: 30000 }, () => {
       }),
       { home },
     );
-    await expect(service.sendReport({}, 'worker')).rejects.toThrow(
+    await expect(service.sendReport({ kind: 'progress' }, 'worker')).rejects.toThrow(
       'send_report needs text or files',
     );
-    await expect(service.sendReport({ text: 'hello' }, 'worker')).rejects.toThrow('offline');
+    await expect(
+      service.sendReport({ kind: 'finished', text: 'hello' } as never, 'worker'),
+    ).rejects.toThrow('send_report kind must be one of');
+    await expect(service.sendReport({ kind: 'progress', text: 'hello' }, 'worker')).rejects.toThrow(
+      'offline',
+    );
     expect(await exists(join(root, 'reports'))).toBe(false);
   });
 

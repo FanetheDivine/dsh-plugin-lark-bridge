@@ -238,6 +238,7 @@ export class SuperAgentService implements LarkSuperAgentService {
           sessionId: callerSessionId,
           reportId: report.reportId,
           taskId: report.taskId,
+          kind: input.kind,
           text: input.text ?? '',
           files: report.files,
         }),

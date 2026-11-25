@@ -1,12 +1,13 @@
 import { copyFile, mkdir, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, isAbsolute, resolve } from 'node:path';
 
-import type { SendReportInput } from './api.ts';
+import { REPORT_KINDS, type ReportKind, type SendReportInput } from './api.ts';
 import { commitFilesInQueue, gitErrorMessage, runSerial } from './git.ts';
 import { createReportId } from './ids.ts';
 import { atomicWriteJson, findTaskBySession, isoTime, readTaskState, TASKS_FILE } from './notes.ts';
 
 export interface ValidatedReportInput {
+  kind: ReportKind;
   text: string;
   files: string[];
 }
@@ -32,6 +33,10 @@ export async function validateReportInput(
   input: SendReportInput,
   cwd: string = process.cwd(),
 ): Promise<ValidatedReportInput> {
+  const kind = (input as { kind?: unknown }).kind;
+  if (!REPORT_KINDS.includes(kind as ReportKind)) {
+    throw new Error(`send_report kind must be one of ${REPORT_KINDS.join(', ')}`);
+  }
   const text = input.text ?? '';
   const files = input.files ?? [];
   if (!Array.isArray(files) || files.some((file) => typeof file !== 'string')) {
@@ -58,13 +63,14 @@ export async function validateReportInput(
   if (invalid.length > 0) {
     throw new Error(`send_report files must be existing .md files: ${invalid.join(', ')}`);
   }
-  return { text, files: resolvedFiles };
+  return { kind: kind as ReportKind, text, files: resolvedFiles };
 }
 
 function reportMarkdown(input: {
   reportId: string;
   sessionId: string;
   taskId: string | null;
+  kind: ReportKind;
   time: string;
   files: readonly string[];
   text: string;
@@ -78,6 +84,7 @@ function reportMarkdown(input: {
     `reportId: ${JSON.stringify(input.reportId)}`,
     `sessionId: ${JSON.stringify(input.sessionId)}`,
     `taskId: ${input.taskId === null ? 'null' : JSON.stringify(input.taskId)}`,
+    `kind: ${JSON.stringify(input.kind)}`,
     `time: ${JSON.stringify(input.time)}`,
     files,
     '---',
@@ -143,6 +150,7 @@ export class ReportStore {
           reportId,
           sessionId: callerSessionId,
           taskId,
+          kind: validated.kind,
           time,
           files: copiedNames,
           text: validated.text,
