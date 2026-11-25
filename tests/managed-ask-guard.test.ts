@@ -85,6 +85,20 @@ describe('AskGuard 拒绝新提问', () => {
     await expect(guard.beforeExecute(makeExec('worker'), async () => denied)).resolves.toBe(denied);
     expect(guard.takeRules('worker')).toBe(false);
   });
+
+  it('离开时待审批的提问同样改为离开错误，不进入审批等待', async () => {
+    const { guard, presence } = makeGuard();
+    presence.set('remote');
+    const ask = async () => ({ kind: 'ask', reason: 'approval needed' }) as const;
+    await expect(guard.beforeExecute(makeExec('worker'), ask)).resolves.toEqual({
+      kind: 'deny',
+      reason: AWAY_ERROR,
+    });
+    const cancelled = { kind: 'cancel' } as const;
+    await expect(guard.beforeExecute(makeExec('worker'), async () => cancelled)).resolves.toBe(
+      cancelled,
+    );
+  });
 });
 
 describe('AskGuard 中止等待中的提问', () => {

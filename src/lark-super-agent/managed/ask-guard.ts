@@ -114,7 +114,9 @@ export class AskGuard {
     next: () => Promise<PreToolDecision>,
   ): Promise<PreToolDecision> {
     const decision = await next();
-    if (exec.name !== ASK_TOOL || decision.kind !== 'allow') return decision;
+    if (exec.name !== ASK_TOOL) return decision;
+    // 他方已拒绝或取消时保持原决定；放行与待审批都改为离开错误，避免离开期间等待审批。
+    if (decision.kind === 'deny' || decision.kind === 'cancel') return decision;
     const sessionId = exec.agent?.session?.id;
     if (sessionId === undefined || sessionId === '') return decision;
     if (this.options.presence.get().presence !== 'remote') return decision;

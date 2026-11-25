@@ -184,7 +184,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 ## 调度服务与预设叠加
 
-`lark-super-agent` 全局行提供 `larkSuperAgent` 服务，组合任务台账、上报存档、git 队列、被管理会话能力与消息投递。`sa-dispatch` 预设子行声明 `larkSuperAgent`、`systemPrompt`、`tools` 三项依赖，并通过 `ctx.inject` 注册调度能力；三项缺一不可，否则 Cordis 拒绝读取未声明的服务。全局行停用时，子行的工具与监听随依赖下线，飞书对话与 `lark_notify` 照常工作。
+`lark-super-agent` 全局行声明 `tools` 依赖并提供 `larkSuperAgent` 服务，组合任务台账、上报存档、git 队列、被管理会话能力与消息投递。`sa-dispatch` 预设子行声明 `larkSuperAgent`、`systemPrompt`、`tools` 三项依赖，并通过 `ctx.inject` 注册调度能力；三项缺一不可，否则 Cordis 拒绝读取未声明的服务。全局行停用时，子行的工具与监听随依赖下线，飞书对话与 `lark_notify` 照常工作。
 
 | 预设 | 组成 |
 | --- | --- |
@@ -222,6 +222,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 | 归档通知 | 被管理会话被归档时归档任务并投递 `<task_session_archived>` |
 
 - 在场提醒只插入调度会话；被管理会话在提问失败前对调度机制无感知。
+- 离开期间被管理会话的提问在执行前即被拒绝；其他插件要求审批时同样改为离开错误，不进入审批等待。
 - 提问拦截有两种途径：插件加载后开始的提问由 `tools/execute` 换上可中止信号；插件加载前已在等待的提问由网关私有接口取消。网关不可用时只记日志。
 - S 是一条临时指令，说明本次无法提问、改用 `send_report` 的 `question`，并要求后续忽略它。同一会话同一时刻只保留一条。
 - 自动上报带 `origin="turn_end"`，手动上报带 `origin="send_report"`，调度会话据此区分。

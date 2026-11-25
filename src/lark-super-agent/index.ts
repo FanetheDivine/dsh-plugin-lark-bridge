@@ -19,6 +19,9 @@ export { Config };
 /** 行标识，与 cordis.patch.yml 一致。 */
 export const name = 'lark-super-agent';
 
+/** 全局工具注册表；被管理会话的 send_report 注册在这里。 */
+export const inject = ['tools'];
+
 /** 提供共享服务、被管理会话能力并观察全部会话的输入。 */
 export function apply(ctx: Context, config?: unknown): void {
   const presence = new PresenceStore({ switches: () => readPresenceSwitches(config) });

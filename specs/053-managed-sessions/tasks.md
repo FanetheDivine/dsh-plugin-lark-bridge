@@ -49,4 +49,4 @@
 
 ## Phase 6 真机验证
 
-- [ ] T029 `real-device-test` 跑 [quickstart](./quickstart.md) 全部场景并记录结果
+- [x] T029 `real-device-test` 跑 [quickstart](./quickstart.md) 全部场景并记录结果

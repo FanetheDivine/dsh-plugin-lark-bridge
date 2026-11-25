@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readPresenceAlarms, readPresenceSwitches } from '../src/lark-super-agent/config.ts';
-import { apply, Config } from '../src/lark-super-agent/index.ts';
+import { apply, Config, inject } from '../src/lark-super-agent/index.ts';
 import { ASK_TOOL, AWAY_ERROR } from '../src/lark-super-agent/managed/ask-guard.ts';
 import { TASK_RULES_SOURCE_KIND } from '../src/lark-super-agent/managed/task-rules.ts';
 import { PresenceStore } from '../src/lark-super-agent/presence.ts';
@@ -133,6 +133,10 @@ function sourcedMessage(kind: string, text = 'hello') {
 const enterWith = (messages: unknown[]) => async () => ({ kind: 'enter', messages });
 
 describe('lark-super-agent 全局行', () => {
+  it('声明 tools 依赖，宿主据此允许读取工具注册表', () => {
+    expect(inject).toContain('tools');
+  });
+
   it('提供带在场状态的 larkSuperAgent', () => {
     const { provided, service } = startRow();
     expect(provided).toHaveLength(1);
