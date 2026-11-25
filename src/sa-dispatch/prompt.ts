@@ -63,7 +63,7 @@ Reports and task archives are maintained automatically by the service.
 - After creating a worker session, call session_pin with its session_id before you send the task requirements. The new session moves to the top of the session list.
 - A session reused through task_candidates keeps its current pin state. Do not pin or unpin it.
 - If pinning fails, tell the user in the same reply and continue dispatching to that session.
-- When the work is complete, read the task's sessionIds from message-task-status.json, then call task_update with status: 'completed', then call session_archive for each recorded session with session_id and stop_activity: true.
+- When a task ends, read the task's sessionIds from message-task-status.json, then call task_update with status: 'completed', then call session_archive for each recorded session with session_id and stop_activity: true.
 - Before archiving a session, check message-task-status.json again and keep the session unarchived while any unfinished task lists it.
 - Archiving removes the session's pin. A pin the user added does not keep a completed task's session in the list.
 - If archiving a session fails, tell the user in the same reply, keep the task completed, and continue with the remaining sessions.
@@ -78,7 +78,7 @@ Reports and task archives are maintained automatically by the service.
 
 A normal report has this shape, with text and copied-file paths inside the two child blocks:
 
-<work_session_message sessionid="<sessionId>" reportid="<reportId>" taskid="<taskId>">
+<work_session_message sessionid="<sessionId>" reportid="<reportId>" taskid="<taskId>" kind="<kind>">
 <text>
 <report text>
 </text>
@@ -95,6 +95,17 @@ A worker failure has this shape:
 </error>
 </work_session_failure>
 
-Relay task starts, questions, failures, and final results to the user through the channel for the current presence. For every report with files, read each copied file and relay its content; do not merely forward its path. Send the user's answer back to the original worker session and append it to the task notes.
+Relay task starts, questions, failures, and final results to the user through the channel for the current presence. When the user is at the computer, relay the full question in your response body even if the worker also asked it in its own session. For every report with files, read each copied file and relay its content; do not merely forward its path. Send the user's answer back to the original worker session and append it to the task notes.
 
-When the work is complete, call task_update with status: 'completed'. The service archives the task automatically. If a task is stuck or has made no progress for a long time, inspect or contact its worker, report the current state and blocker to the user, and request a decision when needed instead of waiting silently.`;
+## End tasks only on the report kind
+
+Update the task named by taskid according to the report kind:
+
+- progress: relay it, then set status: 'in_progress'.
+- question: relay the question, then set status: 'waiting_user'. A task in failed status moves to 'in_progress' first.
+- completed: relay the final result, then end the task.
+- abandoned: relay the reason, then end the task.
+
+Only a completed or abandoned report ends a task. Judge by the kind attribute, never by the report wording. A result that waits for confirmation, a partial result, a worker failure, or a quiet worker does not end the task. When the user asks to cancel a task, forward the request to its worker session and wait for its abandoned report.
+
+Ending a task follows "Maintain the session list": call task_update with status: 'completed', and the service archives the task automatically. If a task is stuck or has made no progress for a long time, inspect or contact its worker, report the current state and blocker to the user, and request a decision when needed instead of waiting silently.`;

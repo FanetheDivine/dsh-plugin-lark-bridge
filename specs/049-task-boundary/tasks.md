@@ -66,8 +66,8 @@ description: "Task list for 049-task-boundary"
 
 **Independent Test**: 提示词断言 `kind` 到状态的映射
 
-- [ ] T016 [US3] 改写 `src/sa-dispatch/prompt.ts` 的「Handle worker communication」与「Maintain the session list」：上报块示例带 `kind`；`progress` 设 `in_progress`，`question` 设 `waiting_user`，`completed` 与 `abandoned` 转达后设 `completed` 并归档会话；其他上报不结束任务；在电脑旁时在正文转达完整问题
-- [ ] T017 [US3] 更新 `tests/sa-dispatch.test.ts` 的提示词断言
+- [X] T016 [US3] 改写 `src/sa-dispatch/prompt.ts` 的「Handle worker communication」与「Maintain the session list」：上报块示例带 `kind`；`progress` 设 `in_progress`，`question` 设 `waiting_user`，`completed` 与 `abandoned` 转达后设 `completed` 并归档会话；其他上报不结束任务；在电脑旁时在正文转达完整问题
+- [X] T017 [US3] 更新 `tests/sa-dispatch.test.ts` 的提示词断言
 
 ---
 

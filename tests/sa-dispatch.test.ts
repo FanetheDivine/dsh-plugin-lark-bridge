@@ -275,6 +275,27 @@ describe('SA-调度会话子行', () => {
     expect(SA_DISPATCH_PROMPT).toMatch(/Do not include content.*from any other task/i);
   });
 
+  it('提示词按上报类型更新状态，只有完成与放弃结束任务', () => {
+    const end =
+      SA_DISPATCH_PROMPT.split('## End tasks only on the report kind')[1]?.split('## ')[0] ?? '';
+    expect(SA_DISPATCH_PROMPT).toContain('taskid="<taskId>" kind="<kind>">');
+    expect(end).toMatch(/- progress:.*status: 'in_progress'/);
+    expect(end).toMatch(/- question:.*status: 'waiting_user'/);
+    expect(end).toMatch(/- completed:.*end the task/);
+    expect(end).toMatch(/- abandoned:.*end the task/);
+    expect(end).toMatch(/Only a completed or abandoned report ends a task/);
+    expect(end).toMatch(/never by the report wording/i);
+    expect(end).toMatch(/worker failure.*does not end the task/is);
+    expect(end).toMatch(/cancel a task.*abandoned report/is);
+    expect(SA_DISPATCH_PROMPT).not.toMatch(/When the work is complete/i);
+  });
+
+  it('提示词要求在电脑旁时在正文转达完整问题', () => {
+    expect(SA_DISPATCH_PROMPT).toMatch(
+      /at the computer, relay the full question in your response body/i,
+    );
+  });
+
   it('提示词要求始终派发、先匹配工作区并守住调度边界', () => {
     expect(SA_DISPATCH_PROMPT).toContain('## Always dispatch');
     expect(SA_DISPATCH_PROMPT).toContain('## Pick a workspace first');
