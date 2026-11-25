@@ -7,6 +7,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 // Type-only：拉取 sidebar.footer.action 槽位声明。
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
+// Tailwind utilities 与插件样式：构建前由 scripts/build-client-css.mjs 生成。
+import './tailwind.generated.css';
 import { AuthOverlay } from './auth-overlay.tsx';
 import { PluginConfigForm, ROW_ID, ROW_KEY } from './config-form.ts';
 import { ConfigPage } from './config-page.tsx';
