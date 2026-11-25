@@ -3,7 +3,8 @@
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store';
 import type { ModelDirectoryState } from '@deepseek-ai/dsh-client-ui-model-selection/src/client/directory.ts';
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
-import { createElement } from 'react';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,6 +34,9 @@ import {
 } from '../src/client/presence-config.tsx';
 import { PresenceController } from '../src/client/presence-controller.ts';
 import { makeClientCtx, makeConfigFormScope } from './helpers.ts';
+
+// React 18 的 act 环境标记，Radix Portal 的异步渲染也走 act。
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 /** 中文翻译座。 */
 const t = ((key: keyof typeof zh) => zh[key]) as TranslateNS<typeof NS>;
@@ -168,7 +172,7 @@ describe('PresenceButton', () => {
     const html = renderToStaticMarkup(createElement(PresenceButton, { wide: true, t, controller }));
     expect(html).toContain('data-presence="local"');
     expect(html).toContain('<rect x="3" y="4" width="18" height="12" rx="2"></rect>');
-    expect(html).toContain('title="在电脑旁 · 点击切换为离开"');
+    expect(html).not.toContain('title="在电脑旁 · 点击切换为离开"');
     expect(html).toContain('aria-label="在电脑旁 · 点击切换为离开"');
     expect(html).not.toContain('data-rail');
   });
@@ -181,7 +185,7 @@ describe('PresenceButton', () => {
     );
     expect(html).toContain('data-presence="remote"');
     expect(html).toContain('<rect x="7" y="2.5" width="10" height="19" rx="2.5"></rect>');
-    expect(html).toContain('title="离开 · 点击切换为在电脑旁"');
+    expect(html).not.toContain('title="离开 · 点击切换为在电脑旁"');
     expect(html).toContain('data-rail="rail"');
   });
 
@@ -194,7 +198,76 @@ describe('PresenceButton', () => {
     await controller.toggle();
     const html = renderToStaticMarkup(createElement(PresenceButton, { wide: true, t, controller }));
     expect(html).toContain('color:var(--dsw-alias-state-error-primary)');
-    expect(html).toContain('title="切换失败，点击重试"');
+    expect(html).not.toContain('title="切换失败，点击重试"');
+    controller.dispose();
+  });
+
+  /** 挂载页脚按钮，返回容器、根与按钮。 */
+  async function mountButton(controller: PresenceController): Promise<{
+    root: ReturnType<typeof createRoot>;
+    button: HTMLButtonElement;
+  }> {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(createElement(PresenceButton, { wide: true, t, controller }));
+    });
+    const button = container.querySelector('button');
+    if (button === null) throw new Error('presence button missing');
+    return { root, button };
+  }
+
+  /** 等待零延迟工具提示完成一次渲染。 */
+  async function settle(): Promise<void> {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+  }
+
+  it('悬停立即展示页面内提示，移出后收起', async () => {
+    const { controller } = controllerWith([]);
+    const { root, button } = await mountButton(controller);
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
+    });
+    await settle();
+    const tooltip = document.querySelector('[role="tooltip"]');
+    expect(tooltip?.textContent).toBe('在电脑旁 · 点击切换为离开');
+    expect(tooltip?.getAttribute('data-side')).toBe('top');
+    expect(button.getAttribute('aria-describedby')).not.toBeNull();
+
+    await act(async () => {
+      button.dispatchEvent(
+        new MouseEvent('pointerout', { bubbles: true, relatedTarget: document.body }),
+      );
+    });
+    await settle();
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    await act(async () => {
+      root.unmount();
+    });
+    controller.dispose();
+  });
+
+  it('键盘聚焦立即展示提示，失焦后收起', async () => {
+    const { controller } = controllerWith([]);
+    const { root, button } = await mountButton(controller);
+    await act(async () => {
+      button.focus();
+    });
+    await settle();
+    const tooltip = document.querySelector('[role="tooltip"]');
+    expect(tooltip?.textContent).toBe('在电脑旁 · 点击切换为离开');
+
+    await act(async () => {
+      button.blur();
+    });
+    await settle();
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    await act(async () => {
+      root.unmount();
+    });
     controller.dispose();
   });
 

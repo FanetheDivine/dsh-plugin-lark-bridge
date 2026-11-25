@@ -48,11 +48,11 @@ description: "Task list for 在场状态按钮即时 tooltip"
 
 ### Tests for User Story 1
 
-- [ ] T003 [US1] 更新 `tests/presence-client.test.ts`：断言按钮无原生 `title`，保留 `aria-label`；验证悬停、聚焦、移出与失焦的真实打开/关闭行为
+- [X] T003 [US1] 更新 `tests/presence-client.test.ts`：断言按钮无原生 `title`，保留 `aria-label`；验证悬停、聚焦、移出与失焦的真实打开/关闭行为
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] 修改 `src/client/presence-button.tsx`：用 `TooltipProvider`、`TooltipTrigger`、`TooltipContent` 包裹现有按钮，设置零延迟并复用 `presenceLabel`
+- [X] T004 [US1] 修改 `src/client/presence-button.tsx`：用 `TooltipProvider`、`TooltipTrigger`、`TooltipContent` 包裹现有按钮，设置零延迟并复用 `presenceLabel`
 
 **Checkpoint**: User Story 1 可独立运行并通过测试
 
