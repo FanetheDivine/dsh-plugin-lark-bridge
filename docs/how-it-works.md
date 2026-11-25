@@ -17,7 +17,7 @@
 | `src/state.ts` | 会话标识、归一化路径与去重窗口的持久化 |
 | `src/lark-super-agent/` | `lark-super-agent` 行：调度服务、笔记、上报、归档、git、全局在场状态、自动切换调度、节假日数据与状态路由 |
 | `src/sa-dispatch/` | `SA-调度会话` 预设子行：调度工具、提示词与在场提醒插入 |
-| `src/sa-worker/` | `SA-工作会话` 预设子行：`send_report`、提示词、调度消息标记、在场提醒插入与失败通知 |
+| `src/lark-super-agent/managed/` | 被管理会话能力：`send_report`、调度消息标记、提问拦截、S 注入、轮次自动上报、失败与归档通知 |
 
 宿主按 `cordis.patch.yml` 的 `name` 分别 import 各入口：
 
@@ -26,10 +26,9 @@
 | `dist/index.mjs` | 主行 `dsh-plugin-lark-bridge` |
 | `dist/lark-super-agent.mjs` | `lark-super-agent` |
 | `dist/sa-dispatch.mjs` | `preset-sa-dispatch` 内的 `sa-dispatch` 子行 |
-| `dist/sa-worker.mjs` | `preset-sa-worker` 内的 `sa-worker` 子行 |
 
-- `preset-sa-dispatch` 与 `preset-sa-worker` 是 `@deepseek-ai/dsh-agent-preset` 声明行，分别声明 `SA-调度会话` 与 `SA-工作会话`。
-- 三行的元数据与图标放在 `rows/<行>/`。
+- `preset-sa-dispatch` 是 `@deepseek-ai/dsh-agent-preset` 声明行，声明 `SA-调度会话`。
+- 两行的元数据与图标放在 `rows/<行>/`。
 
 ## 入口契约
 
@@ -185,52 +184,61 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 ## 调度服务与预设叠加
 
-`lark-super-agent` 全局行提供 `larkSuperAgent` 服务，组合调度会话解析、笔记、上报存档、git 队列与消息投递。`sa-dispatch` 与 `sa-worker` 预设子行声明 `larkSuperAgent`、`systemPrompt`、`tools` 三项依赖，并通过 `ctx.inject` 注册能力。三项缺一不可，否则 Cordis 拒绝读取未声明的服务。全局行停用时，两个子行的工具与监听随依赖下线，飞书对话与 `lark_notify` 照常工作。
+`lark-super-agent` 全局行提供 `larkSuperAgent` 服务，组合任务台账、上报存档、git 队列、被管理会话能力与消息投递。`sa-dispatch` 预设子行声明 `larkSuperAgent`、`systemPrompt`、`tools` 三项依赖，并通过 `ctx.inject` 注册调度能力；三项缺一不可，否则 Cordis 拒绝读取未声明的服务。全局行停用时，子行的工具与监听随依赖下线，飞书对话与 `lark_notify` 照常工作。
 
 | 预设 | 组成 |
 | --- | --- |
-| `SA-调度会话` | 标准预设中的 11 个基础工具、meta-tools 十项能力与本插件覆写的 `session_create`、`task_create`、`task_update`、`workspace_note_set`、`workspace_note_remove`、`task_candidates` 与调度提示词段 |
-| `SA-工作会话` | 标准预设去掉 `tool-ask-user`，加入 `send_report`、任务提示词段与失败监听 |
+| `SA-调度会话` | 标准预设中的 11 个基础工具、meta-tools 十项能力与本插件覆写的 `session_create`、`task_update`、`task_end`、`session_manage`、`session_unmanage`、`workspace_note_set`、`workspace_note_remove` 与调度提示词段 |
 
-- meta-tools 是 `SA-调度会话` 的子行，预设补丁关闭它的 `session_create`，其余十项能力开启。`session_create` 由 `sa-dispatch` 子行提供，见「工作会话模型」。
-- 两个预设子行用 `ctx.systemPrompt.section` 注册各自会话的提示词。
-- `SA-调度会话` 的提示词要求回复只给结论、保持简短，不用礼貌用语，不讲实现细节，不提无意义的疑问与建议。
-- `SA-调度会话` 的提示词把用户指令默认理解为交给新建工作会话在工作区执行的独立任务。调度会话自身只在调度工作区读写笔记、任务归档与报告，用户明确要求时才亲自执行，也不建议由调度会话执行；建任务前按 `workspaces.json` 的 `summary` 与 `keywords` 匹配工作区。
+- 「被管理」是会话状态，与预设无关：`message-task-status.json` 中某个未结束任务记录的 `sessionId` 即为被管理会话，一个会话最多对应一个任务。
+- 被管理会话的能力全部注册在全局行，见[被管理会话能力](#被管理会话能力)。
+- meta-tools 是 `SA-调度会话` 的子行，预设补丁关闭它的 `session_create`，其余九项能力开启。`session_create` 由 `sa-dispatch` 子行提供，见「任务会话模型」。
+- `SA-调度会话` 用 `ctx.systemPrompt.section` 注册提示词，要求回复只给结论、保持简短。
+- 提示词要求调度会话自行回答 DSH 元信息问题（工作区、会话、任务状态），不为这类问题建任务。
+- 提示词把用户指令默认理解为交给新建任务会话在工作区执行的独立任务。调度会话自身只在调度工作区读写笔记、任务归档与报告。
 - 只有 `workspaces.json` 已登记的工作区可以接收任务。没有匹配或多个都匹配时，调度会话不猜测、不执行，告知「我不知道在哪个工作区」并询问目标。
 - 每条用户消息默认是新任务。只有引用了未结束任务的消息，或点名未结束任务的标题或 id，才归入该任务；无法判断时询问用户。
-- 引用已结束任务的消息时新建任务，首条要求只带被引原文与本次消息。
-- 新工作会话的首条要求只含本任务的用户消息与目标工作区。
-- 每个任务新建工作会话；只有用户明确要求才复用已有会话，无法判断时询问用户。`task_candidates` 仅用于查找用户要求复用的会话。
-- 派发开始时，调度会话告诉用户任务 id、目标工作区与所选会话。
-- 用户对上报的回答由调度会话送回原工作会话，并追加到任务笔记。
+- 用户要接管已有会话时调用 `session_manage`，要停止管理时调用 `session_unmanage`。用户归档会话时任务随之归档。
+- 调度会话把用户消息追加到任务后，用 `session_send` 投递到任务会话。
+- 调度会话按上报的 `kind` 更新任务：`progress` 设为 `in_progress`，`question` 设为 `waiting_user`。上报不结束任务。
+- 调度会话自行判断任务是否完成：判断完成时先询问用户，用户确认后才用 `task_end(completed)` 结束；用户要求结束或取消时直接用 `task_end(cancelled)`。结束任务不归档会话。
 - 在场状态见[在场状态](#在场状态)。
 - `SA-调度会话` 的提示词按最近的在场提醒选择渠道：离开时经 `lark_notify` 回复与转达，在电脑旁时在正文回复与转达。
-- `SA-工作会话` 把 `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>`，保留原消息 id 与 `source`，文本中的闭标签转义。这覆盖 `session_create` 的首条任务与 `session_send` 的提醒。
-- `session_send` 投递的正文已由 meta-tools 包成 `<system-reminder>` 帧。包装前若消息只有一个文本块且整段恰好是一个帧，剥掉该帧并还原正文中被转义的 `<\/system-reminder>`，使两条路径的块结构相同；多块消息与不完整帧保留原样。
-- `SA-工作会话` 的提示词用 `<dispatch_session_message>` 区分调度消息与用户消息。
-- `SA-工作会话` 在两种在场状态下都用 `send_report` 上报里程碑进度、需求变更、提问、完成与放弃。在场状态只决定正文用法：离开时正文对用户不可见；在电脑旁时另外在正文直接对话。
-- `SA-调度会话` 按上报的 `kind` 更新任务：`progress` 设为 `in_progress`，`question` 设为 `waiting_user`，`completed` 与 `abandoned` 结束任务并归档会话。其他上报、失败通知与工作会话沉默都不结束任务。
-- 用户要求取消任务时，调度会话把请求转给工作会话，等待 `abandoned` 上报。
-- 在电脑旁时，调度会话在正文转达 `question` 上报的完整问题。
-- `SA-调度会话` 的提示词要求新建工作会话后先置顶，再发送任务要求；用户要求复用的会话保持原置顶状态。
-- `SA-调度会话` 的提示词要求任务结束时先取得会话 id，标记完成后再逐个归档；仍被未完成任务引用的会话保持未归档，归档带 `stop_activity` 停止运行中的工作。
-- 两个预设都不含 `ask_user_question`，也不修改新会话的默认预设。
 - `SA-调度会话` 不含 `tool-jobs`，保留 `persona`、`agent-instructions`、`time-context`、`skill-filesystem` 与压缩组。压缩组的 `compaction-basic` 设 `thresholdRatio: 0.3`，上下文压力到模型窗口 30% 时触发压缩。
 - 全局行与预设子行的工具叠加。`lark_notify` 来自本插件主行，其他插件的全局工具也照常可见。
 
-## 工作会话模型
+## 被管理会话能力
 
-`lark-super-agent` 行的 `workerProvider`、`workerModel`、`workerEffort` 保存调度会话新建工作会话时使用的模型，均为 volatile 字符串，默认空。provider 与模型同时非空才成立，effort 只在成立时生效。
+全局行注册以下能力，作用于所有非调度会话：
+
+| 能力 | 行为 |
+| --- | --- |
+| `send_report` | 除调度会话外都能看到；未被管理的会话调用报错。描述要求只在被要求时调用 |
+| 调度消息标记 | `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>` |
+| 提问拦截 | 用户离开时拒绝被管理会话的 `ask_user_question`，并结束正在等待的调用 |
+| S 注入 | 提问因离开失败后，在下一次模型请求前插入一条临时指令 |
+| 轮次自动上报 | 正常结束、本轮未上报、无运行中子代理时把最后一段文本作为 `progress` 上报 |
+| 失败通知 | 轮次以错误结束时投递 `<task_session_failure>` |
+| 归档通知 | 被管理会话被归档时归档任务并投递 `<task_session_archived>` |
+
+- 在场提醒只插入调度会话；被管理会话在提问失败前对调度机制无感知。
+- 提问拦截有两种途径：插件加载后开始的提问由 `tools/execute` 换上可中止信号；插件加载前已在等待的提问由网关私有接口取消。网关不可用时只记日志。
+- S 是一条临时指令，说明本次无法提问、改用 `send_report` 的 `question`，并要求后续忽略它。同一会话同一时刻只保留一条。
+- 自动上报带 `origin="turn_end"`，手动上报带 `origin="send_report"`，调度会话据此区分。
+
+## 任务会话模型
+
+`lark-super-agent` 行的 `taskProvider`、`taskModel`、`taskEffort` 与 `taskPreset` 保存新建任务会话时使用的模型与预设，均为 volatile 字符串，默认空。provider 与模型同时非空才成立，effort 只在成立时生效。
 
 - 配置页复用官方 `ModelSelect` 与模型目录，字段名经 `ModelDefaults` 的第四个参数指定，effort 只能取所选模型支持的值。
-- `sa-dispatch` 子行注册自己的 `session_create`，名称、参数、描述与返回值与 meta-tools 一致。预设补丁把 meta-tools 行的 `session_create` 设为 `false`，同一作用域内只有这一个同名工具。
-- 创建流程与 meta-tools 相同：`sessionController.create` 新建会话，随后 `agent.model.select` 写入模型，再改标题、发首条提示。首条提示在选择之后才送达，首轮请求即用该模型。
-- 模型优先级：调用参数里的 `provider`、`model`、`effort`，其次是配置的「工作会话模型」，最后是宿主默认。
-- 显式参数经 `llm.resolveCallConfig` 校验，失败时报错且不创建会话，规则与 meta-tools 一致。配置的模型校验失败、`llm` 不可用或未配置时，新会话沿用宿主默认，校验失败写一条警告。
-- 未传 `agent_preset` 时使用 `sa-worker`；名册里不可用时省略，由宿主选默认预设。
-- 选择只写入新会话本身，不写任何默认模型设置；其他途径新建的会话不经过该工具。
+- 「任务会话预设」复用主行「预设」的下拉组件，配置键为 `taskPreset`，空值表示跟随宿主默认。
+- `sa-dispatch` 子行注册自己的 `session_create`，参数不含 `agent_preset`，预设始终取配置值。
+- 创建流程：`sessionController.create` 新建会话，随后 `agent.model.select` 写入模型，再改标题，接着建立任务，最后发送首条提示。首条提示在选择之后才送达，首轮请求即用该模型，首轮结束的自动上报也能找到任务。
+- 模型优先级：调用参数里的 `provider`、`model`、`effort`，其次是配置的「任务会话模型」，最后是宿主默认。
+- 显式参数经 `llm.resolveCallConfig` 校验，失败时报错且不创建会话。配置的模型校验失败、`llm` 不可用或未配置时，新会话沿用宿主默认，校验失败写一条警告。
+- 配置的预设不在宿主名册时省略，由宿主选默认预设，并写一条警告。
+- 选择只写入新会话本身，不写任何默认模型设置。
 - 保存配置后无需重启，每次调用读取实时配置。
-- meta-tools 行自身的 `session_provider`、`session_model`、`session_effort`、`session_preset` 对该工具不再生效。
 
 ## 在场状态
 
@@ -292,38 +300,41 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 ## 调度工作区存储
 
-调度工作区是本插件配置的桥接工作区。全部笔记与上报都存放在该目录：
+调度工作区是本插件配置的桥接工作区。全部任务与上报都存放在该目录：
 
 | 路径 | 内容与写入者 |
 | --- | --- |
-| `message-task-status.json` | 未归档任务；由任务写工具维护 |
+| `message-task-status.json` | 未结束任务；由任务工具与 `session_create` 维护 |
 | `workspaces.json` | 工作区笔记与派发白名单；由工作区写工具维护 |
-| `reports/<taskId>/<reportId>.md` | 上报正文与元数据；由 `send_report` 写入 |
-| `reports/<taskId>/<reportId>-<n>-<文件名>.md` | 上报附件副本；由 `send_report` 复制 |
-| `reports/_unassigned/` | 无法关联任务的上报 |
-| `archive/<taskId>/task.json` | 任务全量快照与归档时间 |
-| `archive/<taskId>/reports/` | 已完成任务的全部上报与附件 |
+| `reports/<taskId>/<reportId>.md` | 上报正文与元数据；由 `send_report` 与自动上报写入 |
+| `reports/<taskId>/<reportId>-<n>-<文件名>.md` | 上报附件副本 |
+| `archive/<taskId>/task.json` | 任务全量快照、归档时间与结束原因 |
+| `archive/<taskId>/reports/` | 已结束任务的全部上报与附件 |
 | `AGENTS.md` | 长期记忆；由调度会话自行维护与提交 |
 
+- `message-task-status.json` 与 `workspaces.json` 用 zod 校验。校验不通过时按空台账处理，下次写入覆盖。
 - JSON 先写临时文件再重命名，同一工作区的写入与 git 操作串行执行。
 - 首次写笔记时，若调度工作区根目录不是 git 仓库顶层，程序执行 `git init`。
 - 程序用路径限定的 `git add` 与 `git commit` 提交本次文件，提交作者沿用本机 git 配置。
 - 本机需要安装 git，并配置 `user.name` 与 `user.email`。
-- `task_update` 把状态改为 `completed` 时，程序在同一调用内移动任务快照与上报目录，并从 `message-task-status.json` 移除该任务。
-- 程序不执行每周归档。
+- `task_end` 把任务移入归档并记录结束原因，同时移动上报目录，再从 `message-task-status.json` 移除该任务。会话保持未归档。
+- 结束原因取 `completed`、`cancelled`、`unmanaged`、`session_archived` 或 `session_missing`。
 
 ## 上报投递与失败监听
 
 - 服务每次调用从 `$DSH_HOME/lark-bridge/state.json` 读取桥接会话 `sessionId` 与调度工作区 `workspaceRoot`；缺省 `$DSH_HOME` 为 `~/.dsh`。`workspaceRoot` 经 `toHostWorkspacePath` 转为当前平台的原生路径后再访问文件与 git。
-- `send_report` 的 `kind` 必填，取值为 `progress`、`question`、`completed`、`abandoned`。取值之外报参数错误，不存档也不投递。
-- `send_report` 的 `text` 与 `files` 至少提供一项，`files` 为 Markdown 文件路径。
-- 上报存档的 front matter 记录 `kind`。服务不按 `kind` 修改任务状态。
-- `send_report` 校验文本与 Markdown 附件，生成 `reportId`，复制附件并写入上报记录，再把 `<work_session_message>` 块投递到调度会话。
+- `send_report` 的 `kind` 必填，取值为 `progress` 与 `question`。取值之外报参数错误，不存档也不投递。
+- `send_report` 的 `text` 与 `files` 至少提供一项，`files` 为 Markdown 文件路径；`desc` 可选，记录在 front matter 与投递块中。
+- 未被管理的会话调用 `send_report` 直接报错，不存档也不投递。
+- 上报存档的 front matter 记录 `kind`、`origin`、可选 `desc` 与任务标识。服务不按 `kind` 修改任务状态。
+- `send_report` 校验文本与 Markdown 附件，生成 `reportId`，复制附件并写入上报记录，再把 `<task_session_message>` 块投递到调度会话。
 - 投递使用 `sessionController.resolveAgent(sessionId)` 取得 agent，再调用 `agent.steer`。消息采用 `user` 角色，`source.kind` 为 `lark-super-agent`；空闲会话因此被唤醒。
-- 注入块含 `sessionid`、`reportid`、`taskid` 与 `kind`，始终保留 `<text>` 与 `<files>`。闭合标签与属性值会转义，`<files>` 列出调度工作区内副本的绝对路径。
+- 注入块含 `sessionid`、`reportid`、`taskid`、`kind` 与 `origin`，`<desc>` 仅在提供时出现，`<text>` 与 `<files>` 始终保留。闭合标签与属性值会转义。
 - 文件写入并投递后执行 git 提交。提交失败不撤回已投递上报，工具结果附带 `warning`。
-- `sa-worker` 监听 `session/event` 中 `reason.kind === 'error'` 的 `turn/end`，每轮失败向调度会话投递一次 `<work_session_failure>`；取消不触发通知。
-- 失败通知包含工作会话、任务标识与截断后的错误原因。它不进入上报存档，也不提交 git；调度会话不可用时只写日志。
+- 自动上报在轮次正常结束、本轮没有调用 `send_report`、会话没有运行中的子代理时触发，来源记为 `turn_end`；调度会话不可用时只写日志。
+- 全局行监听 `reason.kind === 'error'` 的 `turn/end`，每轮失败向调度会话投递一次 `<task_session_failure>`；取消不触发通知。
+- 失败通知包含会话、任务标识与截断后的错误原因，不进入上报存档，也不提交 git。
+- `SA-调度会话` 的 `send_report` 结果以专用卡片展示类型、`desc`、正文与附件。
 
 ## 生命周期
 

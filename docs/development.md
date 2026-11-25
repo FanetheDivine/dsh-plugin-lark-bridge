@@ -131,22 +131,24 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | `tests/presence.test.ts` | 全局在场状态的初始值、手动切换、按开关自动更新与开关读取 |
 | `tests/presence-routes.test.ts` | `/lark-bridge/presence` 的读取、写入、参数与来源校验 |
 | `tests/presence-client.test.ts` | 在场控制器、页脚按钮、槽位挂载与开关配置页（jsdom） |
-| `tests/lark-super-agent-service.test.ts` | 桥接状态读取与路径转换、上报投递、失败通知、候选会话与旧数据兼容 |
-| `tests/lark-super-agent-notes.test.ts` | 任务与工作区笔记、状态转换、归档与 git 提交 |
+| `tests/lark-super-agent-service.test.ts` | 桥接状态读取与路径转换、被管理判定、上报投递、失败与归档通知 |
+| `tests/lark-super-agent-notes.test.ts` | 任务与工作区笔记、zod 校验、状态转换、结束与 git 提交 |
 | `tests/lark-super-agent-reports.test.ts` | 上报记录、附件复制与任务归属 |
 | `tests/lark-super-agent-git.test.ts` | git 初始化、路径限定提交与串行队列 |
-| `tests/lark-super-agent-blocks.test.ts` | 上报块与失败通知块的格式与转义 |
-| `tests/sa-dispatch.test.ts` | 调度工具契约、提示词注册与按属性插入的在场提醒 |
-| `tests/session-create.test.ts` | 覆写的 `session_create`：与 meta-tools 一致的契约、工作会话模型、显式参数优先、回退与注册 |
-| `tests/worker-model.test.ts` | 工作会话模型的配置读取 |
-| `tests/sa-worker.test.ts` | `send_report`、提示词、调度消息包装、在场提醒与失败事件过滤 |
-| `tests/presets-patch.test.ts` | 补丁行、两个预设的子行与标准预设快照的差异 |
+| `tests/lark-super-agent-blocks.test.ts` | 上报、失败与归档通知块的格式与转义 |
+| `tests/sa-dispatch.test.ts` | 任务与会话管理工具契约、提示词注册与按属性插入的在场提醒 |
+| `tests/session-create.test.ts` | 覆写的 `session_create`：任务会话预设、模型优先级、建任务与注册 |
+| `tests/task-model.test.ts` | 任务会话模型与预设的配置读取 |
+| `tests/managed-ask-guard.test.ts` | 离开时拒绝与中止提问、网关取消与 S 标记 |
+| `tests/managed-turn-report.test.ts` | 轮次结束自动上报的触发与抑制 |
+| `tests/report-card.test.ts` | `send_report` 卡片在三种阶段的显示 |
+| `tests/presets-patch.test.ts` | 补丁行、调度预设子行与标准预设快照的差异 |
 | `tests/config-form.test.ts` | 配置页草稿与字段集、校验、保存、恢复默认、放弃与卸载 |
 | `tests/release-archive.test.mjs` | CHANGELOG 归档计划 |
 | `tests/client.test.ts` | 前端服务声明、字典与槽位注册、共享状态控制器、连接面板、工作区下拉与弹窗 reducer（jsdom） |
 | `tests/client-bundle.test.ts` | `dist/client.js` 的注册契约与导出（产物测试） |
-| `tests/package-pack.test.ts` | npm 包不含 lark-cli，含四个宿主入口、`rows/`、`dsh-plugin-meta-tools` 依赖与前端闭包工厂（产物测试） |
-| `tests/metadata.test.ts` | 根行与三行元数据的结构、键集、禁用字符与清单声明 |
+| `tests/package-pack.test.ts` | npm 包不含 lark-cli，含三个宿主入口、`rows/`、`dsh-plugin-meta-tools` 依赖与前端闭包工厂（产物测试） |
+| `tests/metadata.test.ts` | 根行与两行元数据的结构、键集、禁用字符与清单声明 |
 | `tests/dependency-versions.test.ts` | `dsh-*` 依赖版本一致，并以同版本列入 `minimumReleaseAgeExclude` |
 | `tests/dist-freshness.test.ts` | 产物新鲜度判定的三种状态 |
 | `tests/worktree-extension.test.ts` | worktree 扩展的占号、改号、复用、编号校验与清理 |
@@ -226,8 +228,8 @@ spec 与 plan 模板包含状态、待确认决策、澄清记录和审查记录
 ## 文件地图
 
 ```text
-cordis.patch.yml            # 主行、调度行与两个预设行，dsh plugin add 时插入 profile
-rows/<行>/                  # lark-super-agent、sa-dispatch、sa-worker 的图标与元数据
+cordis.patch.yml            # 主行、调度行与调度预设行，dsh plugin add 时插入 profile
+rows/<行>/                  # lark-super-agent 与 sa-dispatch 的图标与元数据
 src/
 ├── index.ts                # 打包入口，导出 name、inject、apply、Config
 ├── config.ts               # Config schema、默认值、严格校验与热重载读取
@@ -245,8 +247,8 @@ src/
 ├── types.ts                # 宿主类型再导出
 ├── utils.ts                # 零依赖工具函数
 ├── lark-super-agent/       # 调度行：服务、笔记、上报、归档、git、在场状态与路由
+│   └── managed/            # 被管理会话能力：send_report、提问拦截、S、自动上报与通知
 ├── sa-dispatch/            # SA-调度会话子行：调度工具、提示词与在场提醒插入
-├── sa-worker/              # SA-工作会话子行：send_report、提示词、消息标记、在场提醒与失败通知
 └── client/
     ├── index.ts            # 浏览器入口：字典、弹窗、配置页与页脚在场按钮
     ├── api.ts              # 路由调用与状态类型
@@ -258,13 +260,16 @@ src/
     ├── config-page.tsx     # 注册工作区下拉（宿主 Menu）与配置页视图
     ├── presence-controller.ts # 在场状态轮询、切换与行可用性
     ├── presence-button.tsx # 页脚在场按钮与折叠栏样式
-    ├── presence-config.tsx # lark-super-agent 行的两个开关配置页
+    ├── presence-config.tsx # lark-super-agent 行的开关、时间与任务会话配置页
+    ├── report-card.tsx     # send_report 的专用卡片
+    ├── preset-defaults.ts  # 预设名册与选择
+    ├── preset-select.tsx   # 预设下拉
+    ├── task-model-field.tsx # 任务会话模型选择项
     └── locales.ts          # 中英文字典与命名空间
 dist/
 ├── index.mjs               # 主行宿主产物
 ├── lark-super-agent.mjs    # 调度行宿主产物
 ├── sa-dispatch.mjs         # SA-调度会话子行产物
-├── sa-worker.mjs           # SA-工作会话子行产物
 ├── client.js               # 浏览器产物（闭包工厂）
 ├── index.d.ts              # 宿主类型声明
 └── client/                 # 前端类型声明
