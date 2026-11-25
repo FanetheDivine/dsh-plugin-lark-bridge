@@ -10,6 +10,7 @@ import { type CSSProperties, type ReactNode, useState } from 'react';
 import type { Presence } from './api.ts';
 import type { NS } from './locales.ts';
 import { type PresenceController, usePresenceSnapshot } from './presence-controller.ts';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip.tsx';
 
 /** 页脚动作槽位中的注册 id。 */
 export const PRESENCE_SLOT_ID = 'lark-bridge-presence';
@@ -122,18 +123,24 @@ export function PresenceButton({ wide, t, controller }: PresenceButtonProps): Re
       data-dsh-part="entry"
       data-rail={wide ? undefined : 'rail'}
     >
-      <button
-        type="button"
-        style={triggerStyle(color, hover)}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        onClick={() => void controller.toggle()}
-        title={label}
-        aria-label={label}
-        data-presence={snapshot.presence}
-      >
-        <PresenceIcon presence={snapshot.presence} />
-      </button>
+      <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+        <Tooltip disableHoverableContent>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              style={triggerStyle(color, hover)}
+              onMouseEnter={() => setHover(true)}
+              onMouseLeave={() => setHover(false)}
+              onClick={() => void controller.toggle()}
+              aria-label={label}
+              data-presence={snapshot.presence}
+            >
+              <PresenceIcon presence={snapshot.presence} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent collisionPadding={8}>{label}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }

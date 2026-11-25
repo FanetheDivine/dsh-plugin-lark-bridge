@@ -180,4 +180,12 @@ describe('内联样式', () => {
     expect(css).toContain('.bg-popover');
     expect(css).toContain('data-dsh-lark-ui');
   });
+
+  it('内联 tooltip 的前景反转色与高 z-index 样式', () => {
+    assertFreshDist();
+    const css = inlinedCss();
+    expect(css).toContain('.bg-foreground');
+    expect(css).toContain('.text-background');
+    expect(css).toContain('z-\\[1100\\]');
+  });
 });
