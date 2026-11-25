@@ -7,6 +7,7 @@ import type { SnapshotStore } from '@deepseek-ai/dsh-client-store';
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import {
   Button,
+  IconClockOutlineRegular,
   IconCloseOutlineRegular,
   IconPlusOutlineRegular,
   Pill,
@@ -32,6 +33,7 @@ import {
 } from '../lark-super-agent/alarms.ts';
 import type { NS } from './locales.ts';
 import type { ModelDefaultsInjected } from './model-defaults.ts';
+import './presence-alarms.css';
 import { PresenceAlarmEditor } from './presence-alarms-editor.tsx';
 import type { PresenceController } from './presence-controller.ts';
 import { usePresenceSnapshot } from './presence-controller.ts';
@@ -274,46 +276,60 @@ function PresenceConfigBody(
             {list.length === 0 ? (
               <p style={emptyStyle}>{t('presenceConfig.alarms.empty')}</p>
             ) : (
-              <div style={alarmListStyle}>
+              <div className="dsh-lark-alarm-list" data-dsh-lark-ui>
                 {list.map((alarm) => (
-                  <div key={alarm.id} style={alarmRowStyle} data-dsh-lark-alarm={alarm.id}>
-                    <Pill
-                      onClick={() => setEditor({ action: section.action, alarm })}
-                      disabled={disabled}
-                      title={t('presenceConfig.alarm.edit')}
-                    >
-                      {alarm.time}
-                    </Pill>
-                    <Pill
-                      active={alarm.skipWeekends}
-                      onClick={() => toggle(alarm, 'skipWeekends')}
-                      disabled={disabled}
-                    >
-                      {t('presenceConfig.alarm.skipWeekends')}
-                    </Pill>
-                    <Pill
-                      active={alarm.skipHolidays}
-                      onClick={() => toggle(alarm, 'skipHolidays')}
-                      disabled={disabled}
-                    >
-                      {t('presenceConfig.alarm.skipHolidays')}
-                    </Pill>
-                    <span style={spacerStyle} />
-                    <Switch
-                      checked={alarm.enabled}
-                      onChange={() => toggle(alarm, 'enabled')}
-                      label={`${t('presenceConfig.alarm.enabled')} ${alarm.time}`}
-                      disabled={disabled}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`${t('presenceConfig.alarm.remove')} ${alarm.time}`}
-                      disabled={disabled}
-                      onClick={() => remove(alarm)}
-                    >
-                      <IconCloseOutlineRegular size={14} />
-                    </Button>
+                  <div
+                    key={alarm.id}
+                    className="dsh-lark-alarm"
+                    data-dsh-lark-alarm={alarm.id}
+                    data-off={alarm.enabled ? undefined : ''}
+                  >
+                    <div className="dsh-lark-alarm-head">
+                      <button
+                        type="button"
+                        className="dsh-lark-alarm-time"
+                        onClick={() => setEditor({ action: section.action, alarm })}
+                        disabled={disabled}
+                        title={t('presenceConfig.alarm.edit')}
+                        aria-label={`${t('presenceConfig.alarm.edit')} ${alarm.time}`}
+                      >
+                        <IconClockOutlineRegular size={13} />
+                        {alarm.time}
+                      </button>
+                    </div>
+                    <div className="dsh-lark-alarm-actions">
+                      <Switch
+                        checked={alarm.enabled}
+                        onChange={() => toggle(alarm, 'enabled')}
+                        label={`${t('presenceConfig.alarm.enabled')} ${alarm.time}`}
+                        disabled={disabled}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`${t('presenceConfig.alarm.remove')} ${alarm.time}`}
+                        disabled={disabled}
+                        onClick={() => remove(alarm)}
+                      >
+                        <IconCloseOutlineRegular size={14} />
+                      </Button>
+                    </div>
+                    <div className="dsh-lark-alarm-chips">
+                      <Pill
+                        active={alarm.skipWeekends}
+                        onClick={() => toggle(alarm, 'skipWeekends')}
+                        disabled={disabled}
+                      >
+                        {t('presenceConfig.alarm.skipWeekends')}
+                      </Pill>
+                      <Pill
+                        active={alarm.skipHolidays}
+                        onClick={() => toggle(alarm, 'skipHolidays')}
+                        disabled={disabled}
+                      >
+                        {t('presenceConfig.alarm.skipHolidays')}
+                      </Pill>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -384,22 +400,6 @@ const emptyStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.5,
   color: 'var(--dsw-alias-label-tertiary)',
-};
-
-const alarmListStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 6,
-};
-
-const alarmRowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 6,
-};
-
-const spacerStyle: CSSProperties = {
-  flex: 1,
 };
 
 const warningStyle: CSSProperties = {
