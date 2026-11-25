@@ -14,7 +14,7 @@ import { assertFreshDist } from './support/dist-freshness.ts';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** 主行之外的三个行入口。 */
-const ROW_NAMES = ['lark-super-agent', 'sa-dispatch', 'sa-worker'] as const;
+const ROW_NAMES = ['lark-super-agent', 'sa-dispatch'] as const;
 
 /** 发布清单中的运行时依赖。 */
 const manifest = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as {
