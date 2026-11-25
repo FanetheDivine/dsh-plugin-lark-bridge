@@ -41,6 +41,14 @@ function loadRegistrations(): ClientRegistration[] {
   return registrations;
 }
 
+/** 取出产物里内联的样式文本。 */
+function inlinedCss(): string {
+  const js = readFileSync(CLIENT_FILE, 'utf8');
+  const match = js.match(/style\.textContent = (".*?"); document\.head/s);
+  if (match?.[1] === undefined) throw new Error('产物没有内联样式');
+  return JSON.parse(match[1]) as string;
+}
+
 describe('前端产物（dist/client.js）', () => {
   it('按包名注册闭包工厂，导出 inject 与 apply', () => {
     assertFreshDist();
@@ -49,6 +57,7 @@ describe('前端产物（dist/client.js）', () => {
     const registration = registrations[0];
     expect(registration?.id).toBe(CLIENT_ID);
 
+    const jsxStub = () => null;
     const reactStub = {
       Fragment: 'Fragment',
       useState: (value: unknown) => [value, () => undefined],
@@ -58,12 +67,18 @@ describe('前端产物（dist/client.js）', () => {
       useMemo: (fn: () => unknown) => fn(),
       useRef: (value: unknown) => ({ current: value }),
       useId: () => ':r0:',
-      // 内联的第三方组件在模块作用域创建记忆组件。
+      // 内联的第三方组件在模块作用域创建记忆组件与 context。
       memo: (component: unknown) => component,
       forwardRef: (render: unknown) => render,
+      createContext: (value: unknown) => ({ Provider: 'Provider', Consumer: 'Consumer', value }),
+      useContext: () => undefined,
+      useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+      createElement: jsxStub,
     };
-    const jsxStub = () => null;
-    const reactDomStub = { createPortal: (node: unknown) => node };
+    const reactDomStub = {
+      createPortal: (node: unknown) => node,
+      flushSync: (run: () => void) => run(),
+    };
     const storeStub = {
       createSnapshotStore: (initial: unknown) => ({
         getSnapshot: () => initial,
@@ -106,6 +121,7 @@ describe('前端产物（dist/client.js）', () => {
       Switch: jsxStub,
       Menu: jsxStub,
       IconChevronDownOutlineRegular: jsxStub,
+      IconClockOutlineRegular: jsxStub,
       IconCloseOutlineRegular: jsxStub,
       IconPlusOutlineRegular: jsxStub,
       Pill: jsxStub,
@@ -143,5 +159,25 @@ describe('前端产物（dist/client.js）', () => {
     expect(ctx._slotRegistrations[1]?.options.key).toBe(
       'dsh-plugin-lark-bridge#dsh-plugin-lark-bridge',
     );
+  });
+});
+
+describe('内联样式', () => {
+  it('只带 utilities 与插件样式，不带 Tailwind preflight', () => {
+    assertFreshDist();
+    const css = inlinedCss();
+    // preflight 会重置宿主页面的 html、body、标题与列表，必须挡在产物外。
+    expect(css).not.toContain('html,:host{-webkit-text-size-adjust');
+    expect(css).not.toContain(
+      '*,:after,:before,::backdrop{box-sizing:border-box;border:0 solid;margin:0;padding:0}',
+    );
+  });
+
+  it('把 shadcn 语义色映射到宿主令牌，并只作用于插件子树', () => {
+    assertFreshDist();
+    const css = inlinedCss();
+    expect(css).toContain('--dsw-alias-bg-layer-2');
+    expect(css).toContain('.bg-popover');
+    expect(css).toContain('data-dsh-lark-ui');
   });
 });
