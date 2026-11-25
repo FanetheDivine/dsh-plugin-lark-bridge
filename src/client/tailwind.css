@@ -2,10 +2,9 @@
  * Tailwind 入口：只生成 utilities，并把 shadcn 的语义色映射到宿主 --dsw-* 令牌。
  * 不引入 preflight；宿主页面的全局重置由 DSH 自己负责。
  */
-@import "tailwindcss/utilities" source(none);
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
 @import "tw-animate-css";
-
-@source "./**/*.tsx";
 
 @theme inline {
   --color-background: var(--dsw-alias-bg-base);
