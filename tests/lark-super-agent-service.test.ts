@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
+// 全局服务测试：桥接状态、任务台账、上报投递与被管理会话判定。
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -6,10 +7,15 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Task } from '../src/lark-super-agent/api.ts';
 import { readBridgeState } from '../src/lark-super-agent/bridge.ts';
 import { runGit } from '../src/lark-super-agent/git.ts';
-import { readTaskState, readWorkspaceState } from '../src/lark-super-agent/notes.ts';
+import {
+  type ArchivedTask,
+  readTaskState,
+  readWorkspaceState,
+} from '../src/lark-super-agent/notes.ts';
 import {
   type AgentLike,
   type ContextLike,
+  NOT_MANAGED_ERROR,
   SuperAgentService,
 } from '../src/lark-super-agent/service.ts';
 import { normalizeWorkspacePath } from '../src/workspace-path.ts';
@@ -54,6 +60,29 @@ function messageText(message: unknown): string {
   return content[0]?.text ?? '';
 }
 
+/** 读取一归档任务的快照。 */
+async function readArchivedTask(root: string, taskId: string): Promise<ArchivedTask> {
+  const source = await readFile(join(root, 'archive', taskId, 'task.json'), 'utf8');
+  return JSON.parse(source) as ArchivedTask;
+}
+
+/** 建立一个任务，返回值用于后续断言。 */
+async function seedTask(
+  service: SuperAgentService,
+  sessionId: string,
+  cwd = '/project',
+): Promise<{ taskId: string; title: string }> {
+  const input = {
+    title: `task for ${sessionId}`,
+    sessionId,
+    workspaceId: 'workspace-a',
+    cwd,
+    message: { text: 'start' },
+  };
+  const { taskId } = await service.createTask(input);
+  return { taskId, title: input.title };
+}
+
 beforeAll(async () => {
   await runGit(['--version']);
   process.env.GIT_CONFIG_COUNT = '2';
@@ -69,8 +98,8 @@ afterEach(async () => {
   );
 });
 
-describe('lark-super-agent service', { timeout: 30000 }, () => {
-  it('reads bridge state from an explicit DSH home and tolerates invalid state', async () => {
+describe('lark-super-agent 服务', { timeout: 30000 }, () => {
+  it('从显式 DSH home 读取桥接状态，损坏的状态按空处理', async () => {
     const home = await bridgeHome('/dispatch', 'session');
     await expect(readBridgeState(home)).resolves.toEqual({
       workspaceRoot: '/dispatch',
@@ -80,7 +109,7 @@ describe('lark-super-agent service', { timeout: 30000 }, () => {
     await expect(readBridgeState(home)).resolves.toEqual({ workspaceRoot: null, sessionId: null });
   });
 
-  it('validates registered workspaces and stores the registry path', async () => {
+  it('校验已注册工作区并写入工作区笔记', async () => {
     const root = await temporaryDirectory();
     const home = await bridgeHome(root);
     const ctx = makeContext({
@@ -95,10 +124,12 @@ describe('lark-super-agent service', { timeout: 30000 }, () => {
       summary: 'Project A',
       keywords: ['a'],
     });
-    expect((await readWorkspaceState(root)).workspaces[0]?.path).toBe('D:/project');
+    expect((await readWorkspaceState(root)).workspaces).toMatchObject([
+      { workspaceId: 'workspace-a', summary: 'Project A', keywords: ['a'] },
+    ]);
   });
 
-  it('resolves a Linux-style dispatch workspace from lark-bridge state to the host path', async () => {
+  it('把 Linux 风格的调度工作区解析为主机路径', async () => {
     const root = await temporaryDirectory();
     const home = await bridgeHome(normalizeWorkspacePath(root));
     const ctx = makeContext({
@@ -108,85 +139,57 @@ describe('lark-super-agent service', { timeout: 30000 }, () => {
     await service.setWorkspaceNote({ workspaceId: 'workspace-a', summary: 'A', keywords: ['a'] });
     await service.createTask({
       title: 'Task',
+      sessionId: 'worker',
       workspaceId: 'workspace-a',
+      cwd: '/project',
       message: { text: 'Do it' },
     });
     expect((await readWorkspaceState(root)).workspaces).toHaveLength(1);
-    expect((await readTaskState(root)).tasks).toHaveLength(1);
+    expect((await readTaskState(root)).tasks).toMatchObject([
+      { title: 'Task', sessionId: 'worker', workspaceId: 'workspace-a', cwd: '/project' },
+    ]);
   });
 
-  it('reads and updates tasks left behind by the standalone bundle', async () => {
+  it('按会话读取被管理任务与调度会话 id', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const service = new SuperAgentService(makeContext({}), { home });
+    await expect(service.bridgeSessionId()).resolves.toBe('dispatch');
+    await seedTask(service, 'worker');
+    await expect(service.managedTask('worker')).resolves.toMatchObject({
+      sessionId: 'worker',
+      status: 'in_progress',
+      title: 'task for worker',
+    });
+    await expect(service.managedTask('other')).resolves.toBeUndefined();
+    await expect(service.managedTask('  ')).resolves.toBeUndefined();
+
+    const unconfigured = new SuperAgentService(makeContext({}), {
+      home: await bridgeHome(null, null),
+    });
+    await expect(unconfigured.bridgeSessionId()).resolves.toBeNull();
+    await expect(unconfigured.managedTask('worker')).rejects.toThrow(/has no workspaceRoot/);
+  });
+
+  it('更新任务状态并追加消息', async () => {
     const root = await temporaryDirectory();
     const home = await bridgeHome(root);
-    await writeFile(
-      join(root, 'message-task-status.json'),
-      JSON.stringify({
-        version: 1,
-        tasks: [
-          {
-            id: 'task-20260101000000-a1b2',
-            title: 'Legacy task',
-            status: 'in_progress',
-            workspaceId: 'workspace-a',
-            sessionIds: ['worker-session'],
-            reportIds: ['report-20260101000000-abcdef'],
-            messages: [{ text: 'Please fix it', time: '2026-01-01T00:00:00+08:00' }],
-            createdAt: '2026-01-01T00:00:00+08:00',
-            updatedAt: '2026-01-01T00:00:00+08:00',
-          },
-        ],
-      }),
-      'utf8',
-    );
-    await writeFile(
-      join(root, 'workspaces.json'),
-      JSON.stringify({
-        version: 1,
-        workspaces: [
-          {
-            workspaceId: 'workspace-a',
-            path: 'D:/project',
-            summary: 'Project A',
-            keywords: ['a'],
-            notes: '',
-            updatedAt: '2026-01-01T00:00:00+08:00',
-          },
-        ],
-      }),
-      'utf8',
-    );
-    const ctx = makeContext({
-      agents: { get: () => undefined },
-      sessionController: { resolveAgent: async () => null },
-      sessionQuery: { listSessions: async () => [{ id: 'worker-session', cwd: '/project' }] },
+    const service = new SuperAgentService(makeContext({}), { home });
+    const { taskId } = await seedTask(service, 'worker');
+    await expect(service.updateTask({ taskId, status: 'waiting_user' })).resolves.toEqual({
+      taskId,
+      status: 'waiting_user',
     });
-    const service = new SuperAgentService(ctx, { home });
-
-    await expect(service.listCandidates('workspace-a')).resolves.toMatchObject({
-      candidates: [{ sessionId: 'worker-session', taskIds: ['task-20260101000000-a1b2'] }],
-    });
-    await expect(
-      service.updateTask({ taskId: 'task-20260101000000-a1b2', status: 'waiting_user' }),
-    ).resolves.toMatchObject({ status: 'waiting_user', archived: false });
-    expect((await readTaskState(root)).tasks[0]?.messages).toHaveLength(1);
-    expect((await readWorkspaceState(root)).workspaces[0]?.summary).toBe('Project A');
+    await service.updateTask({ taskId, addMessage: { text: 'more context' } });
+    const task = (await readTaskState(root)).tasks[0];
+    expect(task?.status).toBe('waiting_user');
+    expect(task?.messages.map((message) => message.text)).toEqual(['start', 'more context']);
+    await expect(service.updateTask({ taskId })).rejects.toThrow(
+      'task_update needs at least one change',
+    );
   });
 
-  it('converts drive-letter workspaces only on Windows', async () => {
-    const ctx = makeContext({});
-    const home = await bridgeHome('/z/dispatch-root');
-    const rootFor = async (platform: NodeJS.Platform) => {
-      const service = new SuperAgentService(ctx, { home, platform });
-      const state = await (
-        service as unknown as { bridgeState(): Promise<{ workspaceRoot: string | null }> }
-      ).bridgeState();
-      return state.workspaceRoot;
-    };
-    await expect(rootFor('win32')).resolves.toBe('Z:/dispatch-root');
-    await expect(rootFor('linux')).resolves.toBe('/z/dispatch-root');
-  });
-
-  it('archives before steering a structured report to the dispatch agent', async () => {
+  it('在被管理会话中先进档再向调度会话投递上报', async () => {
     const root = await temporaryDirectory();
     const callerDirectory = await temporaryDirectory();
     await writeFile(join(callerDirectory, 'answer.md'), '# Answer\n', 'utf8');
@@ -207,20 +210,21 @@ describe('lark-super-agent service', { timeout: 30000 }, () => {
       home,
       reportId: () => 'report-20260102030405-abc123',
     });
-    await service.setWorkspaceNote({
-      workspaceId: 'workspace-a',
-      summary: 'Project A',
-      keywords: ['a'],
-    });
     const { taskId } = await service.createTask({
       title: 'Task',
+      sessionId: 'worker',
       workspaceId: 'workspace-a',
+      cwd: callerDirectory,
       message: { text: 'start' },
     });
-    await service.updateTask({ taskId, addSessionIds: ['worker'] });
 
     const result = await service.sendReport(
-      { kind: 'question', text: 'question </text>', files: ['answer.md'] },
+      {
+        kind: 'question',
+        text: 'question </text>',
+        files: ['answer.md'],
+        desc: 'Fix the widget',
+      },
       'worker',
     );
     expect(result).toEqual({
@@ -233,15 +237,52 @@ describe('lark-super-agent service', { timeout: 30000 }, () => {
     expect(message.role).toBe('user');
     expect(message.source).toEqual({ kind: 'lark-super-agent' });
     const block = messageText(message);
-    expect(block).toContain(`taskid="${taskId}" kind="question">`);
+    expect(block).toContain(`taskid="${taskId}" kind="question" origin="send_report">`);
+    expect(block).toContain('<desc>\nFix the widget\n</desc>');
     expect(block).toContain('question <\\/text>');
-    expect(block).toContain(`report-20260102030405-abc123-1-answer.md`);
+    expect(block).toContain('report-20260102030405-abc123-1-answer.md');
     const reportPath = join(root, 'reports', taskId, 'report-20260102030405-abc123.md');
-    expect(await exists(reportPath)).toBe(true);
+    const archived = await readFile(reportPath, 'utf8');
+    expect(archived).toContain('origin: "send_report"');
+    expect(archived).toContain('desc: "Fix the widget"');
     expect((await readTaskState(root)).tasks[0]?.reportIds).toEqual([result.reportId]);
   });
 
-  it('fails empty reports and unavailable dispatch before writing report files', async () => {
+  it('未被管理的会话上报时报错且不存档', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root);
+    const steer = vi.fn();
+    const service = new SuperAgentService(
+      makeContext({ sessionController: { resolveAgent: async () => ({ agent: { steer } }) } }),
+      { home },
+    );
+    await expect(service.sendReport({ kind: 'progress', text: 'hello' }, 'worker')).rejects.toThrow(
+      NOT_MANAGED_ERROR,
+    );
+    expect(steer).not.toHaveBeenCalled();
+    expect(await exists(join(root, 'reports'))).toBe(false);
+  });
+
+  it('写上报文件前校验上报参数', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root);
+    const service = new SuperAgentService(
+      makeContext({
+        sessionController: { resolveAgent: async () => ({ agent: { steer: vi.fn() } }) },
+      }),
+      { home },
+    );
+    await seedTask(service, 'worker');
+    await expect(service.sendReport({ kind: 'progress' }, 'worker')).rejects.toThrow(
+      'send_report needs text or files',
+    );
+    await expect(
+      service.sendReport({ kind: 'finished', text: 'hello' } as never, 'worker'),
+    ).rejects.toThrow('send_report kind must be one of');
+    expect(await exists(join(root, 'reports'))).toBe(false);
+  });
+
+  it('调度会话不可用时上报失败且不写文件', async () => {
     const root = await temporaryDirectory();
     const home = await bridgeHome(root);
     const service = new SuperAgentService(
@@ -250,156 +291,158 @@ describe('lark-super-agent service', { timeout: 30000 }, () => {
       }),
       { home },
     );
-    await expect(service.sendReport({ kind: 'progress' }, 'worker')).rejects.toThrow(
-      'send_report needs text or files',
-    );
-    await expect(
-      service.sendReport({ kind: 'finished', text: 'hello' } as never, 'worker'),
-    ).rejects.toThrow('send_report kind must be one of');
+    await seedTask(service, 'worker');
     await expect(service.sendReport({ kind: 'progress', text: 'hello' }, 'worker')).rejects.toThrow(
       'offline',
     );
     expect(await exists(join(root, 'reports'))).toBe(false);
   });
 
-  it('delivers failure blocks and logs when notification is unavailable', async () => {
+  it('为被管理会话投递失败块，未被管理的会话不投递', async () => {
     const root = await temporaryDirectory();
     const home = await bridgeHome(root);
     const steer = vi.fn();
-    const warnings: unknown[][] = [];
     const service = new SuperAgentService(
-      makeContext(
-        { sessionController: { resolveAgent: async () => ({ agent: { steer } }) } },
-        warnings,
-      ),
+      makeContext({ sessionController: { resolveAgent: async () => ({ agent: { steer } }) } }),
       { home },
     );
+    const { taskId } = await seedTask(service, 'worker');
     await service.notifyFailure('worker', { message: 'provider failed' });
-    expect(messageText(steer.mock.calls[0]?.[0])).toContain('<error>\nprovider failed\n</error>');
+    const block = messageText(steer.mock.calls[0]?.[0]);
+    expect(block).toContain(`<task_session_failure sessionid="worker" taskid="${taskId}">`);
+    expect(block).toContain('<error>\nprovider failed\n</error>');
 
+    await service.notifyFailure('other', new Error('failed'));
+    expect(steer).toHaveBeenCalledOnce();
+  });
+
+  it('调度会话不可用时失败通知只记日志', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root);
+    const warnings: unknown[][] = [];
+    await seedTask(new SuperAgentService(makeContext({}), { home }), 'worker');
     const unavailable = new SuperAgentService(makeContext({}, warnings), { home });
     await expect(unavailable.notifyFailure('worker', new Error('failed'))).resolves.toBeUndefined();
     expect(warnings).toHaveLength(1);
     expect(String(warnings[0]?.[0])).toContain('sessionController');
   });
-});
 
-function makeTask(
-  id: string,
-  sessionId: string,
-  updatedAt: string,
-  status: Task['status'] = 'in_progress',
-): Task {
-  return {
-    id,
-    title: id,
-    status,
-    workspaceId: 'workspace-a',
-    sessionIds: [sessionId],
-    reportIds: [],
-    messages: [{ text: 'message', time: updatedAt }],
-    createdAt: updatedAt,
-    updatedAt,
-  };
-}
-
-async function writeCandidateNotes(
-  root: string,
-  active: Task[],
-  archived: Array<Task & { archivedAt: string }>,
-): Promise<void> {
-  await writeFile(
-    join(root, 'message-task-status.json'),
-    JSON.stringify({ version: 1, tasks: active }),
-    'utf8',
-  );
-  for (const task of archived) {
-    await mkdir(join(root, 'archive', task.id), { recursive: true });
-    await writeFile(join(root, 'archive', task.id, 'task.json'), JSON.stringify(task), 'utf8');
-  }
-}
-
-describe('lark-super-agent candidates', () => {
-  it('prioritizes the requested task, then idle sessions and recent activity', async () => {
+  it('归档被管理会话时结束任务并投递归档通知', async () => {
     const root = await temporaryDirectory();
-    const home = await bridgeHome(root, null);
-    const active = [
-      makeTask('task-20260101000000-0001', 'preferred', '2026-01-01T00:00:00Z'),
-      makeTask('task-20260101000000-0002', 'idle-old', '2026-01-01T00:00:00Z'),
-      makeTask('task-20260101000000-0003', 'idle-new', '2026-01-03T00:00:00Z'),
-      makeTask('task-20260101000000-0004', 'running', '2026-01-06T00:00:00Z'),
-      makeTask('task-20260101000000-0005', 'archived-session', '2026-01-07T00:00:00Z'),
-      makeTask('task-20260101000000-0006', 'missing', '2026-01-08T00:00:00Z'),
-    ];
-    const archived = [
-      {
-        ...makeTask('task-20260101000000-0007', 'archived', '2026-01-01T00:00:00Z', 'completed'),
-        archivedAt: '2026-01-04T00:00:00Z',
-      },
-    ];
-    await writeCandidateNotes(root, active, archived);
-    const agents = new Map<string, AgentLike>([
-      ['preferred', { running: true }],
-      ['idle-old', { session: { title: 'Live old' } }],
-      ['idle-new', { running: false }],
-      ['running', { session: { running: true } }],
-      ['archived', { running: false }],
-    ]);
-    const ids = ['preferred', 'idle-old', 'idle-new', 'running', 'archived-session', 'archived'];
-    const ctx = makeContext({
-      agents: { get: (id: string) => agents.get(id) },
-      workspaceRegistry: { archivedSessionIds: ['archived-session'] },
-      sessionQuery: {
-        listSessions: async () => ids.map((id) => ({ header: { id }, persisted: true })),
-        readTitleSnapshots: async (requested: readonly string[]) =>
-          requested.map((sessionId) => ({
-            sessionId,
-            status: 'fulfilled',
-            value: sessionId === 'idle-new' ? { title: { title: 'Stored new title' } } : undefined,
-          })),
-      },
+    const home = await bridgeHome(root);
+    const steer = vi.fn();
+    const service = new SuperAgentService(
+      makeContext({ sessionController: { resolveAgent: async () => ({ agent: { steer } }) } }),
+      { home },
+    );
+    const { taskId } = await seedTask(service, 'worker');
+
+    await service.notifyArchived('worker');
+    expect(messageText(steer.mock.calls[0]?.[0])).toBe(
+      `<task_session_archived sessionid="worker" taskid="${taskId}"/>`,
+    );
+    expect((await readTaskState(root)).tasks).toEqual([]);
+    expect(await readArchivedTask(root, taskId)).toMatchObject({
+      id: taskId,
+      endReason: 'session_archived',
     });
-    const service = new SuperAgentService(ctx, { home });
-    const { candidates } = await service.listCandidates('workspace-a', 'task-20260101000000-0001');
-    expect(candidates.map((candidate) => candidate.sessionId)).toEqual([
-      'preferred',
-      'archived',
-      'idle-new',
-      'idle-old',
-      'running',
-    ]);
-    expect(candidates.find((candidate) => candidate.sessionId === 'idle-new')?.title).toBe(
-      'Stored new title',
-    );
-    expect(candidates.find((candidate) => candidate.sessionId === 'idle-old')?.title).toBe(
-      'Live old',
-    );
-    expect(candidates.find((candidate) => candidate.sessionId === 'archived')?.taskIds).toEqual([
-      'task-20260101000000-0007',
-    ]);
-    expect(await runGit(['status', '--porcelain'], root).catch(() => null)).toBeNull();
+
+    await service.notifyArchived('other');
+    expect(steer).toHaveBeenCalledOnce();
   });
 
-  it('returns at most five candidates', async () => {
+  it('pruneTasks 归档已归档与已不存在的会话', async () => {
     const root = await temporaryDirectory();
-    const home = await bridgeHome(root, null);
-    const active = Array.from({ length: 7 }, (_, index) =>
-      makeTask(
-        `task-20260101000000-000${index}`,
-        `session-${index}`,
-        `2026-01-0${index + 1}T00:00:00Z`,
-      ),
+    const home = await bridgeHome(root);
+    const ctx = makeContext({
+      workspaceRegistry: { archivedSessionIds: ['archived'] },
+      sessionQuery: { listSessions: async () => [{ header: { id: 'live' }, persisted: true }] },
+    });
+    const service = new SuperAgentService(ctx, { home });
+    const archived = await seedTask(service, 'archived');
+    const missing = await seedTask(service, 'missing');
+    const live = await seedTask(service, 'live');
+
+    await expect(service.pruneTasks()).resolves.toEqual({ ended: 2 });
+    expect((await readTaskState(root)).tasks.map((task: Task) => task.sessionId)).toEqual(['live']);
+    expect(await readArchivedTask(root, archived.taskId)).toMatchObject({
+      endReason: 'session_archived',
+    });
+    expect(await readArchivedTask(root, missing.taskId)).toMatchObject({
+      endReason: 'session_missing',
+    });
+    expect(await exists(join(root, 'archive', live.taskId))).toBe(false);
+  });
+
+  it('manageSession 拒绝调度会话、已管理会话与不存在的会话', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const agents = new Map<string, AgentLike>();
+    const ctx = makeContext({
+      sessionController: { resolveAgent: async (id: string) => agents.get(id) ?? null },
+      workspaceRegistry: { list: () => [{ id: 'workspace-a', path: '/project' }] },
+    });
+    const service = new SuperAgentService(ctx, { home });
+
+    await expect(service.manageSession('  ')).rejects.toThrow('session_manage needs a session id');
+    await expect(service.manageSession('dispatch')).rejects.toThrow(
+      'the dispatch session cannot be managed',
     );
-    await writeCandidateNotes(root, active, []);
-    const service = new SuperAgentService(makeContext({}), { home });
-    const { candidates } = await service.listCandidates('workspace-a');
-    expect(candidates).toHaveLength(5);
-    expect(candidates.map((candidate) => candidate.sessionId)).toEqual([
-      'session-6',
-      'session-5',
-      'session-4',
-      'session-3',
-      'session-2',
-    ]);
+    await expect(service.manageSession('ghost')).rejects.toThrow('session ghost does not exist');
+
+    agents.set('worker', { session: { title: 'Fix widget', cwd: '/project' } });
+    await expect(service.manageSession('worker')).resolves.toMatchObject({
+      sessionId: 'worker',
+      title: 'Fix widget',
+    });
+    await expect(service.managedTask('worker')).resolves.toMatchObject({
+      sessionId: 'worker',
+      title: 'Fix widget',
+      workspaceId: 'workspace-a',
+      cwd: '/project',
+      messages: [{ text: 'Fix widget' }],
+    });
+    await expect(service.manageSession('worker')).rejects.toThrow(
+      'session worker is already managed',
+    );
+  });
+
+  it('manageSession 用会话首条用户消息作为任务消息', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const events = [
+      { type: 'user/message', data: { content: [{ type: 'text', text: 'Please fix login' }] } },
+    ];
+    const session = {
+      id: 'reporter',
+      title: 'Reporter',
+      cwd: '/project',
+      surface: { nodes: [0] },
+      eventAt: (seq: number) => events[seq],
+    };
+    const ctx = makeContext({
+      sessionController: { resolveAgent: async () => ({ agent: { session } }) },
+    });
+    const service = new SuperAgentService(ctx, { home });
+    await service.manageSession('reporter');
+    await expect(service.managedTask('reporter')).resolves.toMatchObject({
+      title: 'Reporter',
+      workspaceId: null,
+      messages: [{ text: 'Please fix login' }],
+    });
+  });
+
+  it('仅在 Windows 上转换盘符工作区', async () => {
+    const ctx = makeContext({});
+    const home = await bridgeHome('/z/dispatch-root');
+    const rootFor = async (platform: NodeJS.Platform) => {
+      const service = new SuperAgentService(ctx, { home, platform });
+      const state = await (
+        service as unknown as { bridgeState(): Promise<{ workspaceRoot: string | null }> }
+      ).bridgeState();
+      return state.workspaceRoot;
+    };
+    await expect(rootFor('win32')).resolves.toBe('Z:/dispatch-root');
+    await expect(rootFor('linux')).resolves.toBe('/z/dispatch-root');
   });
 });

@@ -1,10 +1,15 @@
+/**
+ * 任务与工作区笔记的读写、zod 校验、归档与 git 提交。
+ * 校验不通过的台账按空处理，下次写入直接覆盖。
+ */
 import { randomUUID } from 'node:crypto';
-import type { Dirent } from 'node:fs';
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { z } from 'zod';
 
 import type {
   CreateTaskInput,
+  EndReason,
   Task,
   TaskMessage,
   TaskStatus,
@@ -17,18 +22,24 @@ import { createTaskId } from './ids.ts';
 export const TASKS_FILE = 'message-task-status.json';
 export const WORKSPACES_FILE = 'workspaces.json';
 
+/** 未归档任务台账；`invalid` 说明磁盘内容未通过校验，按空处理。 */
 export interface TaskState {
-  version: 1;
+  version: 2;
   tasks: Task[];
+  invalid?: true;
 }
 
+/** 工作区笔记台账；`invalid` 含义同上。 */
 export interface WorkspaceState {
   version: 1;
   workspaces: WorkspaceNote[];
+  invalid?: true;
 }
 
+/** 归档任务快照。 */
 export interface ArchivedTask extends Task {
   archivedAt: string;
+  endReason: EndReason;
 }
 
 export interface NotesStoreOptions {
@@ -38,80 +49,57 @@ export interface NotesStoreOptions {
 
 export interface WorkspaceNoteInput {
   workspaceId: string;
-  path: string;
   summary: string;
   keywords: string[];
   notes?: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const TASK_ID_PATTERN = /^task-\d{14}-[0-9a-f]{4}$/;
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim() !== '';
-}
+/** 单行非空文本。 */
+const line = z
+  .string()
+  .refine((value) => value.trim() !== '' && !/[\r\n]/.test(value), 'needs single-line text');
 
-function isTime(value: unknown): value is string {
-  return isNonEmptyString(value) && Number.isFinite(Date.parse(value));
-}
+/** 带时区的 ISO 时间。 */
+const time = z.string().refine((value) => Number.isFinite(Date.parse(value)), 'needs an ISO time');
 
-function isStringArray(value: unknown, unique = false): value is string[] {
-  return (
-    Array.isArray(value) &&
-    value.every(isNonEmptyString) &&
-    (!unique || new Set(value).size === value.length)
-  );
-}
+const messageSchema = z.object({
+  messageId: z.string().optional(),
+  text: line,
+  time,
+});
 
-function validateMessage(value: unknown, label: string): asserts value is TaskMessage {
-  if (!isRecord(value) || !isNonEmptyString(value.text) || !isTime(value.time)) {
-    throw new Error(`${label} needs non-empty text and an ISO time`);
-  }
-  if (value.messageId !== undefined && typeof value.messageId !== 'string') {
-    throw new Error(`${label}.messageId must be a string`);
-  }
-}
+const taskSchema = z.object({
+  id: z.string().regex(TASK_ID_PATTERN),
+  title: line,
+  status: z.enum(['in_progress', 'waiting_user', 'failed']),
+  sessionId: line,
+  workspaceId: line.nullable(),
+  cwd: z.string(),
+  reportIds: z.array(line),
+  messages: z.array(messageSchema).min(1),
+  createdAt: time,
+  updatedAt: time,
+});
 
-/** 校验完整 Task，避免损坏笔记被后续写入静默替换。 */
-export function validateTask(value: unknown, label = 'task'): asserts value is Task {
-  if (!isRecord(value)) throw new Error(`${label} must be an object`);
-  if (!/^task-\d{14}-[0-9a-f]{4}$/.test(String(value.id))) {
-    throw new Error(`${label}.id has an invalid format`);
-  }
-  if (
-    !isNonEmptyString(value.title) ||
-    /[\r\n]/.test(value.title) ||
-    !isNonEmptyString(value.workspaceId) ||
-    !['in_progress', 'waiting_user', 'failed', 'completed'].includes(String(value.status)) ||
-    !isStringArray(value.sessionIds, true) ||
-    !isStringArray(value.reportIds, true) ||
-    !Array.isArray(value.messages) ||
-    value.messages.length === 0 ||
-    !isTime(value.createdAt) ||
-    !isTime(value.updatedAt)
-  ) {
-    throw new Error(`${label} has invalid fields`);
-  }
-  value.messages.forEach((message, index) => {
-    validateMessage(message, `${label}.messages[${index}]`);
-  });
-}
+const taskStateSchema = z.object({
+  version: z.literal(2),
+  tasks: z.array(taskSchema),
+});
 
-function validateWorkspace(value: unknown, label: string): asserts value is WorkspaceNote {
-  if (
-    !isRecord(value) ||
-    !isNonEmptyString(value.workspaceId) ||
-    !isNonEmptyString(value.path) ||
-    !isNonEmptyString(value.summary) ||
-    !isStringArray(value.keywords, true) ||
-    value.keywords.length === 0 ||
-    typeof value.notes !== 'string' ||
-    !isTime(value.updatedAt)
-  ) {
-    throw new Error(`${label} has invalid fields`);
-  }
-}
+const workspaceSchema = z.object({
+  workspaceId: line,
+  summary: line,
+  keywords: z.array(line).min(1),
+  notes: z.string(),
+  updatedAt: time,
+});
+
+const workspaceStateSchema = z.object({
+  version: z.literal(1),
+  workspaces: z.array(workspaceSchema),
+});
 
 /** JSON 先写同目录临时文件，再原子替换目标。 */
 export async function atomicWriteJson(path: string, value: unknown): Promise<void> {
@@ -129,58 +117,75 @@ export async function atomicWriteJson(path: string, value: unknown): Promise<voi
   }
 }
 
-async function readJson(path: string): Promise<unknown | undefined> {
-  let source: string;
+function isMissing(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && (error as { code?: string }).code === 'ENOENT'
+  );
+}
+
+async function readText(path: string): Promise<string | undefined> {
   try {
-    source = await readFile(path, 'utf8');
+    return await readFile(path, 'utf8');
   } catch (error) {
-    if (isRecord(error) && error.code === 'ENOENT') return undefined;
+    if (isMissing(error)) return undefined;
     throw error;
   }
+}
+
+async function readJson(path: string): Promise<{ value: unknown } | { invalid: true } | undefined> {
+  const source = await readText(path);
+  if (source === undefined) return undefined;
   try {
-    return JSON.parse(source) as unknown;
-  } catch (error) {
-    throw new Error(
-      `invalid JSON in ${path}: ${error instanceof Error ? error.message : String(error)}`,
-      {
-        cause: error,
-      },
-    );
+    return { value: JSON.parse(source) as unknown };
+  } catch {
+    return { invalid: true };
   }
 }
 
-/** 读取并校验未归档任务；文件尚未创建时返回空台账。 */
+/** 去掉可选字段上的 undefined，满足 exactOptionalPropertyTypes。 */
+function normalizeTask(task: z.infer<typeof taskSchema>): Task {
+  return {
+    ...task,
+    messages: task.messages.map((message) =>
+      message.messageId === undefined
+        ? { text: message.text, time: message.time }
+        : { messageId: message.messageId, text: message.text, time: message.time },
+    ),
+  };
+}
+
+/** 读取并校验未归档任务；文件缺失、格式不符或标识重复时按空台账处理。 */
 export async function readTaskState(root: string): Promise<TaskState> {
-  const value = await readJson(join(root, TASKS_FILE));
-  if (value === undefined) return { version: 1, tasks: [] };
-  if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.tasks)) {
-    throw new Error(`${TASKS_FILE} must be {"version":1,"tasks":[...]}`);
+  const parsed = await readJson(join(root, TASKS_FILE));
+  if (parsed === undefined) return { version: 2, tasks: [] };
+  if ('invalid' in parsed) return { version: 2, tasks: [], invalid: true };
+  const result = taskStateSchema.safeParse(parsed.value);
+  if (!result.success) return { version: 2, tasks: [], invalid: true };
+  const taskIds = new Set<string>();
+  const sessionIds = new Set<string>();
+  for (const task of result.data.tasks) {
+    if (taskIds.has(task.id) || sessionIds.has(task.sessionId)) {
+      return { version: 2, tasks: [], invalid: true };
+    }
+    taskIds.add(task.id);
+    sessionIds.add(task.sessionId);
   }
-  const ids = new Set<string>();
-  value.tasks.forEach((task, index) => {
-    validateTask(task, `tasks[${index}]`);
-    if (ids.has(task.id)) throw new Error(`duplicate task id: ${task.id}`);
-    ids.add(task.id);
-  });
-  return { version: 1, tasks: value.tasks };
+  return { version: 2, tasks: result.data.tasks.map(normalizeTask) };
 }
 
-/** 读取并校验工作区笔记；文件尚未创建时返回空白名单。 */
+/** 读取并校验工作区笔记；文件缺失或格式不符时按空白名单处理。 */
 export async function readWorkspaceState(root: string): Promise<WorkspaceState> {
-  const value = await readJson(join(root, WORKSPACES_FILE));
-  if (value === undefined) return { version: 1, workspaces: [] };
-  if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.workspaces)) {
-    throw new Error(`${WORKSPACES_FILE} must be {"version":1,"workspaces":[...]}`);
-  }
+  const parsed = await readJson(join(root, WORKSPACES_FILE));
+  if (parsed === undefined) return { version: 1, workspaces: [] };
+  if ('invalid' in parsed) return { version: 1, workspaces: [], invalid: true };
+  const result = workspaceStateSchema.safeParse(parsed.value);
+  if (!result.success) return { version: 1, workspaces: [], invalid: true };
   const ids = new Set<string>();
-  value.workspaces.forEach((workspace, index) => {
-    validateWorkspace(workspace, `workspaces[${index}]`);
-    if (ids.has(workspace.workspaceId)) {
-      throw new Error(`duplicate workspace id: ${workspace.workspaceId}`);
-    }
-    ids.add(workspace.workspaceId);
-  });
-  return { version: 1, workspaces: value.workspaces };
+  for (const note of result.data.workspaces) {
+    if (ids.has(note.workspaceId)) return { version: 1, workspaces: [], invalid: true };
+    ids.add(note.workspaceId);
+  }
+  return { version: 1, workspaces: result.data.workspaces };
 }
 
 /** 生成带本机时区偏移的 ISO 8601 时间。 */
@@ -198,32 +203,25 @@ export function isoTime(date: Date): string {
   return `${local}${sign}${pad(Math.floor(absolute / 60))}:${pad(absolute % 60)}`;
 }
 
-function messageOf(input: { text: string; messageId?: string }, time: string): TaskMessage {
-  if (!isNonEmptyString(input.text)) throw new Error('message.text must not be empty');
+function messageOf(input: { text: string; messageId?: string }, at: string): TaskMessage {
+  if (input.text.trim() === '') throw new Error('message.text must not be empty');
   return {
     ...(input.messageId === undefined ? {} : { messageId: input.messageId }),
     text: input.text,
-    time,
+    time: at,
   };
 }
 
-function validateTitle(title: string): string {
-  if (!isNonEmptyString(title) || /[\r\n]/.test(title)) {
-    throw new Error('task title must be non-empty and single-line');
+function validateLine(value: string, label: string): string {
+  if (value.trim() === '' || /[\r\n]/.test(value)) {
+    throw new Error(`${label} must be non-empty and single-line`);
   }
-  return title.trim();
+  return value.trim();
 }
 
-/** 查找调用会话最新更新的未归档任务；时间相同时保留台账中靠后的任务。 */
+/** 查找会话对应的未归档任务。 */
 export function findTaskBySession(tasks: readonly Task[], sessionId: string): Task | undefined {
-  let found: Task | undefined;
-  for (const task of tasks) {
-    if (!task.sessionIds.includes(sessionId)) continue;
-    if (found === undefined || Date.parse(task.updatedAt) >= Date.parse(found.updatedAt)) {
-      found = task;
-    }
-  }
-  return found;
+  return tasks.find((task) => task.sessionId === sessionId);
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -231,10 +229,17 @@ async function exists(path: string): Promise<boolean> {
     await stat(path);
     return true;
   } catch (error) {
-    if (isRecord(error) && error.code === 'ENOENT') return false;
+    if (isMissing(error)) return false;
     throw error;
   }
 }
+
+/** 任务状态允许的转换。 */
+const TRANSITIONS: Record<TaskStatus, readonly TaskStatus[]> = {
+  in_progress: ['waiting_user', 'failed'],
+  waiting_user: ['in_progress', 'failed'],
+  failed: ['in_progress'],
+};
 
 /** 任务与工作区笔记存储。所有公开写操作都包含一次限定路径 git 提交。 */
 export class NotesStore {
@@ -248,137 +253,151 @@ export class NotesStore {
     this.taskId = options.taskId ?? ((date) => createTaskId(date));
   }
 
+  /** 建立任务；同一会话只允许一个未结束任务。 */
   async createTask(input: CreateTaskInput): Promise<{ taskId: string }> {
     return runSerial(this.root, async () => {
-      const [taskState, workspaceState] = await Promise.all([
-        readTaskState(this.root),
-        readWorkspaceState(this.root),
-      ]);
-      if (!workspaceState.workspaces.some((item) => item.workspaceId === input.workspaceId)) {
-        throw new Error(`workspace ${input.workspaceId} is not registered in ${WORKSPACES_FILE}`);
+      const state = await readTaskState(this.root);
+      if (state.invalid === true) state.tasks = [];
+      if (findTaskBySession(state.tasks, input.sessionId) !== undefined) {
+        throw new Error(`session ${input.sessionId} is already managed by another task`);
       }
       const date = this.now();
-      const time = isoTime(date);
+      const at = isoTime(date);
       const id = this.taskId(date);
-      validateTitle(input.title);
-      if (!/^task-\d{14}-[0-9a-f]{4}$/.test(id)) throw new Error(`invalid task id: ${id}`);
+      if (!TASK_ID_PATTERN.test(id)) throw new Error(`invalid task id: ${id}`);
       const task: Task = {
         id,
-        title: validateTitle(input.title),
+        title: validateLine(input.title, 'task title'),
         status: 'in_progress',
-        workspaceId: input.workspaceId,
-        sessionIds: [],
+        sessionId: validateLine(input.sessionId, 'session id'),
+        workspaceId:
+          input.workspaceId === null ? null : validateLine(input.workspaceId, 'workspace id'),
+        cwd: input.cwd,
         reportIds: [],
-        messages: [messageOf(input.message, time)],
-        createdAt: time,
-        updatedAt: time,
+        messages: [messageOf(input.message, at)],
+        createdAt: at,
+        updatedAt: at,
       };
-      taskState.tasks.push(task);
-      await atomicWriteJson(join(this.root, TASKS_FILE), taskState);
+      state.tasks.push(task);
+      await atomicWriteJson(join(this.root, TASKS_FILE), { version: 2, tasks: state.tasks });
       await commitFilesInQueue(this.root, [TASKS_FILE], `lark-super-agent: create ${id}`);
       return { taskId: id };
     });
   }
 
-  async updateTask(
-    input: UpdateTaskInput,
-  ): Promise<{ taskId: string; status: TaskStatus; archived: boolean }> {
-    if (
-      input.status === undefined &&
-      input.addSessionIds === undefined &&
-      input.addMessage === undefined &&
-      input.title === undefined
-    ) {
+  /** 修改未结束任务的状态、标题与消息。 */
+  async updateTask(input: UpdateTaskInput): Promise<{ taskId: string; status: TaskStatus }> {
+    if (input.status === undefined && input.addMessage === undefined && input.title === undefined) {
       throw new Error('task_update needs at least one change');
     }
     return runSerial(this.root, async () => {
       const state = await readTaskState(this.root);
       const task = state.tasks.find((item) => item.id === input.taskId);
       if (task === undefined) throw new Error(`task not found: ${input.taskId}`);
-      if (input.status !== undefined && input.status !== task.status) {
-        const transitions: Record<TaskStatus, readonly TaskStatus[]> = {
-          in_progress: ['waiting_user', 'failed', 'completed'],
-          waiting_user: ['in_progress', 'completed'],
-          failed: ['in_progress', 'completed'],
-          completed: [],
-        };
-        if (!transitions[task.status].includes(input.status)) {
-          throw new Error(`invalid task status transition: ${task.status} -> ${input.status}`);
-        }
+      if (
+        input.status !== undefined &&
+        input.status !== task.status &&
+        !TRANSITIONS[task.status].includes(input.status)
+      ) {
+        throw new Error(`invalid task status transition: ${task.status} -> ${input.status}`);
       }
-      if (input.title !== undefined) task.title = validateTitle(input.title);
-      if (input.addSessionIds !== undefined) {
-        if (!isStringArray(input.addSessionIds))
-          throw new Error('addSessionIds must contain strings');
-        for (const id of input.addSessionIds) {
-          if (!task.sessionIds.includes(id)) task.sessionIds.push(id);
-        }
-      }
-      const time = isoTime(this.now());
-      if (input.addMessage !== undefined) task.messages.push(messageOf(input.addMessage, time));
+      if (input.title !== undefined) task.title = validateLine(input.title, 'task title');
+      const at = isoTime(this.now());
+      if (input.addMessage !== undefined) task.messages.push(messageOf(input.addMessage, at));
       if (input.status !== undefined) task.status = input.status;
-      task.updatedAt = time;
-
-      if (task.status !== 'completed') {
-        await atomicWriteJson(join(this.root, TASKS_FILE), state);
-        await commitFilesInQueue(this.root, [TASKS_FILE], `lark-super-agent: update ${task.id}`);
-        return { taskId: task.id, status: task.status, archived: false };
-      }
-
-      const archiveDirectory = join(this.root, 'archive', task.id);
-      const archiveTaskPath = join(archiveDirectory, 'task.json');
-      const reportDirectory = join(this.root, 'reports', task.id);
-      const archivedReports = join(archiveDirectory, 'reports');
-      const hasReports = await exists(reportDirectory);
-      const archivedTask: ArchivedTask = { ...task, archivedAt: time };
-      await mkdir(archiveDirectory, { recursive: true });
-      await atomicWriteJson(archiveTaskPath, archivedTask);
-      if (hasReports) await rename(reportDirectory, archivedReports);
-      state.tasks = state.tasks.filter((item) => item.id !== task.id);
-      await atomicWriteJson(join(this.root, TASKS_FILE), state);
-      const paths = [TASKS_FILE, join('archive', task.id, 'task.json')];
-      if (hasReports) {
-        paths.push(join('reports', task.id), join('archive', task.id, 'reports'));
-      }
-      await commitFilesInQueue(this.root, paths, `lark-super-agent: archive ${task.id}`);
-      return { taskId: task.id, status: 'completed', archived: true };
+      task.updatedAt = at;
+      await atomicWriteJson(join(this.root, TASKS_FILE), { version: 2, tasks: state.tasks });
+      await commitFilesInQueue(this.root, [TASKS_FILE], `lark-super-agent: update ${task.id}`);
+      return { taskId: task.id, status: task.status };
     });
   }
 
-  async setWorkspaceNote(
-    input: WorkspaceNoteInput,
-  ): Promise<{ workspaceId: string; created: boolean }> {
-    if (!isNonEmptyString(input.workspaceId)) throw new Error('workspaceId must not be empty');
-    if (!isNonEmptyString(input.path)) throw new Error('workspace path must not be empty');
-    if (!isNonEmptyString(input.summary)) throw new Error('workspace summary must not be empty');
-    if (!isStringArray(input.keywords) || input.keywords.length === 0) {
+  /** 归档任务并记录结束原因；会话本身保持未归档。 */
+  async endTask(taskId: string, endReason: EndReason): Promise<{ taskId: string }> {
+    return runSerial(this.root, async () => {
+      const state = await readTaskState(this.root);
+      const task = state.tasks.find((item) => item.id === taskId);
+      if (task === undefined) throw new Error(`task not found: ${taskId}`);
+      const at = isoTime(this.now());
+      const archiveDirectory = join(this.root, 'archive', task.id);
+      const reportDirectory = join(this.root, 'reports', task.id);
+      const archivedReports = join(archiveDirectory, 'reports');
+      const hasReports = await exists(reportDirectory);
+      await mkdir(archiveDirectory, { recursive: true });
+      await atomicWriteJson(join(archiveDirectory, 'task.json'), {
+        ...task,
+        archivedAt: at,
+        endReason,
+      } satisfies ArchivedTask);
+      if (hasReports) await rename(reportDirectory, archivedReports);
+      state.tasks = state.tasks.filter((item) => item.id !== task.id);
+      await atomicWriteJson(join(this.root, TASKS_FILE), { version: 2, tasks: state.tasks });
+      const paths = [TASKS_FILE, join('archive', task.id, 'task.json')];
+      if (hasReports) paths.push(join('reports', task.id), join('archive', task.id, 'reports'));
+      await commitFilesInQueue(this.root, paths, `lark-super-agent: archive ${task.id}`);
+      return { taskId: task.id };
+    });
+  }
+
+  /** 归档会话已归档或已不存在的任务。 */
+  async pruneTasks(
+    present: ReadonlySet<string>,
+    archived: ReadonlySet<string>,
+  ): Promise<{ ended: number }> {
+    const state = await readTaskState(this.root);
+    const stale = state.tasks.filter(
+      (task) => archived.has(task.sessionId) || !present.has(task.sessionId),
+    );
+    let ended = 0;
+    for (const task of stale) {
+      await this.endTask(
+        task.id,
+        archived.has(task.sessionId) ? 'session_archived' : 'session_missing',
+      );
+      ended += 1;
+    }
+    return { ended };
+  }
+
+  /** 建立或替换工作区笔记。 */
+  async setWorkspaceNote(input: WorkspaceNoteInput): Promise<{
+    workspaceId: string;
+    created: boolean;
+  }> {
+    const workspaceId = validateLine(input.workspaceId, 'workspaceId');
+    if (input.summary.trim() === '') throw new Error('workspace summary must not be empty');
+    const keywords = [...new Set(input.keywords.map((keyword) => keyword.trim()))];
+    if (keywords.length === 0 || keywords.some((keyword) => keyword === '')) {
       throw new Error('workspace keywords must contain at least one non-empty string');
     }
     return runSerial(this.root, async () => {
       const state = await readWorkspaceState(this.root);
-      const keywords = [...new Set(input.keywords.map((keyword) => keyword.trim()))];
+      if (state.invalid === true) state.workspaces = [];
       const note: WorkspaceNote = {
-        workspaceId: input.workspaceId,
-        path: input.path.replaceAll('\\', '/'),
-        summary: input.summary.trim(),
+        workspaceId,
+        summary: validateLine(input.summary, 'workspace summary'),
         keywords,
         notes: input.notes ?? '',
         updatedAt: isoTime(this.now()),
       };
-      const index = state.workspaces.findIndex((item) => item.workspaceId === input.workspaceId);
+      const index = state.workspaces.findIndex((item) => item.workspaceId === workspaceId);
       const created = index < 0;
       if (created) state.workspaces.push(note);
       else state.workspaces[index] = note;
-      await atomicWriteJson(join(this.root, WORKSPACES_FILE), state);
+      await atomicWriteJson(join(this.root, WORKSPACES_FILE), {
+        version: 1,
+        workspaces: state.workspaces,
+      });
       await commitFilesInQueue(
         this.root,
         [WORKSPACES_FILE],
-        `lark-super-agent: note ${input.workspaceId}`,
+        `lark-super-agent: note ${workspaceId}`,
       );
-      return { workspaceId: input.workspaceId, created };
+      return { workspaceId, created };
     });
   }
 
+  /** 删除工作区笔记。 */
   async removeWorkspaceNote(
     workspaceId: string,
   ): Promise<{ workspaceId: string; removed: boolean }> {
@@ -387,8 +406,10 @@ export class NotesStore {
       const remaining = state.workspaces.filter((item) => item.workspaceId !== workspaceId);
       const removed = remaining.length !== state.workspaces.length;
       if (!removed) return { workspaceId, removed: false };
-      state.workspaces = remaining;
-      await atomicWriteJson(join(this.root, WORKSPACES_FILE), state);
+      await atomicWriteJson(join(this.root, WORKSPACES_FILE), {
+        version: 1,
+        workspaces: remaining,
+      });
       await commitFilesInQueue(
         this.root,
         [WORKSPACES_FILE],
@@ -398,36 +419,13 @@ export class NotesStore {
     });
   }
 
-  listTasks(): Promise<Task[]> {
-    return readTaskState(this.root).then((state) => state.tasks);
+  /** 读取未归档任务。 */
+  async listTasks(): Promise<Task[]> {
+    return (await readTaskState(this.root)).tasks;
   }
 
-  listWorkspaces(): Promise<WorkspaceNote[]> {
-    return readWorkspaceState(this.root).then((state) => state.workspaces);
-  }
-
-  /** 读取全部归档快照，归档时间参与候选会话排序。 */
-  async listArchivedTasks(): Promise<ArchivedTask[]> {
-    const directory = join(this.root, 'archive');
-    let entries: Dirent[];
-    try {
-      entries = await readdir(directory, { withFileTypes: true });
-    } catch (error) {
-      if (isRecord(error) && error.code === 'ENOENT') return [];
-      throw error;
-    }
-    const tasks: ArchivedTask[] = [];
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const path = join(directory, entry.name, 'task.json');
-      const value = await readJson(path);
-      if (value === undefined) continue;
-      validateTask(value, `archive/${entry.name}/task.json`);
-      if (!isRecord(value) || !isTime(value.archivedAt) || value.id !== entry.name) {
-        throw new Error(`archive/${entry.name}/task.json has invalid archive fields`);
-      }
-      tasks.push({ ...value, archivedAt: value.archivedAt });
-    }
-    return tasks;
+  /** 读取工作区笔记。 */
+  async listWorkspaces(): Promise<WorkspaceNote[]> {
+    return (await readWorkspaceState(this.root)).workspaces;
   }
 }
