@@ -26,4 +26,4 @@
 - [x] T012 `tests/presence-alarms-client.test.ts`：卡片行、停用态、弹窗回填、浮窗列选择、重复校验
 - [x] T013 `README.md`、`docs/how-it-works.md`、`CHANGELOG.md`
 - [x] T014 `pnpm format && pnpm check && pnpm build`
-- [ ] T015 实机验证：隔离 profile + Playwright 截图，写入 `real-device-report.md`
+- [x] T015 实机验证：隔离 profile + Playwright 截图，写入 `real-device-report.md`
