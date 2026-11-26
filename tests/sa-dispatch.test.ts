@@ -402,6 +402,12 @@ describe('SA-调度会话子行', () => {
     expect(reports).toMatch(/desc .*correct the task title with task_update/);
   });
 
+  it('提示词要求转述上报时不追加自己的复述', () => {
+    const reports = section('Handle reports');
+    expect(reports).toContain('A report already holds everything the task session wants');
+    expect(reports).toContain('Relay it as it is and add only your own facts');
+  });
+
   it('提示词要求用户确认后才以 completed 结束，取消时立即以 cancelled 结束并归档会话', () => {
     const done = section('Decide when a task is done');
     expect(done).toContain('task_end(completed) only after the user confirms');
