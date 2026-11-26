@@ -24,7 +24,7 @@
 - [ ] [D-014] `lark_notify` 关联任务的参数用什么？建议新增可选 `task_id`：插件据此取任务标题与会话，调度提示词一直以任务称呼会话。任务不存在或已结束时返回错误、不发送 | Depends on: none | Status: not asked
 - [ ] [D-015] 按任务分开发送是否对文本模式同样生效？建议生效：同一批内容涉及几个任务就发几条，与任务无关的内容单独一条 | Depends on: none | Status: not asked
 - [ ] [D-016] 带 `task_id` 的通知如何显示所属任务？建议飞书卡片标题写「<title> (<task id>)」，文本模式在开头加同样的前缀；GUI 卡片的会话入口指向任务会话 | Depends on: D-014 | Status: not asked
-- [ ] [D-013] 【待讨论，不写入正文】任务会话发出问题后，用户直接在任务会话中交互，调度会话不知道这一点，任务状态停留在 waiting_user。处理方式待与用户讨论 | Depends on: none | Status: deferred
+- [ ] [D-013] 【待讨论，不写入正文】任务会话发出问题后，用户直接在任务会话中交互，调度会话不知道这一点，任务状态停留在 waiting_user。处理方式待与用户讨论。用户初步想法：维护一份任务日志；在调度会话的 pre-step 阶段，把当前调度会话中还没有的日志条目注入进去；需要区分「全新的会话」与「已有会话」。待其余决策答完后统一讨论 | Depends on: none | Status: deferred
 
 ## Clarifications
 
