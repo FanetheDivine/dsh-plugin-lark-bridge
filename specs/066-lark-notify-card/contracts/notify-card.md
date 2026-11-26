@@ -1,8 +1,8 @@
-# Contract: lark_notify 通知卡片
+# Contract: lark_notify 正文卡片
 
 ## 成功结果识别
 
-只接受单条文本内容，完整匹配以下两种宿主结果之一：
+结果必须是非错误的单条文本，并完整匹配以下两种之一：
 
 ```text
 已发送给用户（N 条）
@@ -10,29 +10,19 @@
 ```
 
 - `N` 为正整数。
-- `isError === true`、非 append 副本、其他文本与多条 content 均不匹配。
-- 工具 render 文案变化时不再匹配，展示回退为宿主默认工具行。
+- 非 append 副本、多条 content 与其他文本均不匹配。
+- 成功文本只作为显示门槛，不在卡片中展示。
+- 工具 render 文案变化时卡片不再产生，宿主默认工具行继续展示。
 
-## 调用参数
+## 卡片内容
 
 ```json
 {
-  "text": "发给用户的完整正文",
-  "reply_to": "可选的用户消息 message_id"
+  "text": "tool/call.arguments.text 的完整原文"
 }
 ```
 
-- `text` 按纯文本展示，保留换行。
-- `reply_to` 仅作为调用数据保留；回执动作从结果文本读取。
-- 不读取或展示 `messageId`。
-
-## 界面文案
-
-| 键 | 中文 | English |
-| --- | --- | --- |
-| `notify.title` | 飞书通知 | Lark notification |
-| `notify.sent` | 已发送 | Sent |
-| `notify.replied` | 已回复 | Replied |
-| `notify.parts` | 条 | messages |
-
-回执组合为「已发送 · N 条」或「已回复 · N 条」。英文按同一字典键组合，不硬编码中文。
+- 只显示 `text`，保留换行，按纯文本渲染。
+- 不显示标题、回执、分段数、`reply_to` 或 `messageId`。
+- `text` 缺失或为空时不显示卡片。
+- 不新增界面字典。
