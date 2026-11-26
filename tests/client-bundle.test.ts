@@ -123,6 +123,9 @@ describe('前端产物（dist/client.js）', () => {
       IconChevronDownOutlineRegular: jsxStub,
       IconClockOutlineRegular: jsxStub,
       IconCloseOutlineRegular: jsxStub,
+      IconPaperPlaneOutlineRegular: jsxStub,
+      FileTypeIcon: jsxStub,
+      Tag: jsxStub,
       IconPlusOutlineRegular: jsxStub,
       Pill: jsxStub,
       Modal: jsxStub,
@@ -151,13 +154,14 @@ describe('前端产物（dist/client.js）', () => {
     const ctx = makeClientCtx();
     (exported.apply as (target: unknown) => void)(ctx);
     expect(ctx._slotInjections).toEqual([
+      'conversation.chat.node',
       'shell.overlay',
-      'tool.call.toolview',
       'plugins.row.config',
       'plugins.row.config',
     ]);
-    expect(ctx._slotRegistrations[0]?.options.id).toBe('lark-bridge-auth');
-    expect(ctx._slotRegistrations[1]?.options.key).toBe('send_report');
+    expect(ctx._slotRegistrations[0]?.options.key).toBe('lark-report');
+    expect(ctx._conversationDefinitions.map((entry) => entry.kind)).toEqual(['lark-report-result']);
+    expect(ctx._slotRegistrations[1]?.options.id).toBe('lark-bridge-auth');
     expect(ctx._slotRegistrations[2]?.options.key).toBe(
       'dsh-plugin-lark-bridge#dsh-plugin-lark-bridge',
     );

@@ -101,7 +101,10 @@ export const zh = {
   'report.desc': '任务',
   'report.files': '附件',
   'report.delivered': '已送达',
-  'report.failed': '未送达',
+  'report.openFile': '打开',
+  'report.copy': '复制',
+  'report.copied': '已复制',
+  'report.footnotes': '脚注',
 } as const;
 
 /** 英文字典，键集与中文一致。 */
@@ -205,7 +208,10 @@ export const en: Record<BridgeKey, string> = {
   'report.desc': 'Task',
   'report.files': 'Files',
   'report.delivered': 'Delivered',
-  'report.failed': 'Not delivered',
+  'report.openFile': 'Open',
+  'report.copy': 'Copy',
+  'report.copied': 'Copied',
+  'report.footnotes': 'Footnotes',
 };
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
