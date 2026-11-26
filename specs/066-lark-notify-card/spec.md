@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-26
 
-**Status**: Draft
+**Status**: Approved
 
 **Change Category**: 插件变更
 
@@ -30,7 +30,7 @@ None.
 
 ## Review Record
 
-- 待审查。
+- 2026-11-26 | Decision: Approved | Scope: current full document | Open items: none | Risks: 渠道统一依赖模型遵循提示词与桥接提醒，无代码兜底。
 
 ## 现状基线
 
