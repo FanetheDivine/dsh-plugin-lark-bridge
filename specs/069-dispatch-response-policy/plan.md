@@ -18,6 +18,7 @@ None.
 - [P-002] Q: 报告归档路径回退由谁实现？ -> A: 只写进调度提示词，代码不改归档语义（spec D-033）。
 - [P-003] Q: 计划与任务审查如何授权？ -> A: 用户 2026-11-26 指示「后续请自行推进：plan → tasks → 实现……无需中途向用户确认」。本条视为对完整 plan 与 tasks 的批准，记录于 Review Record。
 - [P-004] Q: 任务日志里停止条目的来源？ -> A: `session/event` 中 `turn/end` 的 `reason` 为 `{ kind: 'aborted', reason: { kind: 'user' } }`，并排除已在 `workspaceRegistry.archivedSessionIds` 中的会话。宿主先写归档集合再请求停止，因此取消发生时该会话已在归档集合内（见 research.md R-007）。
+- [P-006] Q: 归档提交是否无条件包含日志源路径？ -> A: 不无条件包含。日志平时不提交，对从未被跟踪的路径执行限定路径提交会失败；源文件已被跟踪时才同时提交删除。该修订已同步写回 spec FR-048、SC-013 与 research.md R-006。
 - [P-005] Q: 卡片 30 KB 上限的口径？ -> A: 按 `JSON.stringify(card)` 的 UTF-8 字节数计算，与飞书接口口径一致；拆分阈值含卡片骨架开销，实现时用实际 JSON 体积判断。
 
 ## Review Record

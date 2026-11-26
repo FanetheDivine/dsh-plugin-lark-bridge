@@ -16,11 +16,17 @@ import type {
   UpdateTaskInput,
   WorkspaceNote,
 } from './api.ts';
-import { commitFilesInQueue, runSerial } from './git.ts';
+import { commitFilesInQueue, runGit, runSerial } from './git.ts';
 import { createTaskId } from './ids.ts';
 
 export const TASKS_FILE = 'message-task-status.json';
 export const WORKSPACES_FILE = 'workspaces.json';
+
+/** 任务日志目录名。 */
+export const TASK_LOG_DIR = 'task-logs';
+
+/** 任务结束后归档目录里的日志文件名。 */
+export const ARCHIVED_TASK_LOG = 'task-log.jsonl';
 
 /** 未归档任务台账；`invalid` 说明磁盘内容未通过校验，按空处理。 */
 export interface TaskState {
@@ -335,6 +341,8 @@ export class NotesStore {
       const reportDirectory = join(this.root, 'reports', task.id);
       const archivedReports = join(archiveDirectory, 'reports');
       const hasReports = await exists(reportDirectory);
+      const logFile = join(this.root, TASK_LOG_DIR, `${task.id}.jsonl`);
+      const hasLog = await exists(logFile);
       await mkdir(archiveDirectory, { recursive: true });
       await atomicWriteJson(join(archiveDirectory, 'task.json'), {
         ...task,
@@ -342,10 +350,23 @@ export class NotesStore {
         endReason,
       } satisfies ArchivedTask);
       if (hasReports) await rename(reportDirectory, archivedReports);
+      if (hasLog) await rename(logFile, join(archiveDirectory, ARCHIVED_TASK_LOG));
       state.tasks = state.tasks.filter((item) => item.id !== task.id);
       await atomicWriteJson(join(this.root, TASKS_FILE), { version: 2, tasks: state.tasks });
       const paths = [TASKS_FILE, join('archive', task.id, 'task.json')];
       if (hasReports) paths.push(join('reports', task.id), join('archive', task.id, 'reports'));
+      if (hasLog) {
+        paths.push(join('archive', task.id, ARCHIVED_TASK_LOG));
+        // 日志平时不提交；源文件只有已被 git 跟踪时才有删除可提交。
+        const source = join(TASK_LOG_DIR, `${task.id}.jsonl`);
+        const tracked = await runGit(
+          ['ls-files', '--', `./${TASK_LOG_DIR}/${task.id}.jsonl`],
+          this.root,
+        )
+          .then((result) => result.stdout.trim() !== '')
+          .catch(() => false);
+        if (tracked) paths.push(source);
+      }
       await commitFilesInQueue(this.root, paths, `lark-super-agent: archive ${task.id}`);
       return { taskId: task.id };
     });

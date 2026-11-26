@@ -73,7 +73,9 @@ export function installReminderGuard(deps: ReminderGuardDeps): () => void {
     if (!bridge) return decision;
     if (surfaceHasReminder(session)) return decision;
     if (decision.messages.some(isReminderMessage)) return decision;
-    const index = decision.messages.findIndex(isLarkMessage);
+    const index = decision.messages.findIndex(
+      (message) => isLarkMessage(message) || message.source.kind === 'lark-task-log',
+    );
     const messages = decision.messages.toSpliced(
       index === -1 ? 0 : index,
       0,

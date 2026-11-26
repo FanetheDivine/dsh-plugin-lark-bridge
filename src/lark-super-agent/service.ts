@@ -24,6 +24,7 @@ import type {
 import { taskSessionArchived, taskSessionFailure, taskSessionMessage } from './blocks.ts';
 import { readBridgeState } from './bridge.ts';
 import { findTaskBySession, NotesStore } from './notes.ts';
+import { appendTaskLogEntry } from './task-log.ts';
 import { workspaceRelative } from './paths.ts';
 import { ReportStore } from './reports.ts';
 
@@ -422,6 +423,27 @@ export class SuperAgentService implements LarkSuperAgentService {
       delivered: true,
       ...(archived.warning === undefined ? {} : { warning: archived.warning }),
     };
+  }
+
+  /** 为被管理会话追加一条任务日志；会话未被管理或任务已结束时丢弃。 */
+  async appendTaskLog(
+    sessionId: string,
+    input: { seq: number; type: 'user_message' | 'user_stop'; text: string },
+  ): Promise<'written' | 'duplicate' | 'dropped'> {
+    const root = await this.storageRoot();
+    const task = findTaskBySession(await this.notes(root).listTasks(), sessionId);
+    if (task === undefined) return 'dropped';
+    return appendTaskLogEntry(root, task.id, {
+      sessionId,
+      ...input,
+      ...(this.options.now === undefined ? {} : { now: this.options.now }),
+    });
+  }
+
+  /** 读取调度工作区根与未结束任务，供任务日志注入。 */
+  async taskLogContext(): Promise<{ root: string; tasks: Task[] }> {
+    const root = await this.storageRoot();
+    return { root, tasks: await this.notes(root).listTasks() };
   }
 
   /** 为被管理会话投递轮次失败通知；未被管理的会话不通知。 */

@@ -9,6 +9,8 @@ import type { LarkSuperAgentService } from '../api.ts';
 import { AskGuard } from './ask-guard.ts';
 import { wrapDispatchMessages } from './dispatch-message.ts';
 import { buildSendReportTool } from './report-tool.ts';
+import { TaskLogObserver } from './task-log-observer.ts';
+import { insertionIndex, type SessionLike, TaskLogInjector } from './task-log-injector.ts';
 import { hasTaskRules, taskRulesMessage } from './task-rules.ts';
 import { TurnReporter } from './turn-report.ts';
 
@@ -97,12 +99,21 @@ export function applyManagedSessions(
     logger: ctx.logger,
   });
 
-  // 轮次结束自动上报与失败通知。
+  const taskLogObserver = new TaskLogObserver({
+    service,
+    archivedSessionIds: () =>
+      (ctx.get('workspaceRegistry') as { archivedSessionIds?: readonly string[] } | undefined)
+        ?.archivedSessionIds ?? [],
+    logger: ctx.logger,
+  });
+
+  // 轮次结束自动上报、任务日志与失败通知。
   ctx.on('session/event', (session, event) => {
     const sessionId = session.id;
     if (sessionId === undefined || sessionId === '') return;
     const { type, data } = eventData(event);
     reporter.observe(sessionId, event);
+    taskLogObserver.observe(sessionId, event);
     if (type !== 'turn/end') return;
     const reason = isRecord(data.reason) ? data.reason : undefined;
     if (reason?.kind !== 'error') return;
@@ -123,6 +134,26 @@ export function applyManagedSessions(
       return wrapped === decision.messages ? decision : { ...decision, messages: wrapped };
     if (hasTaskRules(wrapped)) return { ...decision, messages: wrapped };
     return { ...decision, messages: [taskRulesMessage(), ...wrapped] };
+  });
+
+  // 调度会话每次 pre-step 前注入还没有的任务日志条目；全新会话先收到未结束任务快照。
+  const logInjector = new TaskLogInjector(service);
+  ctx.on('agent/pre-step', async ({ agent, step }, next) => {
+    const decision = await next();
+    if (decision.kind === 'reject') return decision;
+    if (step === 1 && decision.messages.length === 0) return decision;
+    const sessionId = agent.session?.id;
+    if (sessionId === undefined || sessionId === '') return decision;
+    try {
+      if (sessionId !== (await bridgeSessionId())) return decision;
+      const message = await logInjector.build(sessionId, agent.session as unknown as SessionLike);
+      if (message === undefined) return decision;
+      const messages = decision.messages.toSpliced(insertionIndex(decision.messages), 0, message);
+      return { ...decision, messages };
+    } catch (error) {
+      ctx.logger.warn('lark-super-agent: task log injection failed', error);
+      return decision;
+    }
   });
 
   // 用户归档被管理会话时结束其任务并通知调度会话。

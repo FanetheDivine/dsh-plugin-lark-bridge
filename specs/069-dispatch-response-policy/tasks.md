@@ -75,14 +75,14 @@
 
 **Independent Test**: `tests/lark-super-agent-task-log.test.ts`、`tests/managed-task-log.test.ts`；实机验收场景 7、8
 
-- [ ] T029 [US7] 新增 `src/lark-super-agent/task-log.ts`：导出 `TaskLogEntry`（字段与约束见 data-model.md：`id` 为 `<sessionId>:<seq>`、`text` 超过 2000 字符截断并 `truncated: true`、`type` 取 `'user_message' | 'user_stop'`）、`appendEntry(root, entry)`（`runSerial(root)` 内先 `readTaskState` 确认任务未结束，已结束丢弃；文件内已有同 id 则跳过；不 git 提交）、`readEntries(root, taskId)`（解析失败的行跳过）、`logPath(taskId)`
-- [ ] T030 [US7] `src/lark-super-agent/notes.ts` 的 `endTask`：队列内检测 `task-logs/<taskId>.jsonl`，存在则 `rename` 到 `archive/<taskId>/task-log.jsonl`，`paths` 同时加入 `task-logs/<taskId>.jsonl` 与 `archive/<taskId>/task-log.jsonl`；`pruneTasks`、`unmanage`、`notifyArchived` 均经 `endTask`，无需单独处理
-- [ ] T031 [US7] 新增 `src/lark-super-agent/managed/task-log-observer.ts`：在 `session/event` 中，被管理会话的 `user/message` 且 `data.source.kind === 'user'` 写 `user_message` 条目；`turn/end` 的 `reason` 为 `{ kind:'aborted', reason:{ kind:'user' } }` 且会话不在 `workspaceRegistry.archivedSessionIds` 时写 `user_stop` 条目；条目 id 用 `event.seq`；失败只记日志；不唤醒调度会话（FR-038 至 FR-043）
-- [ ] T032 [US7] 新增 `src/lark-super-agent/managed/task-log-injector.ts`：声明来源 `lark-task-log` 并导出 `buildLogInjection({ session, root })`；在调度会话的 `agent/pre-step` 中（仅 `bridgeSessionId` 对应会话）用进程内缓存 `{ scannedSeq, injected }` 增量扫描 `session.eventAt(seq)` 取已注入 id（从 `<task_log_entry id=…>` 解析，来源为 `lark-task-log`）；缓存缺失时从 seq 0 重建；无注入标记即全新会话，生成 `<task_snapshot>`（每个未结束任务的 id、title、status、workspace、最新报告相对路径）加各任务最新报告之后的日志条目，无任务时也注入空快照；已有会话只注入未见条目；同一步按时间升序合成一条消息，排在桥接提醒之后、本批第一条 `<lark-message>` 之前（research.md R-013）；无新内容时返回原 decision
-- [ ] T033 [US7] `src/lark-super-agent/managed/index.ts` 接入 T031、T032（共用同一个 `agent/pre-step` 注册或新增一个），日志读取的工作区根用 `service.bridgeState`（已含平台转换）
-- [ ] T034 [P] [US7] 新增 `tests/lark-super-agent-task-log.test.ts`：追加、同 id 去重、任务已结束时丢弃且不创建文件、截断标记、归档迁移与提交路径含删除与新文件、非法行跳过
-- [ ] T035 [P] [US7] 新增 `tests/managed-task-log.test.ts`：用户直接消息写入、`dsh-plugin-meta-tools` 等来源不写、未被管理会话不写、用户停止写入、归档取消不写、注入顺序与位置、重复 pre-step 不重复、压缩后不重复、缓存丢失后重建、全新会话快照与空快照
-- [ ] T036 提交 Phase 6：`feat(069): 任务日志与调度会话增量注入`
+- [x] T029 [US7] 新增 `src/lark-super-agent/task-log.ts`：导出 `TaskLogEntry`（字段与约束见 data-model.md：`id` 为 `<sessionId>:<seq>`、`text` 超过 2000 字符截断并 `truncated: true`、`type` 取 `'user_message' | 'user_stop'`）、`appendEntry(root, entry)`（`runSerial(root)` 内先 `readTaskState` 确认任务未结束，已结束丢弃；文件内已有同 id 则跳过；不 git 提交）、`readEntries(root, taskId)`（解析失败的行跳过）、`logPath(taskId)`
+- [x] T030 [US7] `src/lark-super-agent/notes.ts` 的 `endTask`：队列内检测 `task-logs/<taskId>.jsonl`，存在则 `rename` 到 `archive/<taskId>/task-log.jsonl`，`paths` 同时加入 `task-logs/<taskId>.jsonl` 与 `archive/<taskId>/task-log.jsonl`；`pruneTasks`、`unmanage`、`notifyArchived` 均经 `endTask`，无需单独处理
+- [x] T031 [US7] 新增 `src/lark-super-agent/managed/task-log-observer.ts`：在 `session/event` 中，被管理会话的 `user/message` 且 `data.source.kind === 'user'` 写 `user_message` 条目；`turn/end` 的 `reason` 为 `{ kind:'aborted', reason:{ kind:'user' } }` 且会话不在 `workspaceRegistry.archivedSessionIds` 时写 `user_stop` 条目；条目 id 用 `event.seq`；失败只记日志；不唤醒调度会话（FR-038 至 FR-043）
+- [x] T032 [US7] 新增 `src/lark-super-agent/managed/task-log-injector.ts`：声明来源 `lark-task-log` 并导出 `buildLogInjection({ session, root })`；在调度会话的 `agent/pre-step` 中（仅 `bridgeSessionId` 对应会话）用进程内缓存 `{ scannedSeq, injected }` 增量扫描 `session.eventAt(seq)` 取已注入 id（从 `<task_log_entry id=…>` 解析，来源为 `lark-task-log`）；缓存缺失时从 seq 0 重建；无注入标记即全新会话，生成 `<task_snapshot>`（每个未结束任务的 id、title、status、workspace、最新报告相对路径）加各任务最新报告之后的日志条目，无任务时也注入空快照；已有会话只注入未见条目；同一步按时间升序合成一条消息，排在桥接提醒之后、本批第一条 `<lark-message>` 之前（research.md R-013）；无新内容时返回原 decision
+- [x] T033 [US7] `src/lark-super-agent/managed/index.ts` 接入 T031、T032（共用同一个 `agent/pre-step` 注册或新增一个），日志读取的工作区根用 `service.bridgeState`（已含平台转换）
+- [x] T034 [P] [US7] 新增 `tests/lark-super-agent-task-log.test.ts`：追加、同 id 去重、任务已结束时丢弃且不创建文件、截断标记、归档迁移与提交路径含删除与新文件、非法行跳过
+- [x] T035 [P] [US7] 新增 `tests/managed-task-log.test.ts`：用户直接消息写入、`dsh-plugin-meta-tools` 等来源不写、未被管理会话不写、用户停止写入、归档取消不写、注入顺序与位置、重复 pre-step 不重复、压缩后不重复、缓存丢失后重建、全新会话快照与空快照
+- [x] T036 提交 Phase 6：`feat(069): 任务日志与调度会话增量注入`
 
 ## Phase 7: Polish、文档与验证
 

@@ -142,6 +142,21 @@ describe('surfaceHasReminder', () => {
 });
 
 describe('installReminderGuard', () => {
+  it('提醒排在任务日志注入消息之前，与两个 hook 的先后无关', async () => {
+    const { run } = harness();
+    const log = createUserMessage({
+      content: [{ type: 'text', text: '<task_snapshot covers_entries=""></task_snapshot>' }],
+      source: { kind: 'lark-task-log' },
+    });
+    const block = larkMessage();
+    const decision = await run(sessionStub(), [log, block]);
+    expect(decision.kind).toBe('enter');
+    if (decision.kind !== 'enter') return;
+    expect(decision.messages[0]?.source).toMatchObject({ reminder: true });
+    expect(decision.messages[1]).toBe(log);
+    expect(decision.messages[2]).toBe(block);
+  });
+
   it('把提醒插到第一条块之前', async () => {
     const { run } = harness();
     const block = larkMessage();

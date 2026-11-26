@@ -32,7 +32,7 @@
 
 ## R-006 归档迁移
 
-- **Decision**: `endTask` 在队列内检测 `task-logs/<taskId>.jsonl`，存在则 `rename` 到 `archive/<taskId>/task-log.jsonl`，提交路径含 `task-logs/<taskId>.jsonl`（删除）与 `archive/<taskId>/task-log.jsonl`。
+- **Decision**: `endTask` 在队列内检测 `task-logs/<taskId>.jsonl`，存在则 `rename` 到 `archive/<taskId>/task-log.jsonl`，提交路径含 `archive/<taskId>/task-log.jsonl`；仅当 `git ls-files` 显示源文件已被跟踪时才加入 `task-logs/<taskId>.jsonl`（删除）。日志平时不提交，对未跟踪文件执行 `git add` 与限定路径 `git commit` 会因路径不匹配而失败，因此不能无条件加入源路径。
 - **Rationale**: 与 reports 目录迁移同一模式（`notes.ts:344-349`）；`pruneTasks`、`unmanage`、`notifyArchived` 都经 `endTask`，一处覆盖所有结束途径。
 
 ## R-007 用户停止与归档取消的区分

@@ -140,6 +140,13 @@ export interface LarkSuperAgentService {
     callerSessionId: string,
     origin?: ReportOrigin,
   ): Promise<SendReportResult>;
+  /** 为被管理会话追加一条任务日志；会话未被管理或任务已结束时丢弃。 */
+  appendTaskLog(
+    sessionId: string,
+    input: { seq: number; type: 'user_message' | 'user_stop'; text: string },
+  ): Promise<'written' | 'duplicate' | 'dropped'>;
+  /** 读取调度工作区根与未结束任务，供任务日志注入。 */
+  taskLogContext(): Promise<{ root: string; tasks: Task[] }>;
   /** 为被管理会话投递轮次失败通知。 */
   notifyFailure(sessionId: string, error: unknown): Promise<void>;
   /** 通知调度会话某个被管理会话已被归档。 */
