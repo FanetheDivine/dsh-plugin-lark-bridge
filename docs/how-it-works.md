@@ -166,7 +166,7 @@ ACK 由 lark-cli 完成；插件持续读取消费者输出，注入不阻塞事
 
 `lark_notify` 只在桥接会话可见与可执行。判定用状态文件的 `sessionId`，与提醒补注一致；其他会话的步骤既拿不到工具声明，也无法执行该工具。执行体在 agent 缺失或不是桥接会话时返回 `not-bridge-session`，不发送请求。
 
-参数用 zod 声明，经 `z.toJSONSchema` 转成 JSON Schema 后作为工具声明：`text` 必填，`reply_to` 可选。执行体自行校验参数，失败码为 `invalid-args`、`invalid-text`、`invalid-reply-to`。
+参数用 zod 声明，经 `z.toJSONSchema` 转换后复制成纯 JSON 副本作为工具声明：剔除 `$schema` 与 zod 的不可枚举 `~standard` 键，宿主只能克隆可枚举字符串键。声明里 `text` 必填，`reply_to` 可选。执行体自行校验参数，失败码为 `invalid-args`、`invalid-text`、`invalid-reply-to`。
 
 `lark_notify` 读取当前 owner open_id，按 15 000 字符分段，逐段执行：
 

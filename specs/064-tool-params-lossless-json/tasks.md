@@ -90,9 +90,9 @@
 
 **Purpose**: 文档与质量门禁
 
-- [ ] T011 [P] 在 `docs/how-it-works.md` 通知小节补一句：声明由 zod 生成后复制成纯 JSON，剔除 `$schema` 与 `~standard`，供宿主克隆
-- [ ] T012 [P] 在 `CHANGELOG.md` 增加一条：`lark_notify` 的声明改为纯 JSON，修复启用 `dsh-plugin-better-mcp` 时宿主抛 `must be lossless JSON` 并终止进程
-- [ ] T013 运行 `pnpm format && pnpm check`，确认通过
+- [X] T011 [P] 在 `docs/how-it-works.md` 通知小节补一句：声明由 zod 生成后复制成纯 JSON，剔除 `$schema` 与 `~standard`，供宿主克隆
+- [X] T012 [P] 在 `CHANGELOG.md` 增加一条：`lark_notify` 的声明改为纯 JSON，修复启用 `dsh-plugin-better-mcp` 时宿主抛 `must be lossless JSON` 并终止进程
+- [X] T013 运行 `pnpm format && pnpm check`，确认通过
 
 **Commit**: `docs(064): 记录声明生成方式`
 
