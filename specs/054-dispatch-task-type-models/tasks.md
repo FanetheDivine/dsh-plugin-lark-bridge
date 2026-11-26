@@ -50,9 +50,9 @@
 
 **Independent Test**: 运行 `tests/session-create.test.ts` 与 `tests/sa-dispatch.test.ts`，验证 `task_type` 空值、`common`、`complex`、非法值校验、显式 `provider`/`model`/`effort` 覆盖优先级以及提示词与工具描述。
 
-- [ ] T011 [US2] 更新 `src/sa-dispatch/session-create.ts`：新增 `task_type` 参数，更新工具与参数描述（说明 `task_type` 对应用户预先设定的普通/复杂任务模型配置，`provider`/`model`/`effort` 将其覆盖，除非用户明确说明否则都不传），实现 `task_type` 校验（仅允许 `'common'`、`'complex'` 或空串/省略）及模型解析优先级（显式 `provider`/`model`/`effort` > `service.taskModel(taskType)` > 宿主默认）
-- [ ] T012 [P] [US2] 更新 `src/sa-dispatch/prompt.ts` 的 `Start a task` 节：规定除非用户明确要求任务类型或具体模型，否则 `task_type` 传空值且不传 `provider`、`model`、`effort`
-- [ ] T013 [P] [US2] 更新 `tests/session-create.test.ts` 与 `tests/sa-dispatch.test.ts`，覆盖 `task_type` 参数契约、空值默认、显式类型、非法值报错、显式模型覆盖及提示词断言
+- [x] T011 [US2] 更新 `src/sa-dispatch/session-create.ts`：新增 `task_type` 参数，更新工具与参数描述（说明 `task_type` 对应用户预先设定的普通/复杂任务模型配置，`provider`/`model`/`effort` 将其覆盖，除非用户明确说明否则都不传），实现 `task_type` 校验（仅允许 `'common'`、`'complex'` 或空串/省略）及模型解析优先级（显式 `provider`/`model`/`effort` > `service.taskModel(taskType)` > 宿主默认）
+- [x] T012 [P] [US2] 更新 `src/sa-dispatch/prompt.ts` 的 `Start a task` 节：规定除非用户明确要求任务类型或具体模型，否则 `task_type` 传空值且不传 `provider`、`model`、`effort`
+- [x] T013 [P] [US2] 更新 `tests/session-create.test.ts` 与 `tests/sa-dispatch.test.ts`，覆盖 `task_type` 参数契约、空值默认、显式类型、非法值报错、显式模型覆盖及提示词断言
 
 **Checkpoint**: User Story 2 完整实现并通过全部工具与提示词测试。
 

@@ -342,13 +342,16 @@ describe('SA-调度会话子行', () => {
     expect(answer).toContain('message-task-status.json');
   });
 
-  it('提示词要求先匹配工作区，再用 session_create 建会话', () => {
+  it('提示词要求先匹配工作区，再用 session_create 建会话，未要求时 task_type 传空值且不传模型参数', () => {
     const start = section('Start a task');
     expect(start).toContain('Dispatch only into a workspace registered in workspaces.json');
     expect(start).toContain('我不知道在哪个工作区');
     expect(start).toContain('do not guess and do not start work');
     expect(start).toMatch(/session_create\. Pass workspace_id, a title, and a prompt/);
     expect(start).toMatch(/leave out conclusions and content from other tasks/);
+    expect(start).toContain(
+      'Always pass an empty task_type and omit provider, model, and effort unless the user explicitly asks',
+    );
     expect(start).toMatch(/task's only session/);
     expect(SA_DISPATCH_PROMPT).not.toContain('task_create');
     expect(SA_DISPATCH_PROMPT).not.toContain('task_candidates');

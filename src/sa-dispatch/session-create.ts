@@ -1,12 +1,12 @@
 /**
  * SA-调度会话的 `session_create`：覆写 dsh-plugin-meta-tools 的同名工具。
- * 预设始终取配置的「任务会话预设」；创建会话后立即建立任务。
+ * 预设始终取配置的「任务会话预设」；按任务类型或默认任务类型取模型；创建会话后立即建立任务。
  */
 import type { Agent, ModelSelection } from '@deepseek-ai/dsh-agent';
 import { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm';
 import { defineTool, ToolArgsError, type ToolDefinition } from '@deepseek-ai/dsh-tools';
 
-import type { LarkSuperAgentService } from '../lark-super-agent/api.ts';
+import { type LarkSuperAgentService, TASK_TYPES, type TaskType } from '../lark-super-agent/api.ts';
 
 /** meta-tools 投递消息的来源标识，被管理会话据此包装调度消息。 */
 const MESSAGE_SOURCE = 'dsh-plugin-meta-tools';
@@ -51,6 +51,14 @@ export interface SessionCreateDeps {
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** 解析可选的任务类型参数；空串或省略返回 undefined，非法值抛 ToolArgsError。 */
+function taskTypeOf(input: unknown): TaskType | undefined {
+  const value = typeof input === 'string' ? input.trim() : '';
+  if (value === '') return undefined;
+  if ((TASK_TYPES as readonly string[]).includes(value)) return value as TaskType;
+  throw new ToolArgsError(['task_type must be common, complex, or empty']);
 }
 
 /** 解析可选模型参数；provider 与 model 成对出现，effort 依赖完整路由。 */
@@ -145,7 +153,7 @@ export function buildSessionCreateTool(deps: SessionCreateDeps): ToolDefinition 
   return defineTool({
     name: 'session_create',
     description:
-      'Create a DSH (DeepSeek Harness) session in a workspace or directory, name it, send its first prompt, and make it the task session. The preset comes from the plugin configuration. Returns the session id and the new task id.',
+      "Create a DSH (DeepSeek Harness) session in a workspace or directory, name it, send its first prompt, and make it the task session. The preset comes from the plugin configuration. task_type selects the user's preconfigured common or complex task model (or the user's default when empty), and provider/model/effort override that model; omit or pass empty values for all of them unless the user explicitly asks. Returns the session id and the new task id.",
     parameters: {
       workspace_id: {
         type: 'string',
@@ -156,18 +164,25 @@ export function buildSessionCreateTool(deps: SessionCreateDeps): ToolDefinition 
         type: 'string',
         description: 'Absolute directory the session owns. Exclusive with workspace_id.',
       },
+      task_type: {
+        type: 'string',
+        description:
+          "Task complexity type: common or complex. Maps to the user's preconfigured common or complex task model. Always pass an empty string (or omit) to use the user's default task type unless the user explicitly specifies the task type.",
+      },
       provider: {
         type: 'string',
-        description: 'Provider id. Required together with model when selecting a model.',
+        description:
+          'Provider id that overrides the task_type model configuration. Required together with model. Omit unless the user explicitly specifies a model.',
       },
       model: {
         type: 'string',
-        description: 'Model id. Required together with provider when selecting a model.',
+        description:
+          'Model id that overrides the task_type model configuration. Required together with provider. Omit unless the user explicitly specifies a model.',
       },
       effort: {
         type: 'string',
         description:
-          'Reasoning effort id for the exact provider/model. Requires provider and model. Omit to use the model default.',
+          'Reasoning effort id for the exact provider/model. Requires provider and model. Omit unless the user explicitly specifies it.',
       },
       title: { type: 'string', required: true, description: 'Display title for the task.' },
       prompt: { type: 'string', required: true, description: "The task's first message." },
@@ -198,6 +213,8 @@ export function buildSessionCreateTool(deps: SessionCreateDeps): ToolDefinition 
       if (title === '') throw new ToolArgsError(['title must not be empty']);
       const prompt = typeof args.prompt === 'string' ? args.prompt.trim() : '';
       if (prompt === '') throw new ToolArgsError(['prompt must not be empty']);
+      const taskType = taskTypeOf(args.task_type);
+      const explicit = modelSelectionOf(args.provider, args.model, args.effort);
       if (workspaceId !== '') await service.assertDispatchable(workspaceId);
 
       const configuredPreset = service.taskPreset();
@@ -212,13 +229,12 @@ export function buildSessionCreateTool(deps: SessionCreateDeps): ToolDefinition 
         );
       }
 
-      // 显式参数优先；否则使用配置的「任务会话模型」，不可用时回退宿主默认。
-      const explicit = modelSelectionOf(args.provider, args.model, args.effort);
+      // 显式参数优先；否则按任务类型（为空时取默认任务类型）使用配置的任务模型，不可用时回退宿主默认。
       let selection: ModelSelection | undefined;
       if (explicit !== undefined) {
         selection = await validate(explicit, true, exec.signal);
       } else {
-        const configured = service.taskModel();
+        const configured = service.taskModel(taskType);
         if (configured !== undefined) selection = await validate(configured, false, exec.signal);
       }
 
