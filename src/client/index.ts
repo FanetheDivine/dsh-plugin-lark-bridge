@@ -1,14 +1,12 @@
 /** 浏览器入口：注册字典、共用连接弹窗、配置页、任务配置页与上报卡片。导出 inject 与 apply。 */
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-locale/client';
+// Type-only：拉取 conversation.chat.node 槽位与 uiConversation 服务声明。
+import type {} from '@deepseek-ai/dsh-client-ui-chat/client';
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
-// Tailwind utilities 与插件样式：构建前由 scripts/build-client-css.mjs 生成。
-import './tailwind.generated.css';
-// Type-only：拉取 conversation.chat.node 槽位与 uiConversation 服务声明。
-import type {} from '@deepseek-ai/dsh-client-ui-chat/client';
 import { AuthOverlay } from './auth-overlay.tsx';
 import { PluginConfigForm, ROW_ID, ROW_KEY } from './config-form.ts';
 import { ConfigPage } from './config-page.tsx';

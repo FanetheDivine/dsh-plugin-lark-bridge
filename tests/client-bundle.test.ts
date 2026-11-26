@@ -169,29 +169,16 @@ describe('前端产物（dist/client.js）', () => {
 });
 
 describe('内联样式', () => {
-  it('只带 utilities 与插件样式，不带 Tailwind preflight', () => {
+  it('只带插件样式，不带 Tailwind 产物', () => {
     assertFreshDist();
     const css = inlinedCss();
+    expect(css).toContain('.dsh-lark-report');
     // preflight 会重置宿主页面的 html、body、标题与列表，必须挡在产物外。
     expect(css).not.toContain('html,:host{-webkit-text-size-adjust');
     expect(css).not.toContain(
       '*,:after,:before,::backdrop{box-sizing:border-box;border:0 solid;margin:0;padding:0}',
     );
-  });
-
-  it('把 shadcn 语义色映射到宿主令牌，并只作用于插件子树', () => {
-    assertFreshDist();
-    const css = inlinedCss();
-    expect(css).toContain('--dsw-alias-bg-layer-2');
-    expect(css).toContain('.bg-popover');
-    expect(css).toContain('data-dsh-lark-ui');
-  });
-
-  it('内联 tooltip 的前景反转色与高 z-index 样式', () => {
-    assertFreshDist();
-    const css = inlinedCss();
-    expect(css).toContain('.bg-foreground');
-    expect(css).toContain('.text-background');
-    expect(css).toContain('z-\\[1100\\]');
+    expect(css).not.toContain('.bg-popover');
+    expect(css).not.toContain('data-dsh-lark-ui');
   });
 });

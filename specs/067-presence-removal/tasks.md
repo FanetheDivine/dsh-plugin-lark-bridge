@@ -110,9 +110,9 @@
 
 **Commit**: `refactor(067): 移除 Tailwind 构建与专属依赖`
 
-- [ ] T025 [US3] 删除 `src/client/ui/` 下 7 个文件、`src/client/tailwind.css`、`src/client/tailwind.generated.css`、`scripts/build-client-css.mjs`。
-- [ ] T026 [US3] 更新 `package.json`：删除九项依赖与 `css:build` 脚本，`dev`、`check`、`build`、`test:code` 去掉 `css:build`；运行 `pnpm install` 更新 `pnpm-lock.yaml`。
-- [ ] T027 [US3] 运行 `pnpm check` 与 `pnpm build`，确认 `dist/client.js` 仍内联上报卡片与官方选择器样式后提交。
+- [X] T025 [US3] 删除 `src/client/ui/` 下 7 个文件、`src/client/tailwind.css`、`src/client/tailwind.generated.css`、`scripts/build-client-css.mjs`。
+- [X] T026 [US3] 更新 `package.json`：删除九项依赖与 `css:build` 脚本，`dev`、`check`、`build`、`test:code` 去掉 `css:build`；运行 `pnpm install` 更新 `pnpm-lock.yaml`。
+- [X] T027 [US3] 运行 `pnpm check` 与 `pnpm build`，确认 `dist/client.js` 仍内联上报卡片与官方选择器样式后提交。
 
 **Checkpoint**: 构建链只保留 `@tsdown/css`。
 
