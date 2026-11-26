@@ -187,6 +187,12 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 - 自动上报取该轮最后一条助手文本；模型把结果分散在多条消息中时只上报最后一条。
 - S 是一条临时指令，模型可能继续遵守它。用户回来后插件不再插入相反提醒。
 
+### 上报卡片
+
+- 上报卡片依赖宿主 Chat 的 `conversation.chat.node` 槽位、`ChatNodeDataMap` 声明合并与 `uiConversation.events` Definition 注册。宿主改动这些接口后卡片不显示，工具行照常显示。
+- 成功上报在过程分组里保留一行宿主默认工具行，卡片在轮次层级另外显示一次。
+- 结果对应的 `tool/call` 不在已加载窗口内时，卡片只显示回执，参数字段为空。
+
 ## Windows 长路径
 
 `node_modules` 嵌套很深，路径可能超过 Windows 的 260 字符上限。

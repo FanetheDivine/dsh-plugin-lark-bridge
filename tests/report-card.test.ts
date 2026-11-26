@@ -1,4 +1,5 @@
-// send_report 卡片测试：准备、完成与失败三种阶段的类型、任务简介、正文与附件。
+// @vitest-environment jsdom
+// send_report 上报卡片测试：类型标签、任务简介、正文、文件列表、回执与文案回退。
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -14,151 +15,114 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async (importOriginal) => {
   };
 });
 
-import { type NS, zh } from '../src/client/locales.ts';
+import { en, type NS, zh } from '../src/client/locales.ts';
 import { ReportCard, type ReportCardProps } from '../src/client/report-card.tsx';
+import type { ReportCardData } from '../src/client/report-node.ts';
 
-/** 中文翻译座；未知键返回 undefined，与卡片的回退逻辑一致。 */
+/** 中文翻译座。 */
 const t = ((key: keyof typeof zh) => zh[key]) as TranslateNS<typeof NS>;
 
-/** 一份完整的上报参数。 */
-const ARGS = {
+/** 一份完整的卡片数据。 */
+const DATA: ReportCardData = {
   kind: 'progress',
-  desc: '  修复登录重试  ',
+  desc: '修复登录重试',
   text: '已定位到重试逻辑。',
-  files: ['/tmp/report.md', 42, '/tmp/log.txt'],
+  files: ['/tmp/report.md', 'docs/log.txt'],
+  reportId: 'report-7',
 };
 
 /** 渲染卡片。 */
-function render(props: Partial<ReportCardProps> & Pick<ReportCardProps, 'phase'>): string {
+function render(data: Partial<ReportCardData> = {}, props: Partial<ReportCardProps> = {}): string {
   return renderToStaticMarkup(
-    createElement(ReportCard, { t, block: { argsRaw: JSON.stringify(ARGS) }, ...props }),
+    createElement(ReportCard, { t, node: { data: { ...DATA, ...data } }, ...props }),
   );
 }
 
-/** 结果正文：工具输出的 JSON 文本。 */
-function resultContent(value: unknown) {
-  return [{ type: 'text', text: JSON.stringify(value) }];
-}
-
-describe('ReportCard 准备阶段', () => {
-  it('显示类型、去空白的任务简介、正文与附件，没有送达状态', () => {
-    const html = render({ phase: 'preparing' });
+describe('ReportCard 内容', () => {
+  it('显示类型、任务简介、正文、文件与回执', () => {
+    const html = render({}, { openFile: () => {} });
     expect(html).toContain('data-dsh-lark-report-card="progress"');
     expect(html).toContain('上报');
     expect(html).toContain('进度');
-    expect(html).toContain('任务: 修复登录重试<');
+    expect(html).toContain('修复登录重试');
     expect(html).toContain('<div data-markdown="compact">已定位到重试逻辑。</div>');
     expect(html).toContain('附件');
-    expect(html).toContain('<code>/tmp/report.md</code>');
-    expect(html).toContain('<code>/tmp/log.txt</code>');
-    expect(html).not.toContain('42');
-    expect(html).not.toContain('已送达');
-    expect(html).not.toContain('未送达');
+    expect(html).toContain('>report.md<');
+    expect(html).toContain('>/tmp/report.md<');
+    expect(html).toContain('>log.txt<');
+    expect(html).toContain('已送达');
+    expect(html).toContain('report-7');
   });
 
-  it('参数不完整时只显示标题', () => {
-    const html = render({ phase: 'preparing', block: { argsRaw: '{"kind":"prog' } });
-    expect(html).toContain('data-dsh-lark-report-card="report"');
-    expect(html).toContain('上报');
-    expect(html).not.toContain('进度');
-    expect(html).not.toContain('任务:');
+  it('只有正文时省略简介与文件区', () => {
+    const html = render({ desc: '', files: [] });
+    expect(html).toContain('已定位到重试逻辑。');
+    expect(html).not.toContain('dsh-lark-report-desc');
+    expect(html).not.toContain('dsh-lark-report-files');
+  });
+
+  it('只有文件时省略正文区', () => {
+    const html = render({ text: '' });
     expect(html).not.toContain('data-markdown');
-    expect(html).not.toContain('附件');
+    expect(html).toContain('>report.md<');
   });
 
-  it('缺少参数、空白简介与空附件时省略对应部分', () => {
-    expect(render({ phase: 'start', block: {} })).toContain('data-dsh-lark-report-card="report"');
-    const html = render({
-      phase: 'start',
-      block: { argsRaw: JSON.stringify({ kind: 'question', desc: '   ', files: [] }) },
-    });
-    expect(html).toContain('提问');
-    expect(html).not.toContain('任务:');
-    expect(html).not.toContain('data-markdown');
-    expect(html).not.toContain('附件');
+  it('提问类型使用提问标签，未知类型原样显示，缺失类型不显示标签', () => {
+    expect(render({ kind: 'question' })).toContain('提问');
+    const custom = render({ kind: 'custom' });
+    expect(custom).toContain('data-dsh-lark-report-card="custom"');
+    expect(custom).toContain('>custom<');
+    const none = render({ kind: '' });
+    expect(none).toContain('data-dsh-lark-report-card="report"');
+    expect(none).not.toContain('进度');
   });
 
-  it('未知类型原样显示', () => {
-    const html = render({ phase: 'start', block: { argsRaw: '{"kind":"custom"}' } });
-    expect(html).toContain('data-dsh-lark-report-card="custom"');
-    expect(html).toContain('>custom<');
+  it('没有打开能力时文件按钮禁用', () => {
+    expect(render()).toContain('disabled=""');
+    expect(render({}, { openFile: () => {} })).not.toContain('disabled=""');
   });
 });
 
-describe('ReportCard 完成阶段', () => {
-  it('显示已送达与上报编号，并保留类型、简介、正文与附件', () => {
-    const html = render({
-      phase: 'result',
-      block: {
-        argsRaw: JSON.stringify(ARGS),
-        content: resultContent({ reportId: 'report-7', taskId: 'task-1', delivered: true }),
-      },
+describe('ReportCard 交互', () => {
+  it('点击文件按原路径打开', async () => {
+    const { createRoot } = await import('react-dom/client');
+    const { act } = await import('react');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const opened: string[] = [];
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(ReportCard, {
+          t,
+          node: { data: DATA },
+          openFile: (path: string) => opened.push(path),
+        }),
+      );
     });
-    expect(html).toContain('已送达 report-7');
-    expect(html).toContain('进度');
-    expect(html).toContain('任务: 修复登录重试<');
-    expect(html).toContain('已定位到重试逻辑。');
-    expect(html).toContain('<code>/tmp/report.md</code>');
-    expect(html).not.toContain('未送达');
-  });
-
-  it('结果正文无法解析时只显示已送达', () => {
-    const html = render({
-      phase: 'result',
-      block: { argsRaw: JSON.stringify(ARGS), content: [{ type: 'text', text: 'ok' }] },
+    const buttons = container.querySelectorAll('button');
+    expect(buttons).toHaveLength(2);
+    await act(async () => {
+      buttons[1]?.click();
     });
-    expect(html).toContain('>已送达<');
-  });
-});
-
-describe('ReportCard 失败阶段', () => {
-  it('显示未送达与失败原因，并保留上报内容', () => {
-    const html = render({
-      phase: 'result',
-      block: {
-        argsRaw: JSON.stringify(ARGS),
-        isError: true,
-        error: { reason: 'session is not managed' },
-      },
-    });
-    expect(html).toContain('未送达');
-    expect(html).toContain('session is not managed');
-    expect(html).not.toContain('已送达');
-    expect(html).toContain('进度');
-    expect(html).toContain('任务: 修复登录重试<');
-    expect(html).toContain('已定位到重试逻辑。');
-    expect(html).toContain('<code>/tmp/log.txt</code>');
-  });
-
-  it('没有失败原因时只显示未送达', () => {
-    const html = render({ phase: 'result', block: { argsRaw: '{}', isError: true } });
-    expect(html).toContain('未送达');
-    expect(html).not.toContain('session is not managed');
+    expect(opened).toEqual(['docs/log.txt']);
+    expect(buttons[0]?.getAttribute('aria-label')).toBe('打开 /tmp/report.md');
+    await act(async () => root.unmount());
+    container.remove();
   });
 });
 
 describe('ReportCard 文案', () => {
-  it('缺少翻译函数时标题、简介、附件与送达状态使用英文回退', () => {
-    const { t: _t, ...props } = {
-      t,
-      phase: 'result' as const,
-      block: {
-        argsRaw: JSON.stringify({ desc: 'Fix login', files: ['/a'] }),
-        content: resultContent({ reportId: 'r-1' }),
-      },
-    };
-    const html = renderToStaticMarkup(createElement(ReportCard, props));
+  it('缺少翻译函数时使用英文回退', () => {
+    const html = renderToStaticMarkup(createElement(ReportCard, { node: { data: DATA } }));
     expect(html).toContain('Report');
-    expect(html).toContain('Task: Fix login');
+    expect(html).toContain('Progress');
+    expect(html).toContain('Task');
     expect(html).toContain('Files');
-    expect(html).toContain('Delivered r-1');
-    const failed = renderToStaticMarkup(
-      createElement(ReportCard, { phase: 'result', block: { isError: true } }),
-    );
-    expect(failed).toContain('Not delivered');
+    expect(html).toContain('Delivered');
   });
 
-  it('卡片文案键都在字典中', () => {
+  it('卡片文案键在中英文字典中都有值', () => {
     for (const key of [
       'report.title',
       'report.kind.progress',
@@ -166,9 +130,13 @@ describe('ReportCard 文案', () => {
       'report.desc',
       'report.files',
       'report.delivered',
-      'report.failed',
+      'report.openFile',
+      'report.copy',
+      'report.copied',
+      'report.footnotes',
     ] as const) {
       expect(zh[key]).toBeTruthy();
+      expect(en[key]).toBeTruthy();
     }
   });
 });

@@ -1,0 +1,162 @@
+/* send_report 成功上报卡片。外框、底色、字号取自宿主工具详情卡片的令牌，明暗主题共用。 */
+
+.dsh-lark-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 8px;
+  padding: 10px 14px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-markdown-code-block);
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xs-13);
+  min-width: 0;
+}
+
+.dsh-lark-report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dsh-lark-report-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.dsh-lark-report-title {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.dsh-lark-report-receipt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+  color: var(--dsw-alias-state-success-primary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.dsh-lark-report-receipt::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dsh-lark-report-id {
+  color: var(--dsw-alias-label-caption);
+  font-family: var(--ds-font-family-code);
+  font-size: 11px;
+}
+
+.dsh-lark-report-desc {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: baseline;
+}
+
+.dsh-lark-report-label {
+  color: var(--dsw-alias-label-caption);
+  font-size: 12px;
+}
+
+.dsh-lark-report-desc-text {
+  color: var(--dsw-alias-label-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dsh-lark-report-body {
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary);
+  overflow-wrap: anywhere;
+}
+
+.dsh-lark-report-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.dsh-lark-report-files ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-lark-report-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.dsh-lark-report-file:disabled {
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .dsh-lark-report-file:not(:disabled):hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+
+  .dsh-lark-report-file:not(:disabled):hover .dsh-lark-report-file-name {
+    text-decoration: underline;
+  }
+}
+
+.dsh-lark-report-file:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid
+    var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 1px;
+}
+
+.dsh-lark-report-file-name {
+  flex: none;
+  max-width: 50%;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsh-lark-report-file-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+}
