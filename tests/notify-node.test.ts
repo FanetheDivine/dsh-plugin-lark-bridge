@@ -109,9 +109,11 @@ describe('notifyDefinition.match', () => {
     expect(match(resultEvent(2))).toEqual({ id: 'call-1', role: 'start' });
   });
 
-  it('其他工具与失败结果不匹配', () => {
+  it('其他工具、失败、中断与替换结果不匹配', () => {
     expect(match(callEvent(1, 'send_report'))).toBeNull();
     expect(match(resultEvent(2, '发送失败（send-failed）：x'))).toBeNull();
+    expect(match(resultEvent(2, '已发送给用户（1 条）', { isError: true }))).toBeNull();
+    expect(match(resultEvent(2, '已发送给用户（1 条）', { surfaceOp: 'replace' }))).toBeNull();
     expect(match({ type: 'assistant/message' })).toBeNull();
   });
 });

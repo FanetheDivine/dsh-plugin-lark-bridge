@@ -48,8 +48,8 @@
 
 **Independent Test**: 非成功结果被排除，空正文不产节点，既有上报与通知工具回归通过。
 
-- [ ] T011 [US3] 在 `tests/notify-node.test.ts` 补充进行中无结果、失败结果、非 append 副本、其他工具与历史缺调用不产卡片的测试
-- [ ] T012 [US3] 运行 `tests/notify-node.test.ts`、`tests/report-node.test.ts`、`tests/tools.test.ts`，确认通知失败路径与两个工具后端行为不变
+- [X] T011 [US3] 在 `tests/notify-node.test.ts` 补充进行中无结果、失败结果、非 append 副本、其他工具与历史缺调用不产卡片的测试
+- [X] T012 [US3] 运行 `tests/notify-node.test.ts`、`tests/report-node.test.ts`、`tests/tools.test.ts`，确认通知失败路径与两个工具后端行为不变
 
 **Commit**: `test(066): 固定未送达通知的默认展示`
 
