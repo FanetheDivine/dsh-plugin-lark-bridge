@@ -2,6 +2,7 @@
  * `lark_notify` 成功通知卡片：显示完整正文与来源会话，提供有效会话的跳转入口。
  * 注册到 `conversation.chat.node` 的 `lark-notify` 键，节点由 `notify-node.ts` 产出。
  */
+import { Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots';
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
@@ -26,6 +27,7 @@ export interface NotifyCardProps {
 const FALLBACK: Partial<Record<BridgeKey, string>> = {
   'notify.session': 'Session',
   'notify.openSession': 'Open session',
+  'notify.archived': 'Archived',
 };
 
 /** 取界面文案；翻译座缺失时回退英文。 */
@@ -72,6 +74,11 @@ export function NotifyCard({ node, useWorkspaces, openSession, t }: NotifyCardPr
               {sessionId}
             </span>
           )}
+          {sessionState === 'archived' ? (
+            <span className="dsh-lark-notify-archived" data-dsh-lark-notify-archived="">
+              <Tag tone="neutral">{translate(t, 'notify.archived')}</Tag>
+            </span>
+          ) : null}
         </footer>
       )}
     </section>

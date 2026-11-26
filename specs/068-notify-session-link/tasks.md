@@ -48,12 +48,12 @@
 
 ### Tests for User Story 2
 
-- [ ] T012 [US2] 更新 `tests/notify-card.test.ts` 与 `tests/client.test.ts`，验证归档标签、无按钮及中英文归档文案
+- [X] T012 [US2] 更新 `tests/notify-card.test.ts` 与 `tests/client.test.ts`，验证归档标签、无按钮及中英文归档文案
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] 修改 `src/client/notify-card.tsx`、`src/client/locales.ts` 与 `src/client/notify-card.css`，实现只读归档标签与布局
-- [ ] T014 [US2] 运行 `tests/notify-card.test.ts`、`tests/notify-node.test.ts` 与 `tests/client.test.ts`
+- [X] T013 [US2] 修改 `src/client/notify-card.tsx`、`src/client/locales.ts` 与 `src/client/notify-card.css`，实现只读归档标签与布局
+- [X] T014 [US2] 运行 `tests/notify-card.test.ts`、`tests/notify-node.test.ts` 与 `tests/client.test.ts`
 
 **Commit**: `feat(068): 标记已归档的通知来源会话`
 

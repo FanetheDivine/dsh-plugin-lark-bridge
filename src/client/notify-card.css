@@ -54,3 +54,7 @@
 .dsh-lark-notify-session-id {
   color: var(--dsw-alias-label-secondary);
 }
+
+.dsh-lark-notify-archived {
+  flex: none;
+}
