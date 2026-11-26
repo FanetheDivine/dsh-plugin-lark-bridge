@@ -49,11 +49,11 @@
 
 **Independent Test**: `tests/lark-super-agent-blocks.test.ts`、`tests/lark-super-agent-service.test.ts`
 
-- [ ] T017 [US5] 改写 `src/lark-super-agent/blocks.ts` 的 `taskSessionMessage`：输出 `<task_session_message sessionid reportid taskid kind origin>` 内含 `<report_path>` 与 `<attachment_paths>`，去掉 `<desc>`、`<text>`、`<files>`；路径由调用方传入相对路径；闭合标签转义保持（contracts/report-block.md）
-- [ ] T018 [US5] 改写 `src/lark-super-agent/service.ts` 的 `sendReport`：投递前用 `workspaceRelative` 把 `archived.reportPath` 与 `archived.files` 转成相对路径传给 `taskSessionMessage`；`deliver` 在 `steer` 之后调用 `settleSteering`（`src/steering.ts`），为此扩展 `AgentLike` 的最小接口（`status`、`inbox`、`followup`）；`notifyFailure`、`notifyArchived` 经同一 `deliver`，一并获得兜底
-- [ ] T019 [P] [US5] 更新 `tests/lark-super-agent-blocks.test.ts`：块含相对路径、不含正文与 desc、属性齐全、路径含 `\` 时输出 `/`
-- [ ] T020 [P] [US5] 更新 `tests/lark-super-agent-service.test.ts` 与 `tests/lark-super-agent-reports.test.ts`：投递块不含正文；空闲且消息仍在 `nextStep` 时改为 `followup`；git 提交失败仍算送达并带 warning
-- [ ] T021 提交 Phase 4：`feat(069): 上报块只带路径并补投递兜底`
+- [x] T017 [US5] 改写 `src/lark-super-agent/blocks.ts` 的 `taskSessionMessage`：输出 `<task_session_message sessionid reportid taskid kind origin>` 内含 `<report_path>` 与 `<attachment_paths>`，去掉 `<desc>`、`<text>`、`<files>`；路径由调用方传入相对路径；闭合标签转义保持（contracts/report-block.md）
+- [x] T018 [US5] 改写 `src/lark-super-agent/service.ts` 的 `sendReport`：投递前用 `workspaceRelative` 把 `archived.reportPath` 与 `archived.files` 转成相对路径传给 `taskSessionMessage`；`deliver` 在 `steer` 之后调用 `settleSteering`（`src/steering.ts`），为此扩展 `AgentLike` 的最小接口（`status`、`inbox`、`followup`）；`notifyFailure`、`notifyArchived` 经同一 `deliver`，一并获得兜底
+- [x] T019 [P] [US5] 更新 `tests/lark-super-agent-blocks.test.ts`：块含相对路径、不含正文与 desc、属性齐全、路径含 `\` 时输出 `/`
+- [x] T020 [P] [US5] 更新 `tests/lark-super-agent-service.test.ts` 与 `tests/lark-super-agent-reports.test.ts`：投递块不含正文；空闲且消息仍在 `nextStep` 时改为 `followup`；git 提交失败仍算送达并带 warning
+- [x] T021 提交 Phase 4：`feat(069): 上报块只带路径并补投递兜底`
 
 ## Phase 5: User Story 6 - lark_notify 卡片、task_id 与返回值 (Priority: P2)
 

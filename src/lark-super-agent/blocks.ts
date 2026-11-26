@@ -1,15 +1,14 @@
-/** 投递给调度会话的消息块：上报、轮次失败与会话归档。 */
+/** 投递给调度会话的消息块：上报（只带路径）、轮次失败与会话归档。 */
 
-/** 上报消息块的输入。 */
+/** 上报消息块的输入；路径相对调度工作区根、以 `/` 分隔。 */
 export interface TaskSessionMessageInput {
   sessionId: string;
   reportId: string;
   taskId: string;
   kind: string;
   origin: string;
-  desc?: string;
-  text?: string;
-  files?: readonly string[];
+  reportPath: string;
+  attachmentPaths?: readonly string[];
 }
 
 /** 失败通知块的输入。 */
@@ -35,9 +34,9 @@ function escapeClosingTags(text: string, names: readonly string[]): string {
   return escaped;
 }
 
-const MESSAGE_TAGS = ['desc', 'text', 'files', 'task_session_message'] as const;
+const MESSAGE_TAGS = ['report_path', 'attachment_paths', 'task_session_message'] as const;
 
-/** 生成上报投递块。`desc` 只在提供时出现。 */
+/** 生成上报投递块：只带属性与文件路径，不含 desc 与正文。 */
 export function taskSessionMessage(input: TaskSessionMessageInput): string {
   const attributes = [
     `sessionid="${escapeXmlAttribute(input.sessionId)}"`,
@@ -46,20 +45,14 @@ export function taskSessionMessage(input: TaskSessionMessageInput): string {
     `kind="${escapeXmlAttribute(input.kind)}"`,
     `origin="${escapeXmlAttribute(input.origin)}"`,
   ];
-  const lines = [`<task_session_message ${attributes.join(' ')}>`];
-  if (input.desc !== undefined && input.desc.trim() !== '') {
-    lines.push('<desc>', escapeClosingTags(input.desc, MESSAGE_TAGS), '</desc>');
-  }
-  lines.push(
-    '<text>',
-    escapeClosingTags(input.text ?? '', MESSAGE_TAGS),
-    '</text>',
-    '<files>',
-    escapeClosingTags((input.files ?? []).join('\n'), MESSAGE_TAGS),
-    '</files>',
+  return [
+    `<task_session_message ${attributes.join(' ')}>`,
+    `<report_path>${escapeClosingTags(input.reportPath, MESSAGE_TAGS)}</report_path>`,
+    '<attachment_paths>',
+    escapeClosingTags((input.attachmentPaths ?? []).join('\n'), MESSAGE_TAGS),
+    '</attachment_paths>',
     '</task_session_message>',
-  );
-  return lines.join('\n');
+  ].join('\n');
 }
 
 /** 生成任务会话失败通知；失败原因最多保留 2000 个 UTF-16 字符。 */

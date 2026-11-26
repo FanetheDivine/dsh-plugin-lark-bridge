@@ -27,67 +27,55 @@ describe('lark-super-agent ids', () => {
 });
 
 describe('lark-super-agent blocks', () => {
-  it('上报块按顺序输出属性并转义取值', () => {
+  it('上报块按顺序输出属性并转义取值，只带路径', () => {
     const block = taskSessionMessage({
       sessionId: 's"<&>',
       reportId: 'r"&',
       taskId: 't<',
       kind: 'question"',
       origin: 'turn_end&',
-      text: '正文',
+      reportPath: 'reports/t/r.md',
     });
     expect(block).toBe(
       [
         '<task_session_message sessionid="s&quot;&lt;&amp;&gt;" reportid="r&quot;&amp;" taskid="t&lt;" kind="question&quot;" origin="turn_end&amp;">',
-        '<text>',
-        '正文',
-        '</text>',
-        '<files>',
+        '<report_path>reports/t/r.md</report_path>',
+        '<attachment_paths>',
         '',
-        '</files>',
+        '</attachment_paths>',
         '</task_session_message>',
       ].join('\n'),
     );
   });
 
-  it('desc 只在有内容时出现，且只转义消息块内的闭标签', () => {
-    const withDesc = taskSessionMessage({
+  it('不含 desc 与正文标签', () => {
+    const block = taskSessionMessage({
       sessionId: 'session',
       reportId: 'report',
       taskId: 'task',
       kind: 'progress',
       origin: 'send_report',
-      desc: '说明 </desc> 与 </task_session_message>',
-      text: '正文 </error>',
+      reportPath: 'reports/task/report.md',
     });
-    expect(withDesc).toContain(
-      '<desc>\n说明 <\\/desc> 与 <\\/task_session_message>\n</desc>\n<text>',
-    );
-    expect(withDesc).toContain('<text>\n正文 </error>\n</text>');
-
-    const blankDesc = taskSessionMessage({
-      sessionId: 'session',
-      reportId: 'report',
-      taskId: 'task',
-      kind: 'progress',
-      origin: 'send_report',
-      desc: '   ',
-    });
-    expect(blankDesc).not.toContain('<desc>');
-    expect(blankDesc.startsWith('<task_session_message ')).toBe(true);
-    expect(blankDesc.split('\n')[1]).toBe('<text>');
+    expect(block).not.toContain('<desc>');
+    expect(block).not.toContain('<text>');
+    expect(block).not.toContain('<files>');
   });
 
-  it('files 逐行列出并转义闭标签', () => {
+  it('附件路径逐行列出并转义闭标签', () => {
     const report = taskSessionMessage({
       sessionId: 'session',
       reportId: 'report',
       taskId: 'task',
       kind: 'progress',
       origin: 'send_report',
-      files: ['/tmp/a.md', '/tmp/</files>.md'],
+      reportPath: 'reports/task/</report_path>.md',
+      attachmentPaths: ['reports/task/a.md', 'reports/task/</attachment_paths>.md'],
     });
-    expect(report).toContain('<files>\n/tmp/a.md\n/tmp/<\\/files>.md\n</files>');
+    expect(report).toContain('<report_path>reports/task/<\\/report_path>.md</report_path>');
+    expect(report).toContain(
+      '<attachment_paths>\nreports/task/a.md\nreports/task/<\\/attachment_paths>.md\n</attachment_paths>',
+    );
     expect(report.endsWith('</task_session_message>')).toBe(true);
   });
 
