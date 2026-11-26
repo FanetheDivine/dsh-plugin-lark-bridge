@@ -3,8 +3,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { runGit } from '../src/lark-super-agent/git.ts';
 import { apply } from '../src/lark-super-agent/index.ts';
 import {
   insertionIndex,
@@ -25,6 +26,16 @@ interface Decision {
 
 let home: string;
 let root: string;
+
+// CI 运行器没有全局 git 身份；建任务的 git 提交需要显式身份，与其余台账测试一致。
+beforeAll(async () => {
+  await runGit(['--version']);
+  process.env.GIT_CONFIG_COUNT = '2';
+  process.env.GIT_CONFIG_KEY_0 = 'user.name';
+  process.env.GIT_CONFIG_VALUE_0 = 'Lark Super Agent Test';
+  process.env.GIT_CONFIG_KEY_1 = 'user.email';
+  process.env.GIT_CONFIG_VALUE_1 = 'lark-super-agent@example.invalid';
+});
 
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'task-log-home-'));
