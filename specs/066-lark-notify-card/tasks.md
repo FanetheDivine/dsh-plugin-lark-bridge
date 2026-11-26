@@ -55,9 +55,9 @@
 
 ## Phase 6: Polish & Cross-cutting Concerns
 
-- [ ] T013 [P] 更新 `README.md` 与 `docs/how-it-works.md`，说明成功通知只显示完整正文及卡片事件来源
-- [ ] T014 [P] 更新 `docs/known-risks.md` 与 `CHANGELOG.md`，记录 Chat 接口和成功结果文案依赖及两项 UI 变化
-- [ ] T015 运行 `pnpm format && pnpm full-check`，修复全部问题
+- [X] T013 [P] 更新 `README.md` 与 `docs/how-it-works.md`，说明成功通知只显示完整正文及卡片事件来源
+- [X] T014 [P] 更新 `docs/known-risks.md` 与 `CHANGELOG.md`，记录 Chat 接口和成功结果文案依赖及两项 UI 变化
+- [X] T015 运行 `pnpm format && pnpm full-check`，修复全部问题
 
 **Commit**: `docs(066): 记录通知正文卡片与上报正文色`
 

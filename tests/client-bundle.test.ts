@@ -155,14 +155,19 @@ describe('前端产物（dist/client.js）', () => {
     (exported.apply as (target: unknown) => void)(ctx);
     expect(ctx._slotInjections).toEqual([
       'conversation.chat.node',
+      'conversation.chat.node',
       'shell.overlay',
       'plugins.row.config',
       'plugins.row.config',
     ]);
     expect(ctx._slotRegistrations[0]?.options.key).toBe('lark-report');
-    expect(ctx._conversationDefinitions.map((entry) => entry.kind)).toEqual(['lark-report-result']);
-    expect(ctx._slotRegistrations[1]?.options.id).toBe('lark-bridge-auth');
-    expect(ctx._slotRegistrations[2]?.options.key).toBe(
+    expect(ctx._slotRegistrations[1]?.options.key).toBe('lark-notify');
+    expect(ctx._conversationDefinitions.map((entry) => entry.kind)).toEqual([
+      'lark-report-result',
+      'lark-notify-result',
+    ]);
+    expect(ctx._slotRegistrations[2]?.options.id).toBe('lark-bridge-auth');
+    expect(ctx._slotRegistrations[3]?.options.key).toBe(
       'dsh-plugin-lark-bridge#dsh-plugin-lark-bridge',
     );
   });
