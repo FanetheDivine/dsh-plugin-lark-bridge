@@ -62,8 +62,8 @@
 
 **Independent Test**: `tests/tools.test.ts` 断言键集合与字段结构，并通过校验函数。
 
-- [ ] T007 [US2] 修改 `tests/tools.test.ts`：断言 `lark_notify.parameters` 的自有键恰为 `type`、`properties`、`required`、`additionalProperties`；`properties.text` 与 `properties.reply_to` 为字符串，`required` 为 `['text']`；声明通过 `assertLosslessJson`
-- [ ] T008 [US2] 运行 `pnpm test:code`，确认通过
+- [X] T007 [US2] 修改 `tests/tools.test.ts`：断言 `lark_notify.parameters` 的自有键恰为 `type`、`properties`、`required`、`additionalProperties`；`properties.text` 与 `properties.reply_to` 为字符串，`required` 为 `['text']`；声明通过 `assertLosslessJson`
+- [X] T008 [US2] 运行 `pnpm test:code`，确认通过
 
 **Checkpoint**: 声明结构固定，发送与校验行为未变。
 
