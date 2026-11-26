@@ -1,36 +1,93 @@
 /**
- * 「飞书任务与调度会话」配置页的「任务会话模型」项：复用官方模型选择器，
- * 说明此处配置的是任务会话，调度会话自身的模型在「用飞书和DSH对话」配置页。
- * 导出 TASK_MODEL_FIELD_NAMES 与 TaskModelField。
+ * 「调度会话」配置页的「普通任务模型」与「复杂任务模型」项：复用官方模型选择器，
+ * 允许设置哪种任务类型作为默认任务，并说明调度会话自身的模型在「用飞书和DSH对话」配置页。
+ * 导出 COMMON_TASK_MODEL_FIELD_NAMES、COMPLEX_TASK_MODEL_FIELD_NAMES、DEFAULT_TASK_TYPE_FIELD 与 TaskModelField。
  */
 import { ModelSelect } from '@deepseek-ai/dsh-client-ui-model-selection/src/client/ModelSelect.tsx';
+import { Pill } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { CSSProperties } from 'react';
 
+import type { TaskType } from '../lark-super-agent/api.ts';
 import { renderModelSlot } from './config-page.tsx';
 import type { ModelDefaultsInjected, ModelFieldNames } from './model-defaults.ts';
 
-/** 任务会话模型在行配置里的三个字段名。 */
-export const TASK_MODEL_FIELD_NAMES: ModelFieldNames = {
-  provider: 'taskProvider',
-  model: 'taskModel',
-  effort: 'taskEffort',
+/** 普通任务模型在行配置里的三个字段名。 */
+export const COMMON_TASK_MODEL_FIELD_NAMES: ModelFieldNames = {
+  provider: 'commonTaskProvider',
+  model: 'commonTaskModel',
+  effort: 'commonTaskEffort',
 };
 
-/** 任务会话模型项的属性。 */
+/** 复杂任务模型在行配置里的三个字段名。 */
+export const COMPLEX_TASK_MODEL_FIELD_NAMES: ModelFieldNames = {
+  provider: 'complexTaskProvider',
+  model: 'complexTaskModel',
+  effort: 'complexTaskEffort',
+};
+
+/** 默认任务类型的字段名。 */
+export const DEFAULT_TASK_TYPE_FIELD = 'defaultTaskType';
+
+/** 任务模型项读取的文案键。 */
+export type TaskModelLocaleKey =
+  | 'presenceConfig.commonTaskModel.label'
+  | 'presenceConfig.commonTaskModel.description'
+  | 'presenceConfig.complexTaskModel.label'
+  | 'presenceConfig.complexTaskModel.description'
+  | 'presenceConfig.taskType.default'
+  | 'presenceConfig.taskType.setDefault';
+
+/** 任务模型项的属性。 */
 export interface TaskModelFieldProps {
-  readonly t: (
-    key: 'presenceConfig.taskModel.label' | 'presenceConfig.taskModel.description',
-  ) => string;
+  readonly taskType: TaskType;
+  readonly isDefault: boolean;
+  readonly onSetDefault: () => void;
+  readonly t: (key: TaskModelLocaleKey) => string;
   readonly modelDefaults: ModelDefaultsInjected;
   readonly available: boolean;
   readonly disabled: boolean;
 }
 
-/** 渲染「任务会话模型」选择项。 */
-export function TaskModelField({ t, modelDefaults, available, disabled }: TaskModelFieldProps) {
+const KEYS: Record<
+  TaskType,
+  { readonly label: TaskModelLocaleKey; readonly description: TaskModelLocaleKey }
+> = {
+  common: {
+    label: 'presenceConfig.commonTaskModel.label',
+    description: 'presenceConfig.commonTaskModel.description',
+  },
+  complex: {
+    label: 'presenceConfig.complexTaskModel.label',
+    description: 'presenceConfig.complexTaskModel.description',
+  },
+};
+
+/** 渲染单个任务类型的模型选择项及默认切换按钮。 */
+export function TaskModelField({
+  taskType,
+  isDefault,
+  onSetDefault,
+  t,
+  modelDefaults,
+  available,
+  disabled,
+}: TaskModelFieldProps) {
+  const { label, description } = KEYS[taskType];
   return (
-    <div data-dsh-lark-config-model="task" style={fieldStyle}>
-      <span style={titleStyle}>{t('presenceConfig.taskModel.label')}</span>
+    <div data-dsh-lark-config-model={taskType} style={fieldStyle}>
+      <div style={rowStyle}>
+        <span style={titleStyle}>{t(label)}</span>
+        <Pill
+          data-dsh-lark-default-task-type={taskType}
+          active={isDefault}
+          disabled={disabled}
+          onClick={onSetDefault}
+        >
+          {isDefault
+            ? t('presenceConfig.taskType.default')
+            : t('presenceConfig.taskType.setDefault')}
+        </Pill>
+      </div>
       <div style={{ display: 'grid' }}>
         <ModelSelect
           {...modelDefaults}
@@ -39,7 +96,7 @@ export function TaskModelField({ t, modelDefaults, available, disabled }: TaskMo
           renderSlot={renderModelSlot}
         />
       </div>
-      <p style={descriptionStyle}>{t('presenceConfig.taskModel.description')}</p>
+      <p style={descriptionStyle}>{t(description)}</p>
     </div>
   );
 }
@@ -50,6 +107,13 @@ const fieldStyle: CSSProperties = {
   gap: 6,
   padding: '12px 0',
   borderTop: '0.5px solid var(--dsw-alias-border-l2)',
+};
+
+const rowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
 };
 
 const titleStyle: CSSProperties = {

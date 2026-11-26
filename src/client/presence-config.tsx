@@ -1,7 +1,7 @@
 /**
- * 「飞书任务与调度会话」行配置页：在场状态的自动更新开关、自动切换时间与工作会话模型。
+ * 「调度会话」行配置页：在场状态的自动更新开关、自动切换时间、普通/复杂任务模型、默认任务类型与任务会话预设。
  * 导出 PRESENCE_ROW_ID、PRESENCE_ROW_KEY、PresenceConfigForm、presenceSwitchField、
- * presenceAlarmsField 与 PresenceConfigPage。
+ * defaultTaskTypeField、presenceAlarmsField 与 PresenceConfigPage。
  */
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store';
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
@@ -31,6 +31,7 @@ import {
   type PresenceAlarm,
   parseAlarmList,
 } from '../lark-super-agent/alarms.ts';
+import type { TaskType } from '../lark-super-agent/api.ts';
 import type { NS } from './locales.ts';
 import type { ModelDefaultsInjected } from './model-defaults.ts';
 import type { PresetDefaultsInjected } from './preset-defaults.ts';
@@ -39,7 +40,12 @@ import { PresenceAlarmEditor } from './presence-alarms-editor.tsx';
 import type { PresenceController } from './presence-controller.ts';
 import { usePresenceSnapshot } from './presence-controller.ts';
 import { PresetSelect } from './preset-select.tsx';
-import { TASK_MODEL_FIELD_NAMES, TaskModelField } from './task-model-field.tsx';
+import {
+  COMMON_TASK_MODEL_FIELD_NAMES,
+  COMPLEX_TASK_MODEL_FIELD_NAMES,
+  DEFAULT_TASK_TYPE_FIELD,
+  TaskModelField,
+} from './task-model-field.tsx';
 
 /** 行 id，同时是宿主配置的条目 id。 */
 export const PRESENCE_ROW_ID = 'lark-super-agent';
@@ -56,8 +62,11 @@ export type PresenceField = (typeof PRESENCE_FIELDS)[number];
 /** 闹钟条目的配置字段名。 */
 export const ALARMS_FIELD = 'presenceAlarms';
 
-/** 任务会话模型的三个文本字段。 */
-const TASK_FIELDS = Object.values(TASK_MODEL_FIELD_NAMES);
+/** 普通任务与复杂任务模型的六个文本字段。 */
+const TASK_MODEL_FIELDS = [
+  ...Object.values(COMMON_TASK_MODEL_FIELD_NAMES),
+  ...Object.values(COMPLEX_TASK_MODEL_FIELD_NAMES),
+] as const;
 
 /** 任务会话预设的字段名。 */
 export const TASK_PRESET_FIELD = 'taskPreset';
@@ -78,7 +87,17 @@ const SECTIONS = [
 
 /** 行配置的取值。 */
 export type PresenceConfigFields = Record<PresenceField, boolean> &
-  Record<'taskProvider' | 'taskModel' | 'taskEffort' | 'taskPreset', string> & {
+  Record<
+    | 'commonTaskProvider'
+    | 'commonTaskModel'
+    | 'commonTaskEffort'
+    | 'complexTaskProvider'
+    | 'complexTaskModel'
+    | 'complexTaskEffort'
+    | 'taskPreset',
+    string
+  > & {
+    readonly defaultTaskType?: TaskType | undefined;
     readonly presenceAlarms?: readonly PresenceAlarm[] | undefined;
   };
 
@@ -86,9 +105,13 @@ export type PresenceConfigFields = Record<PresenceField, boolean> &
 export interface PresenceConfigState extends SettingsFormShell {
   readonly guiInputSetsLocal: SettingsFieldState;
   readonly larkInputSetsRemote: SettingsFieldState;
-  readonly taskProvider: SettingsFieldState;
-  readonly taskModel: SettingsFieldState;
-  readonly taskEffort: SettingsFieldState;
+  readonly commonTaskProvider: SettingsFieldState;
+  readonly commonTaskModel: SettingsFieldState;
+  readonly commonTaskEffort: SettingsFieldState;
+  readonly complexTaskProvider: SettingsFieldState;
+  readonly complexTaskModel: SettingsFieldState;
+  readonly complexTaskEffort: SettingsFieldState;
+  readonly defaultTaskType: SettingsFieldState;
   readonly taskPreset: SettingsFieldState;
   readonly presenceAlarms: SettingsFieldState;
 }
@@ -111,6 +134,18 @@ export function presenceSwitchField(field: PresenceField): SettingsFieldSpec {
   };
 }
 
+/** 默认任务类型字段：暂存文本为 `'common'` 或 `'complex'`，缺省按 `'common'` 显示。 */
+export function defaultTaskTypeField(): SettingsFieldSpec {
+  return {
+    field: DEFAULT_TASK_TYPE_FIELD,
+    format: (value) => (value === 'complex' ? 'complex' : 'common'),
+    parse: (text) => {
+      if (text === 'common' || text === 'complex') return { kind: 'set', value: text };
+      return undefined;
+    },
+  };
+}
+
 /** 闹钟列表字段：暂存文本是规范化 JSON，空列表暂存为空串。 */
 export function presenceAlarmsField(): SettingsFieldSpec {
   return {
@@ -124,7 +159,7 @@ export function presenceAlarmsField(): SettingsFieldSpec {
   };
 }
 
-/** 暂存开关、闹钟与工作会话模型的编辑，保存时写入宿主配置。 */
+/** 暂存开关、闹钟、普通/复杂任务模型、默认任务类型与预设的编辑，保存时写入宿主配置。 */
 export class PresenceConfigForm {
   private readonly form: SettingsFormModel<PresenceConfigFields>;
   private readonly state: SnapshotStore<PresenceConfigState>;
@@ -133,7 +168,8 @@ export class PresenceConfigForm {
   constructor(scope: SettingsFormScope<PresenceConfigFields>) {
     this.form = new SettingsFormModel(scope, [
       ...PRESENCE_FIELDS.map(presenceSwitchField),
-      ...TASK_FIELDS.map((field) => settingsTextField(field)),
+      ...TASK_MODEL_FIELDS.map((field) => settingsTextField(field)),
+      defaultTaskTypeField(),
       settingsTextField(TASK_PRESET_FIELD),
       presenceAlarmsField(),
     ]);
@@ -141,9 +177,13 @@ export class PresenceConfigForm {
       ...this.form.shell(),
       guiInputSetsLocal: this.form.field('guiInputSetsLocal'),
       larkInputSetsRemote: this.form.field('larkInputSetsRemote'),
-      taskProvider: this.form.field('taskProvider'),
-      taskModel: this.form.field('taskModel'),
-      taskEffort: this.form.field('taskEffort'),
+      commonTaskProvider: this.form.field('commonTaskProvider'),
+      commonTaskModel: this.form.field('commonTaskModel'),
+      commonTaskEffort: this.form.field('commonTaskEffort'),
+      complexTaskProvider: this.form.field('complexTaskProvider'),
+      complexTaskModel: this.form.field('complexTaskModel'),
+      complexTaskEffort: this.form.field('complexTaskEffort'),
+      defaultTaskType: this.form.field(DEFAULT_TASK_TYPE_FIELD),
       taskPreset: this.form.field(TASK_PRESET_FIELD),
       presenceAlarms: this.form.field(ALARMS_FIELD),
     }));
@@ -165,7 +205,8 @@ export type PresenceConfigPageProps = PropsRuntime<'plugins.row.config'> &
   PropsLocale<typeof NS> &
   InjectFace<
     PresenceConfigInjected & {
-      readonly modelDefaults: ModelDefaultsInjected;
+      readonly commonModelDefaults: ModelDefaultsInjected;
+      readonly complexModelDefaults: ModelDefaultsInjected;
       readonly presetDefaults: PresetDefaultsInjected;
       readonly controller: PresenceController;
     }
@@ -206,6 +247,7 @@ function PresenceConfigBody(
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const disabled = !state.available || !state.writable || state.saving;
   const alarms = parseAlarmList(state.presenceAlarms.text) ?? [];
+  const defaultTaskType: TaskType = state.defaultTaskType.text === 'complex' ? 'complex' : 'common';
   const commit = (next: readonly PresenceAlarm[]): void => {
     props.edit(ALARMS_FIELD, formatAlarmList(next));
   };
@@ -352,8 +394,20 @@ function PresenceConfigBody(
         </p>
       )}
       <TaskModelField
+        taskType="common"
+        isDefault={defaultTaskType === 'common'}
+        onSetDefault={() => props.edit(DEFAULT_TASK_TYPE_FIELD, 'common')}
         t={t}
-        modelDefaults={props.modelDefaults}
+        modelDefaults={props.commonModelDefaults}
+        available={state.available}
+        disabled={disabled}
+      />
+      <TaskModelField
+        taskType="complex"
+        isDefault={defaultTaskType === 'complex'}
+        onSetDefault={() => props.edit(DEFAULT_TASK_TYPE_FIELD, 'complex')}
+        t={t}
+        modelDefaults={props.complexModelDefaults}
         available={state.available}
         disabled={disabled}
       />

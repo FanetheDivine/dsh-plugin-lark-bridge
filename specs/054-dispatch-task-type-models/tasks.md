@@ -34,11 +34,11 @@
 
 **Independent Test**: 运行 `tests/metadata.test.ts`、`tests/model-defaults.test.ts`、`tests/presence-client.test.ts` 与 `tests/client.test.ts`，验证行元数据、前端字典、双模型选择器草稿绑定与默认任务类型切换。
 
-- [ ] T006 [P] [US1] 更新 `rows/lark-super-agent/locale/zh.json`（`title: "调度会话"`，`description: "用调度会话统一管理其他任务会话"`）、`rows/lark-super-agent/locale/en.json`（`title: "Dispatch session"`，`description: "Manage task sessions from the dispatch session."`）与 `rows/lark-super-agent/icon.svg`
-- [ ] T007 [P] [US1] 更新 `src/client/locales.ts`：将单一任务会话模型文案替换为普通任务模型（`presenceConfig.commonTaskModel.label` / `description`）、复杂任务模型（`presenceConfig.complexTaskModel.label` / `description`）与默认切换文案（`presenceConfig.taskType.default: '默认'` / `'Default'`、`presenceConfig.taskType.setDefault: '设为默认'` / `'Set as default'`）
-- [ ] T008 [US1] 更新 `src/client/task-model-field.tsx`：导出 `COMMON_TASK_MODEL_FIELD_NAMES` 与 `COMPLEX_TASK_MODEL_FIELD_NAMES`，支持在模型标题行右侧渲染默认任务类型切换 `Pill`（`data-dsh-lark-default-task-type="common" | "complex"`）
-- [ ] T009 [US1] 更新 `src/client/presence-config.tsx`、`src/client/presence-controller.ts` 与 `src/client/index.ts`：在 `PresenceConfigForm` 中绑定 `commonTask*`、`complexTask*` 与 `defaultTaskType` 字段，在 `src/client/index.ts` 中创建两个 `ModelDefaults` 实例注入 `PresenceConfigPage`，渲染「普通任务模型」与「复杂任务模型」两个选择项
-- [ ] T010 [P] [US1] 更新 `tests/model-defaults.test.ts` 与 `tests/presence-client.test.ts`，验证普通/复杂任务模型字段读写、默认任务类型切换及配置页渲染
+- [x] T006 [P] [US1] 更新 `rows/lark-super-agent/locale/zh.json`（`title: "调度会话"`，`description: "用调度会话统一管理其他任务会话"`）、`rows/lark-super-agent/locale/en.json`（`title: "Dispatch session"`，`description: "Manage task sessions from the dispatch session."`）与 `rows/lark-super-agent/icon.svg`
+- [x] T007 [P] [US1] 更新 `src/client/locales.ts`：将单一任务会话模型文案替换为普通任务模型（`presenceConfig.commonTaskModel.label` / `description`）、复杂任务模型（`presenceConfig.complexTaskModel.label` / `description`）与默认切换文案（`presenceConfig.taskType.default: '默认'` / `'Default'`、`presenceConfig.taskType.setDefault: '设为默认'` / `'Set as default'`）
+- [x] T008 [US1] 更新 `src/client/task-model-field.tsx`：导出 `COMMON_TASK_MODEL_FIELD_NAMES` 与 `COMPLEX_TASK_MODEL_FIELD_NAMES`，支持在模型标题行右侧渲染默认任务类型切换 `Pill`（`data-dsh-lark-default-task-type="common" | "complex"`）
+- [x] T009 [US1] 更新 `src/client/presence-config.tsx`、`src/client/presence-controller.ts` 与 `src/client/index.ts`：在 `PresenceConfigForm` 中绑定 `commonTask*`、`complexTask*` 与 `defaultTaskType` 字段，在 `src/client/index.ts` 中创建两个 `ModelDefaults` 实例注入 `PresenceConfigPage`，渲染「普通任务模型」与「复杂任务模型」两个选择项
+- [x] T010 [P] [US1] 更新 `tests/model-defaults.test.ts` 与 `tests/presence-client.test.ts`，验证普通/复杂任务模型字段读写、默认任务类型切换及配置页渲染
 
 **Checkpoint**: User Story 1 的行更名与前端配置页完整可用并通过测试。
 

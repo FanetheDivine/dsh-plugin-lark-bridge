@@ -59,9 +59,14 @@ export const zh = {
     '在任一会话的网页中发送消息时，把在场状态设为在电脑旁。',
   'presenceConfig.larkInputSetsRemote.label': '收到飞书消息时切换为离开',
   'presenceConfig.larkInputSetsRemote.description': '桥接会话收到飞书私聊时，把在场状态设为离开。',
-  'presenceConfig.taskModel.label': '任务会话模型',
-  'presenceConfig.taskModel.description':
-    '调度会话新建任务会话时使用的模型与推理等级；未选择时使用宿主默认。这里不改变调度会话自身的模型，它在「用飞书和DSH对话」配置页的「模型」中设置。',
+  'presenceConfig.commonTaskModel.label': '普通任务模型',
+  'presenceConfig.commonTaskModel.description':
+    '调度会话新建普通任务会话时使用的模型与推理等级；未选择时使用宿主默认。这里不改变调度会话自身的模型，它在「用飞书和DSH对话」配置页的「模型」中设置。',
+  'presenceConfig.complexTaskModel.label': '复杂任务模型',
+  'presenceConfig.complexTaskModel.description':
+    '调度会话新建复杂任务会话时使用的模型与推理等级；未选择时使用宿主默认。',
+  'presenceConfig.taskType.default': '默认',
+  'presenceConfig.taskType.setDefault': '设为默认',
   'presenceConfig.taskPreset.label': '任务会话预设',
   'presenceConfig.taskPreset.description':
     '调度会话新建任务会话时使用的预设；未选择时使用宿主默认。',
@@ -156,9 +161,14 @@ export const en: Record<BridgeKey, string> = {
   'presenceConfig.larkInputSetsRemote.label': 'Mark as away on Lark messages',
   'presenceConfig.larkInputSetsRemote.description':
     'A Lark direct message to the bridge session marks the user as away.',
-  'presenceConfig.taskModel.label': 'Task session model',
-  'presenceConfig.taskModel.description':
-    'The model and reasoning effort for task sessions the dispatch session creates; the Host default applies when none is chosen. This does not change the model of the dispatch session itself, which is set under "Model" on the "Talk to DSH from Lark" settings page.',
+  'presenceConfig.commonTaskModel.label': 'Common task model',
+  'presenceConfig.commonTaskModel.description':
+    'The model and reasoning effort for common task sessions the dispatch session creates; the Host default applies when none is chosen. This does not change the model of the dispatch session itself, which is set under "Model" on the "Talk to DSH from Lark" settings page.',
+  'presenceConfig.complexTaskModel.label': 'Complex task model',
+  'presenceConfig.complexTaskModel.description':
+    'The model and reasoning effort for complex task sessions the dispatch session creates; the Host default applies when none is chosen.',
+  'presenceConfig.taskType.default': 'Default',
+  'presenceConfig.taskType.setDefault': 'Set as default',
   'presenceConfig.taskPreset.label': 'Task session preset',
   'presenceConfig.taskPreset.description':
     'The preset the dispatch session uses for task sessions; the Host default applies when none is chosen.',

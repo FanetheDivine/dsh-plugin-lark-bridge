@@ -1,5 +1,5 @@
 /**
- * 在场状态控制器：轮询全局在场状态，判断「飞书任务与调度会话」行是否可用。
+ * 在场状态控制器：轮询全局在场状态，判断「调度会话」行是否可用。
  * 导出 PresenceController、PresenceViewState 与 usePresenceSnapshot。
  */
 import { useSyncExternalStore } from 'react';

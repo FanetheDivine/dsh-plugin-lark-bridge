@@ -4,7 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { PluginConfigForm } from '../src/client/config-form.ts';
 import { ModelDefaults } from '../src/client/model-defaults.ts';
 import { PresenceConfigForm } from '../src/client/presence-config.tsx';
-import { TASK_MODEL_FIELD_NAMES } from '../src/client/task-model-field.tsx';
+import {
+  COMMON_TASK_MODEL_FIELD_NAMES,
+  COMPLEX_TASK_MODEL_FIELD_NAMES,
+} from '../src/client/task-model-field.tsx';
 import { makeConfigFormScope } from './helpers.ts';
 
 /** 目录返回的 provider 分组。 */
@@ -57,15 +60,20 @@ async function settle(): Promise<void> {
 }
 
 describe('ModelDefaults 自定义字段名', () => {
-  it('任务会话模型的字段名为 taskProvider、taskModel 与 taskEffort', () => {
-    expect(TASK_MODEL_FIELD_NAMES).toEqual({
-      provider: 'taskProvider',
-      model: 'taskModel',
-      effort: 'taskEffort',
+  it('普通与复杂任务模型的字段名分别为 commonTask* 与 complexTask*', () => {
+    expect(COMMON_TASK_MODEL_FIELD_NAMES).toEqual({
+      provider: 'commonTaskProvider',
+      model: 'commonTaskModel',
+      effort: 'commonTaskEffort',
+    });
+    expect(COMPLEX_TASK_MODEL_FIELD_NAMES).toEqual({
+      provider: 'complexTaskProvider',
+      model: 'complexTaskModel',
+      effort: 'complexTaskEffort',
     });
   });
 
-  it('读写任务会话模型字段，并随草稿显示当前选择', async () => {
+  it('读写普通与复杂任务模型字段，并随草稿显示当前选择', async () => {
     const fake = makeConfigFormScope({
       value: { guiInputSetsLocal: true, larkInputSetsRemote: true },
     });
@@ -82,30 +90,52 @@ describe('ModelDefaults 自定义字段名', () => {
         },
       },
     };
-    const models = new ModelDefaults(
+    const commonModels = new ModelDefaults(
       ctx as never,
       injected.hooks.presenceConfig,
       injected.edit,
-      TASK_MODEL_FIELD_NAMES,
+      COMMON_TASK_MODEL_FIELD_NAMES,
     );
-    const defaults = models.inject((() => '') as never, (text) => String(text));
+    const complexModels = new ModelDefaults(
+      ctx as never,
+      injected.hooks.presenceConfig,
+      injected.edit,
+      COMPLEX_TASK_MODEL_FIELD_NAMES,
+    );
+    const commonDefaults = commonModels.inject((() => '') as never, (text) => String(text));
+    const complexDefaults = complexModels.inject((() => '') as never, (text) => String(text));
     await settle();
-    expect(defaults.directory.getSnapshot().current).toBeNull();
-    await defaults.select({
+    expect(commonDefaults.directory.getSnapshot().current).toBeNull();
+    expect(complexDefaults.directory.getSnapshot().current).toBeNull();
+    await commonDefaults.select({
+      provider: 'deepseek',
+      model: 'deepseek-chat',
+      reasoningEffort: 'low' as never,
+    });
+    await complexDefaults.select({
       provider: 'deepseek',
       model: 'deepseek-chat',
       reasoningEffort: 'high' as never,
     });
     const state = injected.hooks.presenceConfig.getSnapshot();
-    expect(state.taskProvider.text).toBe('deepseek');
-    expect(state.taskModel.text).toBe('deepseek-chat');
-    expect(state.taskEffort.text).toBe('high');
-    expect(defaults.directory.getSnapshot().current).toEqual({
+    expect(state.commonTaskProvider.text).toBe('deepseek');
+    expect(state.commonTaskModel.text).toBe('deepseek-chat');
+    expect(state.commonTaskEffort.text).toBe('low');
+    expect(state.complexTaskProvider.text).toBe('deepseek');
+    expect(state.complexTaskModel.text).toBe('deepseek-chat');
+    expect(state.complexTaskEffort.text).toBe('high');
+    expect(commonDefaults.directory.getSnapshot().current).toEqual({
+      provider: 'deepseek',
+      model: 'deepseek-chat',
+      reasoningEffort: 'low',
+    });
+    expect(complexDefaults.directory.getSnapshot().current).toEqual({
       provider: 'deepseek',
       model: 'deepseek-chat',
       reasoningEffort: 'high',
     });
-    expect(defaults.directory.getSnapshot().routable).toBe(true);
+    expect(commonDefaults.directory.getSnapshot().routable).toBe(true);
+    expect(complexDefaults.directory.getSnapshot().routable).toBe(true);
     expect(fake.writes).toEqual([]);
     expect(main.fake.writes).toEqual([]);
     const defaultState = main.injected.hooks.configForm.getSnapshot();

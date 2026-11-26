@@ -27,7 +27,10 @@ import { PresenceController } from './presence-controller.ts';
 import { PresetDefaults, type PresetRemoteLike } from './preset-defaults.ts';
 import { ReportCard } from './report-card.tsx';
 import { StatusController } from './status-controller.ts';
-import { TASK_MODEL_FIELD_NAMES } from './task-model-field.tsx';
+import {
+  COMMON_TASK_MODEL_FIELD_NAMES,
+  COMPLEX_TASK_MODEL_FIELD_NAMES,
+} from './task-model-field.tsx';
 
 /** 需要宿主注入的客户端服务。 */
 export const inject = ['slots', 'locale', 'configForms', 'remote', 'remote.session'];
@@ -44,11 +47,17 @@ export function apply(ctx: Context): void {
     const presenceForm = new PresenceConfigForm(ctx.configForms.get(PRESENCE_ROW_ID));
     const models = new ModelDefaults(ctx, injected.hooks.configForm, injected.edit);
     const presenceInjected = presenceForm.inject();
-    const taskModels = new ModelDefaults(
+    const commonTaskModels = new ModelDefaults(
       ctx,
       presenceInjected.hooks.presenceConfig,
       presenceInjected.edit,
-      TASK_MODEL_FIELD_NAMES,
+      COMMON_TASK_MODEL_FIELD_NAMES,
+    );
+    const complexTaskModels = new ModelDefaults(
+      ctx,
+      presenceInjected.hooks.presenceConfig,
+      presenceInjected.edit,
+      COMPLEX_TASK_MODEL_FIELD_NAMES,
     );
     const presets = new PresetDefaults(ctx, injected.hooks.configForm, injected.edit);
     const taskPresets = new PresetDefaults(
@@ -79,7 +88,8 @@ export function apply(ctx: Context): void {
         form.dispose();
         presenceForm.dispose();
         models.dispose();
-        taskModels.dispose();
+        commonTaskModels.dispose();
+        complexTaskModels.dispose();
         presets.dispose();
         taskPresets.dispose();
       },
@@ -110,7 +120,7 @@ export function apply(ctx: Context): void {
         AuthOverlay,
       ),
     );
-    // 「飞书任务与调度会话」行启用时才挂页脚按钮；状态未知时保持现状。
+    // 「调度会话」行启用时才挂页脚按钮；状态未知时保持现状。
     ctx.effect(() => {
       let unmount: (() => void) | undefined;
       const mount = (): (() => void) => {
@@ -188,7 +198,12 @@ export function apply(ctx: Context): void {
           locale: NS,
           inject: () => ({
             ...presenceForm.inject(),
-            modelDefaults: taskModels.inject(modelT, (text) => ctx.locale.resolveText(text)),
+            commonModelDefaults: commonTaskModels.inject(modelT, (text) =>
+              ctx.locale.resolveText(text),
+            ),
+            complexModelDefaults: complexTaskModels.inject(modelT, (text) =>
+              ctx.locale.resolveText(text),
+            ),
             presetDefaults: taskPresets.inject(),
             controller: presence,
           }),
