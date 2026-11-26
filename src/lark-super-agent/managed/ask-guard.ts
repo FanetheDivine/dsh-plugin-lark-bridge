@@ -45,10 +45,14 @@ export function questionReportText(questions: unknown): string {
     const question = isRecord(item) ? item : {};
     const text = typeof question.question === 'string' ? question.question.trim() : '';
     const header = typeof question.header === 'string' ? question.header.trim() : '';
-    lines.push(`- Q${index + 1}${header === '' ? '' : ` [${header}]`}: ${text === '' ? '(no question text)' : text}`);
+    lines.push(
+      `- Q${index + 1}${header === '' ? '' : ` [${header}]`}: ${text === '' ? '(no question text)' : text}`,
+    );
     if (Array.isArray(question.options) && question.options.length > 0) {
       const labels = question.options
-        .map((option) => (isRecord(option) && typeof option.label === 'string' ? option.label.trim() : ''))
+        .map((option) =>
+          isRecord(option) && typeof option.label === 'string' ? option.label.trim() : '',
+        )
         .filter((label) => label !== '');
       if (labels.length > 0) lines.push(`  options: ${labels.join(' / ')}`);
     }
@@ -209,7 +213,11 @@ export class AskGuard {
     }
     this.intercepted.add(String(exec.callId));
     exec.concludeTurn?.();
-    return { isError: false, value: { answers: [] }, content: [{ type: 'text', text: ASK_REPORTED_NOTICE }] };
+    return {
+      isError: false,
+      value: { answers: [] },
+      content: [{ type: 'text', text: ASK_REPORTED_NOTICE }],
+    };
   }
 
   /** 中止该会话正在等待的提问；返回是否中止了调用。 */

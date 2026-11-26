@@ -7,8 +7,8 @@ import {
   ASK_REPORTED_NOTICE,
   ASK_TOOL,
   AskGuard,
-  questionReportText,
   type GatewayLike,
+  questionReportText,
 } from '../src/lark-super-agent/managed/ask-guard.ts';
 
 /** 构造一个提问拦截器；默认只有 worker 被管理。 */
@@ -31,7 +31,12 @@ function makeGuard(
 }
 
 /** 构造一次工具调用。 */
-function makeExec(sessionId: string | undefined, name = ASK_TOOL, callId = 'call-1', questions?: unknown) {
+function makeExec(
+  sessionId: string | undefined,
+  name = ASK_TOOL,
+  callId = 'call-1',
+  questions?: unknown,
+) {
   return {
     name,
     callId,
