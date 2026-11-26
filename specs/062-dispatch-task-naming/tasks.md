@@ -39,9 +39,9 @@
 
 **Independent Test**: `pnpm run full-check` 通过；`docs/how-it-works.md` 调度条目含「名称 (id)」。
 
-- [ ] T008 [P] 在 `docs/how-it-works.md` 的调度提示词条目中，「回复只给结论、保持简短」条目之后新增 research R-04 给出的输出形式条目
-- [ ] T009 [P] 在 `CHANGELOG.md` 的 Unreleased 增加一条：调度提示词与桥接提醒要求对用户提及任务时写成「名称 (id)」全形式；任务创建通知同步改用该形式
-- [ ] T010 运行 `pnpm format && pnpm check`，再运行 `pnpm run build` 完成产物测试
+^- [x] T008 [P] 在 `docs/how-it-works.md` 的调度提示词条目中，「回复只给结论、保持简短」条目之后新增 research R-04 给出的输出形式条目
+^- [x] T009 [P] 在 `CHANGELOG.md` 的 Unreleased 增加一条：调度提示词与桥接提醒要求对用户提及任务时写成「名称 (id)」全形式；任务创建通知同步改用该形式
+^- [x] T010 运行 `pnpm format && pnpm check`，再运行 `pnpm run build` 完成产物测试
 
 **Checkpoint**: commit `docs(062): 同步任务提及形式说明`
 
