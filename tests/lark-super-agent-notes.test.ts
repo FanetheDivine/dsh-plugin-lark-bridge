@@ -188,6 +188,59 @@ describe('lark-super-agent notes', { timeout: 30000 }, () => {
     expect(task?.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/);
   });
 
+  it('多行消息正文可写入、读回，之后仍可更新与结束任务', async () => {
+    const root = await temporaryDirectory();
+    const store = new NotesStore(root);
+    const text = '工作区：A。\n\n现象：第二段\n线索：第三段';
+    const { taskId } = await store.createTask({
+      title: '多行',
+      sessionId: 'session-multi',
+      workspaceId: null,
+      cwd: '/work/multi',
+      message: { text },
+    });
+    const state = await readTaskState(root);
+    expect(state.invalid).toBeUndefined();
+    expect(state.tasks[0]?.messages[0]?.text).toBe(text);
+
+    await expect(
+      store.updateTask({ taskId, status: 'waiting_user', addMessage: { text: '补充\n第二行' } }),
+    ).resolves.toEqual({ taskId, status: 'waiting_user' });
+    await expect(store.updateTask({ taskId, title: '新标题' })).resolves.toMatchObject({ taskId });
+    expect((await readTaskState(root)).tasks[0]?.messages.map((message) => message.text)).toEqual([
+      text,
+      '补充\n第二行',
+    ]);
+    await expect(store.endTask(taskId, 'completed')).resolves.toEqual({ taskId });
+  });
+
+  it('空白消息正文拒绝写入，且台账仍可读', async () => {
+    const root = await temporaryDirectory();
+    const store = new NotesStore(root);
+    await expect(
+      store.createTask({
+        title: '空消息',
+        sessionId: 'session-empty',
+        workspaceId: null,
+        cwd: '/work/empty',
+        message: { text: ' \n ' },
+      }),
+    ).rejects.toThrow(/message\.text must not be empty/);
+    expect((await readTaskState(root)).invalid).toBeUndefined();
+  });
+
+  it('台账校验失败时 updateTask 与 endTask 报告校验失败而不是任务不存在', async () => {
+    const root = await temporaryDirectory();
+    const store = new NotesStore(root);
+    await writeFile(join(root, TASKS_FILE), '{ definitely broken\n', 'utf8');
+    await expect(
+      store.updateTask({ taskId: 'task-20260102030405-aaaa', title: '标题' }),
+    ).rejects.toThrow(/message-task-status\.json failed validation/);
+    await expect(store.endTask('task-20260102030405-aaaa', 'cancelled')).rejects.toThrow(
+      /message-task-status\.json failed validation/,
+    );
+  });
+
   it('校验不通过的台账按空台账处理并覆盖旧内容', async () => {
     const root = await temporaryDirectory();
     const store = new NotesStore(root);

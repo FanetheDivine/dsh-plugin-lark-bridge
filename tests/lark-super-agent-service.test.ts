@@ -432,6 +432,33 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     });
   });
 
+  it('manageSession 接管多行首条消息的会话后 updateTask 可找到任务', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const first = 'Fix login\n\nDetails:\nline three';
+    const events = [{ type: 'user/message', data: { content: [{ type: 'text', text: first }] } }];
+    const session = {
+      id: 'multi',
+      title: 'Multi\nline title',
+      cwd: '/project',
+      surface: { nodes: [0] },
+      eventAt: (seq: number) => events[seq],
+    };
+    const ctx = makeContext({
+      sessionController: { resolveAgent: async () => ({ agent: { session } }) },
+    });
+    const service = new SuperAgentService(ctx, { home });
+    const { taskId, title } = await service.manageSession('multi');
+    expect(title).toBe('Multi line title');
+    await expect(
+      service.updateTask({ taskId, status: 'waiting_user', addMessage: { text: 'a\nb' } }),
+    ).resolves.toEqual({ taskId, status: 'waiting_user' });
+    await expect(service.updateTask({ taskId, title: 'Renamed' })).resolves.toMatchObject({
+      taskId,
+    });
+    expect((await service.managedTask('multi'))?.messages[0]?.text).toBe(first);
+  });
+
   it('仅在 Windows 上转换盘符工作区', async () => {
     const ctx = makeContext({});
     const home = await bridgeHome('/z/dispatch-root');

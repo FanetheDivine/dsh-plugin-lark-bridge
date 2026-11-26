@@ -243,7 +243,7 @@ export class SuperAgentService implements LarkSuperAgentService {
     }
     if ('error' in resolved && resolved.error !== undefined) throw resolved.error;
     const agent = 'agent' in resolved ? resolved.agent : resolved;
-    const title = agent?.session?.title?.trim() || id;
+    const title = agent?.session?.title?.replace(/\s*[\r\n]+\s*/g, ' ').trim() || id;
     const cwd = agent?.session?.cwd ?? process.cwd();
     const first = firstUserText(agent);
     const { taskId } = await this.createTask({

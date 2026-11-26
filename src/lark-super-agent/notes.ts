@@ -64,9 +64,12 @@ const line = z
 /** 带时区的 ISO 时间。 */
 const time = z.string().refine((value) => Number.isFinite(Date.parse(value)), 'needs an ISO time');
 
+/** 非空文本，允许多行；消息正文保留原文换行。 */
+const body = z.string().refine((value) => value.trim() !== '', 'needs non-empty text');
+
 const messageSchema = z.object({
   messageId: z.string().optional(),
-  text: line,
+  text: body,
   time,
 });
 
@@ -234,6 +237,13 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
+/** 台账未通过校验时，按任务标识查找必然落空；给出真实原因而不是「任务不存在」。 */
+function assertLedgerValid(state: TaskState): void {
+  if (state.invalid === true) {
+    throw new Error(`${TASKS_FILE} failed validation; its tasks are unreadable until it is fixed`);
+  }
+}
+
 /** 任务状态允许的转换。 */
 const TRANSITIONS: Record<TaskStatus, readonly TaskStatus[]> = {
   in_progress: ['waiting_user', 'failed'],
@@ -292,6 +302,7 @@ export class NotesStore {
     }
     return runSerial(this.root, async () => {
       const state = await readTaskState(this.root);
+      assertLedgerValid(state);
       const task = state.tasks.find((item) => item.id === input.taskId);
       if (task === undefined) throw new Error(`task not found: ${input.taskId}`);
       if (
@@ -316,6 +327,7 @@ export class NotesStore {
   async endTask(taskId: string, endReason: EndReason): Promise<{ taskId: string }> {
     return runSerial(this.root, async () => {
       const state = await readTaskState(this.root);
+      assertLedgerValid(state);
       const task = state.tasks.find((item) => item.id === taskId);
       if (task === undefined) throw new Error(`task not found: ${taskId}`);
       const at = isoTime(this.now());

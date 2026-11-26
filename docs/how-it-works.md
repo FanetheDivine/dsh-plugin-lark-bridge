@@ -314,6 +314,8 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 | `AGENTS.md` | 长期记忆；由调度会话自行维护与提交 |
 
 - `message-task-status.json` 与 `workspaces.json` 用 zod 校验。校验不通过时按空台账处理，下次写入覆盖。
+- 任务标题与工作区笔记为单行文本。任务消息正文允许多行。
+- 台账校验不通过时，`task_update` 与 `task_end` 报告台账校验失败，不再返回 `task not found`。
 - JSON 先写临时文件再重命名，同一工作区的写入与 git 操作串行执行。
 - 首次写笔记时，若调度工作区根目录不是 git 仓库顶层，程序执行 `git init`。
 - 程序用路径限定的 `git add` 与 `git commit` 提交本次文件，提交作者沿用本机 git 配置。
