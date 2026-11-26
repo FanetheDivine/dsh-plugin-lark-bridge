@@ -44,12 +44,12 @@
 
 **Independent Test**: quickstart 的实机场景 1 与守卫单测；断言工具体不运行、上报存档、状态 `waiting_user`、轮次同界结束、无网关挂起。
 
-- [ ] T004 [US1] `src/lark-super-agent/managed/ask-guard.ts`：新增 `questionReportText(questions)` 按 [data-model.md](./data-model.md) 的正文格式生成上报文本（非数组/空数组回退固定说明句）
-- [ ] T005 [US1] `src/lark-super-agent/managed/ask-guard.ts`：`AskGuardOptions` 增加 `intercept(sessionId, questions)`；`beforeExecute` 对被管理 ask 改为「cancel 旧等待 + 返回 allow」；`aroundExecute` 对被管理 ask 不调 `next()`：成功时记 `intercepted` 集合并 `exec.concludeTurn()` 后返回 `{isError:false, value:{answers:[]}}`，抛错时走 `requireRules` 并返回既有 `ASK_BLOCKED_ERROR` 错误结果；`afterExecute` 对 `intercepted` 命中的调用返回 `{kind:'accept', content:[上报说明文本]}`（文本常量 `ASK_REPORTED_NOTICE`）
-- [ ] T006 [US1] `src/lark-super-agent/managed/index.ts`：装配 `intercept` 闭包——`service.sendReport({kind:'question', text:questionReportText(qs)}, sessionId, 'ask_intercept')` → 读 `managedTask`，仅 `in_progress` 时 `updateTask({taskId,status:'waiting_user'})` → `reporter.markIntercepted(sessionId)`
-- [ ] T007 [US1] `tests/managed-ask-guard.test.ts`：被管理调用不进入工具体、`concludeTurn` 被调、结果为成功且 `content` 为上报说明、重复调用逐次上报、投递异常回退为拒绝反馈且 `takeRules` 为真、未管理会话直通
-- [ ] T008 [US1] `tests/managed-turn-report.test.ts`：`markIntercepted` 后轮次结束不再补 `turn_end` 进度上报
-- [ ] T009 [US1] `tests/lark-super-agent-index.test.ts`（或既有行装配测试文件）：行装配后 `send_report` 卡片链路不变，`origin=ask_intercept` 的块属性正确（`src/lark-super-agent/blocks.ts` 无需改动则只断言）
+- [x] T004 [US1] `src/lark-super-agent/managed/ask-guard.ts`：新增 `questionReportText(questions)` 按 [data-model.md](./data-model.md) 的正文格式生成上报文本（非数组/空数组回退固定说明句）
+- [x] T005 [US1] `src/lark-super-agent/managed/ask-guard.ts`：`AskGuardOptions` 增加 `intercept(sessionId, questions)`；`beforeExecute` 对被管理 ask 改为「cancel 旧等待 + 返回 allow」；`aroundExecute` 对被管理 ask 不调 `next()`：成功时记 `intercepted` 集合并 `exec.concludeTurn()` 后返回 `{isError:false, value:{answers:[]}}`，抛错时走 `requireRules` 并返回既有 `ASK_BLOCKED_ERROR` 错误结果；`afterExecute` 对 `intercepted` 命中的调用返回 `{kind:'accept', content:[上报说明文本]}`（文本常量 `ASK_REPORTED_NOTICE`）
+- [x] T006 [US1] `src/lark-super-agent/managed/index.ts`：装配 `intercept` 闭包——`service.sendReport({kind:'question', text:questionReportText(qs)}, sessionId, 'ask_intercept')` → 读 `managedTask`，仅 `in_progress` 时 `updateTask({taskId,status:'waiting_user'})` → `reporter.markIntercepted(sessionId)`
+- [x] T007 [US1] `tests/managed-ask-guard.test.ts`：被管理调用不进入工具体、`concludeTurn` 被调、结果为成功且 `content` 为上报说明、重复调用逐次上报、投递异常回退为拒绝反馈且 `takeRules` 为真、未管理会话直通
+- [x] T008 [US1] `tests/managed-turn-report.test.ts`：`markIntercepted` 后轮次结束不再补 `turn_end` 进度上报
+- [x] T009 [US1] `tests/lark-super-agent-index.test.ts`（或既有行装配测试文件）：行装配后 `send_report` 卡片链路不变，`origin=ask_intercept` 的块属性正确（`src/lark-super-agent/blocks.ts` 无需改动则只断言）
 
 **Checkpoint**: US1 单测全绿。
 
@@ -59,7 +59,7 @@
 
 **Independent Test**: rdt 场景 2 对照；未管理调用进入宿主等待、无上报。
 
-- [ ] T010 [US2] `tests/managed-ask-guard.test.ts`：补充未管理与调度会话调用路径的对照断言（`isManaged` 为假时 `next()` 照常执行、不记 `intercepted`、不排队 S）
+- [x] T010 [US2] `tests/managed-ask-guard.test.ts`：补充未管理与调度会话调用路径的对照断言（`isManaged` 为假时 `next()` 照常执行、不记 `intercepted`、不排队 S）
 
 **Checkpoint**: US2 断言全绿。
 
@@ -69,7 +69,7 @@
 
 **Independent Test**: 模拟 `intercept` 抛错的单测分支。
 
-- [ ] T011 [US3] `tests/managed-ask-guard.test.ts`：`intercept` 抛错时结果为 `isError:true` 且文本为 `ASK_BLOCKED_ERROR`、`concludeTurn` 未被调用、`takeRules` 返回真
+- [x] T011 [US3] `tests/managed-ask-guard.test.ts`：`intercept` 抛错时结果为 `isError:true` 且文本为 `ASK_BLOCKED_ERROR`、`concludeTurn` 未被调用、`takeRules` 返回真
 
 **Checkpoint**: US3 断言全绿。
 

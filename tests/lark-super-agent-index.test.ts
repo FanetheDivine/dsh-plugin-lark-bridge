@@ -271,20 +271,86 @@ describe('lark-super-agent 全局行', () => {
     expect(notify).toHaveBeenCalledOnce();
   });
 
-  it('被管理会话的提问被拒后，下一次模型请求前注入一次 S', async () => {
+  it('被管理会话的提问被拦截：代为上报、置状态并结束轮次', async () => {
     const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
     mkdirSync(workspaceRoot, { recursive: true });
     writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
     writeManagedTask(workspaceRoot, 'worker', 'task-20260101000000-0001');
-    const { base } = startRow();
+    const { base, service } = startRow();
+    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
+      reportId: 'report-20260101000000-abcdef',
+      taskId: 'task-20260101000000-0001',
+      delivered: true,
+    });
+    const updateTask = vi
+      .spyOn(service, 'updateTask')
+      .mockResolvedValue({ taskId: 'task-20260101000000-0001', status: 'waiting_user' });
 
     const beforeExecute = base._onCallbacks.get('tools/pre-execute')?.[0];
-    if (beforeExecute === undefined) throw new Error('missing tools/pre-execute listener');
-    const exec = { name: ASK_TOOL, callId: 'call-1', agent: { session: { id: 'worker' } } };
+    const aroundExecute = base._onCallbacks.get('tools/execute')?.[0];
+    if (beforeExecute === undefined || aroundExecute === undefined)
+      throw new Error('missing tool hooks');
+    const exec = {
+      name: ASK_TOOL,
+      callId: 'call-1',
+      agent: { session: { id: 'worker' } },
+      signal: new AbortController().signal,
+      concludeTurn: vi.fn(),
+      arguments: { questions: [{ id: 'q1', question: '选哪个？' }] },
+    };
     await expect(beforeExecute(exec, async () => ({ kind: 'allow' }))).resolves.toEqual({
-      kind: 'deny',
-      reason: ASK_BLOCKED_ERROR,
+      kind: 'allow',
     });
+    const result = await aroundExecute(exec, async () => {
+      throw new Error('tool body must not run');
+    });
+    expect(sendReport).toHaveBeenCalledWith(
+      { kind: 'question', text: expect.stringContaining('选哪个？') },
+      'worker',
+      'ask_intercept',
+    );
+    expect(updateTask).toHaveBeenCalledWith({
+      taskId: 'task-20260101000000-0001',
+      status: 'waiting_user',
+    });
+    expect(exec.concludeTurn).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ isError: false, value: { answers: [] } });
+
+    const messages = [sourcedMessage('user')];
+    const injected = await runPreStep(
+      base,
+      { agent: { session: { id: 'worker' } } },
+      enterWith(messages),
+    );
+    expect(injected.messages).toHaveLength(1);
+  });
+
+  it('拦截上报失败时退回拒绝反馈并注入一次 S', async () => {
+    const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
+    mkdirSync(workspaceRoot, { recursive: true });
+    writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
+    writeManagedTask(workspaceRoot, 'worker', 'task-20260101000000-0001');
+    const { base, service } = startRow();
+    const sendReport = vi.spyOn(service, 'sendReport').mockRejectedValue(new Error('no dispatch'));
+    const updateTask = vi.spyOn(service, 'updateTask');
+    const aroundExecute = base._onCallbacks.get('tools/execute')?.[0];
+    if (aroundExecute === undefined) throw new Error('missing tools/execute listener');
+
+    const exec = {
+      name: ASK_TOOL,
+      callId: 'call-1',
+      agent: { session: { id: 'worker' } },
+      signal: new AbortController().signal,
+      concludeTurn: vi.fn(),
+      arguments: { questions: [{ id: 'q1', question: 'x' }] },
+    };
+    const result = await aroundExecute(exec, async () => {
+      throw new Error('tool body must not run');
+    });
+    expect(sendReport).toHaveBeenCalledOnce();
+    expect(updateTask).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(exec.concludeTurn).not.toHaveBeenCalled();
 
     const messages = [sourcedMessage('user')];
     const injected = await runPreStep(
@@ -295,13 +361,5 @@ describe('lark-super-agent 全局行', () => {
     expect(injected.messages).toHaveLength(2);
     const rules = injected.messages?.[0] as { source: { kind: string } } | undefined;
     expect(rules?.source.kind).toBe(TASK_RULES_SOURCE_KIND);
-    expect(injected.messages?.[1]).toBe(messages[0]);
-
-    const again = await runPreStep(
-      base,
-      { agent: { session: { id: 'worker' } } },
-      enterWith(messages),
-    );
-    expect(again.messages).toHaveLength(1);
   });
 });

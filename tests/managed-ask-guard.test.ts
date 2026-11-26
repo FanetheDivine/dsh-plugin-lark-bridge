@@ -1,34 +1,43 @@
-// 提问拦截测试：被管理会话一律拒绝、结束等待中的提问并排队 S。
+// 提问拦截测试：被管理会话代为上报并结束轮次；无 intercept 时退回拒绝并排队 S；等待中的提问可被结束。
 import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
   ASK_BLOCKED_ERROR,
+  ASK_REPORTED_NOTICE,
   ASK_TOOL,
   AskGuard,
+  questionReportText,
   type GatewayLike,
 } from '../src/lark-super-agent/managed/ask-guard.ts';
 
 /** 构造一个提问拦截器；默认只有 worker 被管理。 */
 function makeGuard(
-  options: { managed?: readonly string[]; gateway?: GatewayLike | undefined } = {},
+  options: {
+    managed?: readonly string[];
+    gateway?: GatewayLike | undefined;
+    intercept?: (sessionId: string, questions: unknown) => Promise<void>;
+  } = {},
 ) {
   const managed = new Set(options.managed ?? ['worker']);
   const warnings: unknown[][] = [];
   const guard = new AskGuard({
     isManaged: async (sessionId) => managed.has(sessionId),
     gateway: () => options.gateway,
+    ...(options.intercept === undefined ? {} : { intercept: options.intercept }),
     logger: { warn: (...args: unknown[]) => warnings.push(args) },
   });
   return { guard, warnings, managed };
 }
 
 /** 构造一次工具调用。 */
-function makeExec(sessionId: string | undefined, name = ASK_TOOL, callId = 'call-1') {
+function makeExec(sessionId: string | undefined, name = ASK_TOOL, callId = 'call-1', questions?: unknown) {
   return {
     name,
     callId,
     signal: new AbortController().signal,
+    concludeTurn: vi.fn(),
+    ...(questions === undefined ? {} : { arguments: { questions } }),
     ...(sessionId === undefined ? {} : { agent: { session: { id: sessionId } } }),
   };
 }
@@ -271,5 +280,105 @@ describe('AskGuard.takeRules', () => {
     expect(guard.takeRules('second')).toBe(false);
     expect(guard.takeRules('worker')).toBe(true);
     expect(guard.takeRules('worker')).toBe(false);
+  });
+});
+
+describe('AskGuard 拦截代为上报', () => {
+  it('pre-execute 对被管理提问放行，交给环绕钩子', async () => {
+    const { guard } = makeGuard({ intercept: async () => undefined });
+    await expect(guard.beforeExecute(makeExec('worker'), allow)).resolves.toEqual({
+      kind: 'allow',
+    });
+    expect(guard.takeRules('worker')).toBe(false);
+  });
+
+  it('工具体不运行：代为上报、结束轮次并给出上报说明', async () => {
+    const calls: Array<[string, unknown]> = [];
+    const questions = [{ id: 'q1', question: '选哪个？' }];
+    const { guard } = makeGuard({ intercept: async (s, q) => void calls.push([s, q]) });
+    const exec = makeExec('worker', ASK_TOOL, 'call-9', questions);
+    const next = vi.fn(async () => answered);
+    const result = await guard.aroundExecute(exec as never, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(calls).toEqual([['worker', questions]]);
+    expect(exec.concludeTurn).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      isError: false,
+      value: { answers: [] },
+      content: [{ type: 'text', text: ASK_REPORTED_NOTICE }],
+    });
+    await expect(
+      guard.afterExecute(exec, result, async () => ({ kind: 'continue' }) as never),
+    ).resolves.toEqual({ kind: 'accept', content: [{ type: 'text', text: ASK_REPORTED_NOTICE }] });
+    expect(guard.takeRules('worker')).toBe(false);
+  });
+
+  it('同一会话重复调用逐次拦截上报', async () => {
+    const seen: string[] = [];
+    const { guard } = makeGuard({ intercept: async (_s, q) => void seen.push(JSON.stringify(q)) });
+    for (const callId of ['call-1', 'call-2']) {
+      const exec = makeExec('worker', ASK_TOOL, callId, [{ id: callId, question: 'q' }]);
+      await guard.aroundExecute(exec as never, async () => answered);
+    }
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).not.toBe(seen[1]);
+  });
+
+  it('投递失败退回拒绝反馈并排队 S，不改写结果', async () => {
+    const { guard } = makeGuard({
+      intercept: async () => {
+        throw new Error('deliver failed');
+      },
+    });
+    const exec = makeExec('worker');
+    const next = vi.fn(async () => answered);
+    const result = await guard.aroundExecute(exec as never, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(exec.concludeTurn).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(guard.takeRules('worker')).toBe(true);
+    const passthrough = { kind: 'continue' } as never;
+    await expect(guard.afterExecute(exec, result, async () => passthrough)).resolves.toBe(
+      passthrough,
+    );
+  });
+
+  it('未被管理会话照常执行，不上报也不排队 S', async () => {
+    const intercept = vi.fn(async () => undefined);
+    const { guard } = makeGuard({ managed: [], intercept });
+    const exec = makeExec('other');
+    const original = exec.signal;
+    await expect(guard.aroundExecute(exec as never, async () => answered)).resolves.toBe(answered);
+    expect(intercept).not.toHaveBeenCalled();
+    expect(exec.concludeTurn).not.toHaveBeenCalled();
+    expect(exec.signal).toBe(original);
+    expect(guard.takeRules('other')).toBe(false);
+  });
+});
+
+describe('questionReportText 正文', () => {
+  it('列出题面、表头、选项与多选标注', () => {
+    const text = questionReportText([
+      {
+        id: 'a',
+        question: '选 A 还是 B',
+        header: '方案',
+        options: [{ label: 'A（推荐）', description: 'x' }, { label: 'B' }],
+      },
+      { id: 'b', question: '还有什么要补充？', options: [], multi_select: true },
+    ]);
+    expect(text).toContain('- Q1 [方案]: 选 A 还是 B');
+    expect(text).toContain('options: A（推荐） / B');
+    expect(text).toContain('- Q2: 还有什么要补充？');
+    expect(text).toContain('(multi-select)');
+    expect(text).toContain('Reply in the dispatch session or in Lark');
+  });
+
+  it('异常输入回退为固定说明句', () => {
+    for (const input of [undefined, [], 'x']) {
+      expect(questionReportText(input)).toContain('needs your input');
+    }
+    const sparse = questionReportText([{}]);
+    expect(sparse).toContain('(no question text)');
   });
 });
