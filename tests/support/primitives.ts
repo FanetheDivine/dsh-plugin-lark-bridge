@@ -7,11 +7,13 @@
 export { Button } from '@deepseek-ai/dsh-client-ui-primitives/src/Button.tsx';
 export { Checkbox } from '@deepseek-ai/dsh-client-ui-primitives/src/Checkbox.tsx';
 export { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives/src/clipboard.ts';
+export { FileTypeIcon } from '@deepseek-ai/dsh-client-ui-primitives/src/FileTypeIcon.tsx';
 export {
   IconCheckOutlineRegular,
   IconChevronDownOutlineRegular,
   IconClockOutlineRegular,
   IconCloseOutlineRegular,
+  IconPaperPlaneOutlineRegular,
   IconPlusOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives/src/icons/index.tsx';
 export { Menu, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives/src/Menu.tsx';
@@ -44,4 +46,6 @@ export type {
   SettingsFormProps,
 } from '@deepseek-ai/dsh-client-ui-primitives/src/settings-form/SettingsForm.tsx';
 export { SettingsForm } from '@deepseek-ai/dsh-client-ui-primitives/src/settings-form/SettingsForm.tsx';
+export type { TagTone } from '@deepseek-ai/dsh-client-ui-primitives/src/Tag.tsx';
+export { Tag } from '@deepseek-ai/dsh-client-ui-primitives/src/Tag.tsx';
 export { useClipboardCopy } from '@deepseek-ai/dsh-client-ui-primitives/src/use-clipboard-copy.ts';

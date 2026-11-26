@@ -59,6 +59,7 @@ import {
 import type { PresetDefaultsInjected, PresetDefaultsState } from '../src/client/preset-defaults.ts';
 import { currentText, menuItems, PresetSelect } from '../src/client/preset-select.tsx';
 import { ReportCard } from '../src/client/report-card.tsx';
+import { REPORT_DEFINITION_KIND, REPORT_NODE_KIND } from '../src/client/report-node.ts';
 import { StatusController } from '../src/client/status-controller.ts';
 import type { ConnectionState } from '../src/types.ts';
 import {
@@ -281,36 +282,40 @@ describe('前端入口', () => {
     apply(ctx);
     expect(ctx._injectGroups).toEqual([
       ['locale'],
+      ['slots', 'uiConversation'],
       ['slots', 'locale', 'configForms', 'remote', 'remote.session'],
       ['remote.agentPresets'],
     ]);
   });
 
-  it('注册双语字典、全局鉴权弹窗、上报卡片与面板配置页', () => {
+  it('注册双语字典、上报卡片节点、全局鉴权弹窗与面板配置页', () => {
     const ctx = makeClientCtx();
     apply(ctx);
 
     expect(ctx._localeRegistrations.map((entry) => entry.ns)).toEqual([NS]);
     expect(Object.keys(ctx._localeRegistrations[0]?.dicts ?? {}).sort()).toEqual(['en', 'zh']);
     expect(ctx._slotInjections).toEqual([
+      'conversation.chat.node',
       'shell.overlay',
-      'tool.call.toolview',
       'plugins.row.config',
       'plugins.row.config',
     ]);
     expect(ctx._slotRegistrations[0]?.options).toMatchObject({
+      name: 'conversation.chat.node',
+      key: REPORT_NODE_KIND,
+      locale: NS,
+    });
+    expect(ctx._slotRegistrations[0]?.component).toBe(ReportCard);
+    expect(ctx._conversationDefinitions.map((entry) => entry.kind)).toEqual([
+      REPORT_DEFINITION_KIND,
+    ]);
+    expect(ctx._slotRegistrations[1]?.options).toMatchObject({
       name: 'shell.overlay',
       id: 'lark-bridge-auth',
       order: 20,
       locale: NS,
     });
-    expect(ctx._slotRegistrations[0]?.component).toBe(AuthOverlay);
-    expect(ctx._slotRegistrations[1]?.options).toMatchObject({
-      name: 'tool.call.toolview',
-      key: 'send_report',
-      locale: NS,
-    });
-    expect(ctx._slotRegistrations[1]?.component).toBe(ReportCard);
+    expect(ctx._slotRegistrations[1]?.component).toBe(AuthOverlay);
     expect(ctx._slotRegistrations[2]?.options).toMatchObject({
       name: 'plugins.row.config',
       key: ROW_KEY,
@@ -333,7 +338,7 @@ describe('前端入口', () => {
       readonly modelDefaults: ModelDefaultsInjected;
       readonly presetDefaults: PresetDefaultsInjected;
     };
-    const overlayInject = ctx._slotRegistrations[0]?.options.inject as
+    const overlayInject = ctx._slotRegistrations[1]?.options.inject as
       | (() => SharedSlotInjected)
       | undefined;
     const configInject = ctx._slotRegistrations[2]?.options.inject as

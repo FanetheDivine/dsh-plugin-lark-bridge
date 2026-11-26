@@ -153,7 +153,13 @@ export interface ClientSlotRegistration {
 }
 
 /** 客户端服务名。 */
-export type ClientServiceName = 'slots' | 'locale' | 'configForms' | 'remote' | 'remote.session';
+export type ClientServiceName =
+  | 'slots'
+  | 'locale'
+  | 'configForms'
+  | 'remote'
+  | 'remote.session'
+  | 'uiConversation';
 
 /** 全部客户端服务名。 */
 const CLIENT_SERVICES: ClientServiceName[] = [
@@ -162,6 +168,7 @@ const CLIENT_SERVICES: ClientServiceName[] = [
   'configForms',
   'remote',
   'remote.session',
+  'uiConversation',
 ];
 
 /** 客户端 ctx 模拟的观测字段。 */
@@ -181,6 +188,10 @@ export interface ClientMockState {
   _effectDisposers: Array<() => void>;
   /** `ctx.inject` 声明过的依赖组，按调用顺序。 */
   _injectGroups: string[][];
+  /** `uiConversation.events.register` 收到的 Definition，按调用顺序。 */
+  _conversationDefinitions: Array<Record<string, unknown>>;
+  /** 当前未被注销的 Definition。 */
+  _activeConversationDefinitions: Set<Record<string, unknown>>;
 }
 
 /** 一个 `ctx.inject` 依赖组的运行态。 */
@@ -211,6 +222,8 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
     _configFormScopes: [],
     _effectDisposers: [],
     _injectGroups: [],
+    _conversationDefinitions: [],
+    _activeConversationDefinitions: new Set(),
   };
   const noop = () => true;
   /** 访问不可用服务时抛错。 */
@@ -255,6 +268,17 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
       });
       state._configFormScopes.push(fake);
       return fake.scope;
+    },
+  };
+  const uiConversationService = {
+    events: {
+      register(definition: Record<string, unknown>) {
+        state._conversationDefinitions.push(definition);
+        state._activeConversationDefinitions.add(definition);
+        return () => {
+          state._activeConversationDefinitions.delete(definition);
+        };
+      },
     },
   };
   const slotsService = {
@@ -338,6 +362,9 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
     },
     get slots() {
       return require('slots', slotsService);
+    },
+    get uiConversation() {
+      return require('uiConversation', uiConversationService);
     },
     /** 让服务变为可用，并加载依赖已齐的组。 */
     _grant(...names: ClientServiceName[]) {
