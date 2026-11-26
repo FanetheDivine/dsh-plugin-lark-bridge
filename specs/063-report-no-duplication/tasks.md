@@ -41,9 +41,9 @@
 
 **Independent Test**: `pnpm run full-check` 通过；`docs/how-it-works.md` 的被管理会话能力表写明收尾规则。
 
-- [ ] T010 [P] 在 `docs/how-it-works.md` 的被管理会话能力表 `send_report` 行补充「上报送达后正文最多一句收尾」，并在 S 说明一句指向同口径
-- [ ] T011 [P] 在 `CHANGELOG.md` 的 Unreleased 增加一条：`send_report` 描述、临时指令与调度提示词规定上报后正文只作简短收尾，不再复述上报内容
-- [ ] T012 运行 `pnpm format && pnpm check`，再运行 `pnpm run build` 完成产物测试
+- [x] T010 [P] 在 `docs/how-it-works.md` 的被管理会话能力表 `send_report` 行补充「上报送达后正文最多一句收尾」，并在 S 说明一句指向同口径
+- [x] T011 [P] 在 `CHANGELOG.md` 的 Unreleased 增加一条：`send_report` 描述、临时指令与调度提示词规定上报后正文只作简短收尾，不再复述上报内容
+- [x] T012 运行 `pnpm format && pnpm check`，再运行 `pnpm run build` 完成产物测试
 
 **Checkpoint**: commit `docs(063): 同步上报正文收尾说明`
 

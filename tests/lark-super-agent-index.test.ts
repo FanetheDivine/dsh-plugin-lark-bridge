@@ -8,7 +8,10 @@ import { readPresenceAlarms, readPresenceSwitches } from '../src/lark-super-agen
 import { apply, Config, inject } from '../src/lark-super-agent/index.ts';
 import { ASK_TOOL, AWAY_ERROR } from '../src/lark-super-agent/managed/ask-guard.ts';
 import { SEND_REPORT_DESCRIPTION } from '../src/lark-super-agent/managed/report-tool.ts';
-import { TASK_RULES_SOURCE_KIND, TASK_RULES_TEXT } from '../src/lark-super-agent/managed/task-rules.ts';
+import {
+  TASK_RULES_SOURCE_KIND,
+  TASK_RULES_TEXT,
+} from '../src/lark-super-agent/managed/task-rules.ts';
 import { PresenceStore } from '../src/lark-super-agent/presence.ts';
 import { PRESENCE_PATH } from '../src/lark-super-agent/routes.ts';
 import { SuperAgentService } from '../src/lark-super-agent/service.ts';
