@@ -36,9 +36,9 @@
 
 **Independent Test**: `tests/card-styles.test.ts` 通过；实机截图中卡片内容与普通助手正文同色。
 
-- [ ] T008 [US2] 在 `tests/card-styles.test.ts` 编写上报与通知卡片容器使用 `--dsw-alias-label-primary` 的失败测试
-- [ ] T009 [US2] 修改 `src/client/report-card.css`，将 `.dsh-lark-report` 默认色从次要前景色改为 `--dsw-alias-label-primary`，保留辅助层级
-- [ ] T010 [US2] 运行 `tests/card-styles.test.ts`、`tests/report-card.test.ts` 与 `tests/notify-card.test.ts`，确认只改颜色且上报结构不变
+- [X] T008 [US2] 在 `tests/card-styles.test.ts` 编写上报与通知卡片容器使用 `--dsw-alias-label-primary` 的失败测试
+- [X] T009 [US2] 修改 `src/client/report-card.css`，将 `.dsh-lark-report` 默认色从次要前景色改为 `--dsw-alias-label-primary`，保留辅助层级
+- [X] T010 [US2] 运行 `tests/card-styles.test.ts`、`tests/report-card.test.ts` 与 `tests/notify-card.test.ts`，确认只改颜色且上报结构不变
 
 **Commit**: `fix(066): 上报与通知正文使用对话正文颜色`
 
