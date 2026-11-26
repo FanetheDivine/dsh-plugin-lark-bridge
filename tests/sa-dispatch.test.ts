@@ -1,14 +1,12 @@
-// SA-调度会话子行测试：依赖注入、提示词、任务与会话工具的参数转换与结果、用户状态提醒。
-import type { UserMessage } from '@deepseek-ai/dsh-llm';
+// SA-调度会话子行测试：依赖注入、提示词、任务与会话工具的参数转换与结果。
 import { ToolArgsError, type ToolDefinition } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { LarkSuperAgentService } from '../src/lark-super-agent/api.ts';
-import { PresenceStore } from '../src/lark-super-agent/presence.ts';
 import { apply, name } from '../src/sa-dispatch/index.ts';
 import { SA_DISPATCH_PROMPT } from '../src/sa-dispatch/prompt.ts';
 import type { Context } from '../src/types.ts';
-import { type FakeSurfaceSession, makeCtx, makeSurfaceSession } from './helpers.ts';
+import { makeCtx } from './helpers.ts';
 
 interface PromptSectionLike {
   name: string;
@@ -18,9 +16,6 @@ interface PromptSectionLike {
 
 function makeService() {
   return {
-    presence: new PresenceStore({
-      switches: () => ({ guiInputSetsLocal: true, larkInputSetsRemote: true }),
-    }),
     taskModel: () => undefined,
     taskPreset: () => '',
     bridgeSessionId: vi.fn(),
@@ -79,34 +74,6 @@ function tool(tools: ToolDefinition[], toolName: string): ToolDefinition {
 /** 截取提示词中一节的正文。 */
 function section(title: string): string {
   return SA_DISPATCH_PROMPT.split(`## ${title}\n`)[1]?.split('\n## ')[0] ?? '';
-}
-
-/** 构造一条带来源的用户消息。 */
-function sourcedMessage(kind: string, extra: Record<string, unknown> = {}): UserMessage {
-  return {
-    id: `msg-${Math.random().toString(36).slice(2)}`,
-    role: 'user',
-    content: [{ type: 'text', text: 'hello' }],
-    source: { kind, ...extra },
-  } as unknown as UserMessage;
-}
-
-/** 调用子行注册的 agent/pre-step 监听。 */
-async function runPreStep(
-  host: ReturnType<typeof mount>,
-  session: FakeSurfaceSession,
-  messages: UserMessage[],
-  decision?: { kind: string; messages?: UserMessage[] },
-) {
-  const listener = host.base._onCallbacks.get('agent/pre-step')?.[0];
-  if (listener === undefined) throw new Error('missing agent/pre-step listener');
-  const next = vi.fn(async () => decision ?? { kind: 'enter', messages });
-  const result = (await listener({ agent: { session } }, next)) as {
-    kind: string;
-    messages?: UserMessage[];
-  };
-  if (result.kind !== 'reject') session.commit(result.messages ?? []);
-  return { result, next };
 }
 
 describe('SA-调度会话子行', () => {
@@ -320,7 +287,6 @@ describe('SA-调度会话子行', () => {
     expect(titles).toEqual([
       'Reply style',
       'Answer questions about DSH yourself',
-      'Track where the user is',
       'Start a task',
       'Manage existing sessions',
       'Add messages to a task',
@@ -455,121 +421,15 @@ describe('SA-调度会话子行', () => {
     expect(bounds).toContain('Never edit state files, task archives, or reports by hand');
   });
 
-  it('注册 agent/pre-step 在场提醒监听', () => {
+  it('不再注册 agent/pre-step 提醒监听', () => {
     const host = mount();
-    expect(host.base._onCallbacks.get('agent/pre-step')).toHaveLength(1);
+    expect(host.base._onCallbacks.get('agent/pre-step')).toBeUndefined();
   });
 
-  it('首次请求插入带属性的 local 提醒，状态不变时不重复', async () => {
-    const host = mount();
-    const session = makeSurfaceSession();
-    const local = sourcedMessage('user', { rpcId: 'rpc-1' });
-
-    const first = await runPreStep(host, session, [local]);
-
-    expect(first.result.kind).toBe('enter');
-    const [notice, original] = first.result.messages ?? [];
-    expect(notice?.source).toEqual({ kind: 'sa-presence', form: 'notice', presence: 'local' });
-    expect(JSON.stringify(notice?.content)).toContain('at the computer');
-    expect(original).toBe(local);
-
-    const second = await runPreStep(host, session, [sourcedMessage('user')]);
-    expect(second.result.messages).toHaveLength(1);
-  });
-
-  it('飞书消息把全局状态切到离开并插入 remote 提醒', async () => {
-    const host = mount();
-    const session = makeSurfaceSession();
-    await runPreStep(host, session, [sourcedMessage('user')]);
-
-    const remote = await runPreStep(host, session, [sourcedMessage('lark-bridge')]);
-    expect(remote.result.messages?.[0]?.source).toMatchObject({ presence: 'remote' });
-    expect(JSON.stringify(remote.result.messages?.[0]?.content)).toContain('away');
-    expect(host.service.presence.get().presence).toBe('remote');
-
-    const again = await runPreStep(host, session, [sourcedMessage('lark-bridge')]);
-    expect(again.result.messages).toHaveLength(1);
-  });
-
-  it('手动切换后无新消息的下一步也插入提醒', async () => {
-    const host = mount();
-    const session = makeSurfaceSession();
-    await runPreStep(host, session, [sourcedMessage('user')]);
-    host.service.presence.set('remote');
-
-    const { result } = await runPreStep(host, session, []);
-    expect(result.messages?.[0]?.source).toMatchObject({ presence: 'remote' });
-  });
-
-  it('按属性识别提醒，不读正文', async () => {
-    const host = mount();
-    const session = makeSurfaceSession();
-    session.commit([
-      sourcedMessage('sa-presence', { form: 'notice', presence: 'local' }),
-      {
-        role: 'user',
-        content: [{ type: 'text', text: 'User presence: the user is away' }],
-        source: { kind: 'user' },
-      },
-    ]);
-
-    const { result } = await runPreStep(host, session, [sourcedMessage('time-context')]);
-    expect(result.messages).toHaveLength(1);
-  });
-
-  it('旧版 sa-dispatch-presence 提醒不计入，升级后补一条', async () => {
-    const host = mount();
-    const session = makeSurfaceSession();
-    session.commit([sourcedMessage('sa-dispatch-presence', { form: 'notice' })]);
-
-    const { result } = await runPreStep(host, session, [sourcedMessage('time-context')]);
-    expect(result.messages?.[0]?.source).toMatchObject({ kind: 'sa-presence' });
-  });
-
-  it('压缩移除提醒后补回当前状态', async () => {
-    const host = mount();
-    const session = makeSurfaceSession();
-    await runPreStep(host, session, [sourcedMessage('user')]);
-    session.compact();
-
-    const { result } = await runPreStep(host, session, [sourcedMessage('time-context')]);
-    expect(result.messages?.[0]?.source).toMatchObject({ kind: 'sa-presence', presence: 'local' });
-  });
-
-  it('桥接提醒、任务会话上报与其他注入不改变状态', async () => {
-    const host = mount();
-    const session = makeSurfaceSession();
-    await runPreStep(host, session, [sourcedMessage('user')]);
-    const messages = [
-      sourcedMessage('lark-bridge', { reminder: true }),
-      sourcedMessage('lark-super-agent'),
-      sourcedMessage('time-context'),
-    ];
-
-    const { result } = await runPreStep(host, session, messages);
-
-    expect(result.messages).toEqual(messages);
-    expect(host.service.presence.get().presence).toBe('local');
-  });
-
-  it('reject 决策原样返回且不观察消息', async () => {
-    const host = mount();
-    const session = makeSurfaceSession();
-    const decision = { kind: 'reject' };
-
-    const rejected = await runPreStep(host, session, [sourcedMessage('lark-bridge')], decision);
-    expect(rejected.result).toBe(decision);
-    expect(host.service.presence.get().presence).toBe('local');
-  });
-
-  it('提示词只说明两种位置的处理方式', () => {
-    const track = section('Track where the user is');
-    expect(track).toMatch(/system reminder tells you where the user is/i);
-    expect(track).toMatch(/At the computer:.*response body/);
-    expect(track).toContain('Do not call lark_notify');
-    expect(track).toContain('Away: reply and relay through lark_notify');
-    expect(track).toContain('Dispatch every task in both states');
-    expect(section('Handle reports')).toContain('channel for the current presence');
-    expect(SA_DISPATCH_PROMPT).not.toContain('用户在电脑前');
+  it('提示词不含在场段落，转达上报不按在场选择渠道', () => {
+    expect(SA_DISPATCH_PROMPT).not.toContain('Track where the user is');
+    expect(SA_DISPATCH_PROMPT).not.toMatch(/presence/i);
+    expect(section('Handle reports')).toContain('Relay the content to the user.');
+    expect(section('Handle reports')).not.toContain('channel for the current presence');
   });
 });

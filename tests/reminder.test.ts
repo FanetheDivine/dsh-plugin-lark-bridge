@@ -85,11 +85,14 @@ function harness(options: { bridge?: boolean; failure?: unknown } = {}) {
 }
 
 describe('BRIDGE_REMINDER', () => {
-  it('覆盖四条回复规则', () => {
+  it('覆盖统一回复渠道与正文收尾规则', () => {
     expect(BRIDGE_REMINDER).toContain('lark_notify');
     expect(BRIDGE_REMINDER).toContain('远程发送');
     expect(BRIDGE_REMINDER).toContain('只回复一次');
-    expect(BRIDGE_REMINDER).toContain('其他来源的用户消息');
+    expect(BRIDGE_REMINDER).toContain('回复用户时调用 lark_notify');
+    expect(BRIDGE_REMINDER).toContain('本轮正文最多一句概述，可以为空');
+    expect(BRIDGE_REMINDER).toContain('通知失败时把完整内容留在正文');
+    expect(BRIDGE_REMINDER).not.toContain('其他来源的用户消息');
   });
 
   it('提及任务时要求写成「名称 (id)」并给出缺失兜底', () => {
@@ -103,7 +106,7 @@ describe('BRIDGE_REMINDER', () => {
     expect(BRIDGE_REMINDER).toContain('<quote>');
     expect(BRIDGE_REMINDER).toContain('<forwarded_messages>');
     expect(BRIDGE_REMINDER).toContain('+messages-mget --as user');
-    expect(BRIDGE_REMINDER).toContain('移动端');
+    expect(BRIDGE_REMINDER).toContain('通过飞书与你通信');
   });
 
   it('包装成 system-reminder 且来源带标记', () => {

@@ -1,4 +1,4 @@
-/** SA-调度会话预设子行：注册调度提示词、任务与会话工具，并按全局在场状态插入提醒。 */
+/** SA-调度会话预设子行：注册调度提示词、任务与会话工具。 */
 import type { Context } from '../types.ts';
 import { buildListModelsTool, type LlmCatalogLike } from './list-models.ts';
 import { SA_DISPATCH_PROMPT } from './prompt.ts';
@@ -51,13 +51,6 @@ export function apply(ctx: Context): void {
           error,
         );
       }
-    });
-    dispatchCtx.on('agent/pre-step', async ({ agent }, next) => {
-      const decision = await next();
-      if (decision.kind === 'reject') return decision;
-      const notice = service.presence.reminderFor(agent.session, decision.messages);
-      if (notice === undefined) return decision;
-      return { ...decision, messages: [notice, ...decision.messages] };
     });
   });
 }

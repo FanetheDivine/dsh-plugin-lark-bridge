@@ -59,14 +59,14 @@
 
 ### Tests for User Story 2
 
-- [ ] T008 [P] [US2] 更新 `tests/sa-dispatch.test.ts`：删除在场提醒与状态切换用例；断言 `agent/pre-step` 不修改消息、提示词不含在场段落、`Handle reports` 不含渠道短语。
+- [X] T008 [P] [US2] 更新 `tests/sa-dispatch.test.ts`：删除在场提醒与状态切换用例；断言 `agent/pre-step` 不修改消息、提示词不含在场段落、`Handle reports` 不含渠道短语。
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] 更新 `src/reminder.ts`：`BRIDGE_REMINDER` 改为「回复用户时调用 `lark_notify`」「成功送达后本轮正文最多一句概述，可以为空，完整内容只写在通知里」「通知失败时正文保留完整内容」；删除「其他来源的用户消息按普通方式回复」与「会话里的 text 块尽量少输出」。
-- [ ] T010 [US2] 更新 `src/sa-dispatch/prompt.ts`：删除「Track where the user is」整段；`Handle reports` 的转达句子去掉「through the channel for the current presence」。
-- [ ] T011 [US2] 更新 `src/sa-dispatch/index.ts`：删除 `agent/pre-step` 提醒插入与 `service.presence` 使用。
-- [ ] T012 [US2] 运行 `pnpm check`，确认本阶段通过后提交。
+- [X] T009 [US2] 更新 `src/reminder.ts`：`BRIDGE_REMINDER` 改为「回复用户时调用 `lark_notify`」「成功送达后本轮正文最多一句概述，可以为空，完整内容只写在通知里」「通知失败时正文保留完整内容」；删除「其他来源的用户消息按普通方式回复」与「会话里的 text 块尽量少输出」。
+- [X] T010 [US2] 更新 `src/sa-dispatch/prompt.ts`：删除「Track where the user is」整段；`Handle reports` 的转达句子去掉「through the channel for the current presence」。
+- [X] T011 [US2] 更新 `src/sa-dispatch/index.ts`：删除 `agent/pre-step` 提醒插入与 `service.presence` 使用。
+- [X] T012 [US2] 运行 `pnpm check`，确认本阶段通过后提交。
 
 **Checkpoint**: 渠道规则集中在桥接提醒；非桥接的调度会话行为不变。
 
