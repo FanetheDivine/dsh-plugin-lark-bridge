@@ -77,11 +77,11 @@
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T012 [P] `docs/how-it-works.md`：「提问拦截」与「S 注入」两节改为拦截 + 代为上报 + 终止轮次的现状描述；`docs/known-risks.md`：补充依赖 `concludeTurn` 数据通道的宿主升级风险（保留既有网关私有接口条目）
-- [ ] T013 [P] 核对 `README.md` 提问相关表述（`README.md:43` 已符合新行为），仅在偏离时微调
-- [ ] T014 运行 `pnpm format && pnpm check`，重建 `dist/`
-- [ ] T015 实机验证：rdt profile 重链本 worktree 后运行 `ask-repro.mjs`，断言 quickstart 场景 1（无网关挂起、上报存档、`waiting_user`、轮次同界结束）与场景 2（对照组仍等待）
-- [ ] T016 恢复 rdt profile 插件链接到主工作区，清理 worktree 的临时探针构建产物；按分支规则补 CHANGELOG 条目
+- [x] T012 [P] `docs/how-it-works.md`：「提问拦截」与「S 注入」两节改为拦截 + 代为上报 + 终止轮次的现状描述；`docs/known-risks.md`：补充依赖 `concludeTurn` 数据通道的宿主升级风险（保留既有网关私有接口条目）
+- [x] T013 [P] 核对 `README.md` 提问相关表述（`README.md:43` 已符合新行为），仅在偏离时微调
+- [x] T014 运行 `pnpm format && pnpm check`，重建 `dist/`
+- [x] T015 实机验证：rdt profile 重链本 worktree 后运行 `ask-repro.mjs`，断言 quickstart 场景 1（无网关挂起、上报存档、`waiting_user`、轮次同界结束）与场景 2（对照组仍等待）
+- [x] T016 恢复 rdt profile 插件链接到主工作区，清理 worktree 的临时探针构建产物；按分支规则补 CHANGELOG 条目
 
 **Checkpoint**: 全部验证通过，可提 PR。
 
