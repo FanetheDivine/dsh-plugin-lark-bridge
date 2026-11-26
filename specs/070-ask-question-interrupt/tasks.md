@@ -23,7 +23,7 @@
 
 **Purpose**: 干净基线
 
-- [ ] T001 在 worktree 运行 `pnpm install` 与 `pnpm check`，确认改动前全部通过
+- [x] T001 在 worktree 运行 `pnpm install` 与 `pnpm check`，确认改动前全部通过
 
 **Checkpoint**: 基线可复现。
 
@@ -33,8 +33,8 @@
 
 **Purpose**: 拦截机制的共享类型与状态通道
 
-- [ ] T002 [P] `src/lark-super-agent/api.ts`：`ReportOrigin` 增加 `'ask_intercept'`（值与含义见 [data-model.md](./data-model.md)）
-- [ ] T003 [P] `src/lark-super-agent/managed/turn-report.ts`：新增 `markIntercepted(sessionId)`，把当前轮 `reported` 置真；无当前轮状态时为空操作
+- [x] T002 [P] `src/lark-super-agent/api.ts`：`ReportOrigin` 增加 `'ask_intercept'`（值与含义见 [data-model.md](./data-model.md)）
+- [x] T003 [P] `src/lark-super-agent/managed/turn-report.ts`：新增 `markIntercepted(sessionId)`，把当前轮 `reported` 置真；无当前轮状态时为空操作
 
 **Checkpoint**: origin 与去重通道可用。
 
