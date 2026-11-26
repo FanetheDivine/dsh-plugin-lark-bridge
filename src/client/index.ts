@@ -1,4 +1,4 @@
-/** 浏览器入口：注册字典、共用连接弹窗、配置页与页脚在场按钮。导出 inject 与 apply。 */
+/** 浏览器入口：注册字典、共用连接弹窗、配置页、页脚在场按钮与上报卡片。导出 inject 与 apply。 */
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
@@ -9,7 +9,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 // Tailwind utilities 与插件样式：构建前由 scripts/build-client-css.mjs 生成。
 import './tailwind.generated.css';
-import type {} from '@deepseek-ai/dsh-client-ui-tool/client';
+// Type-only：拉取 conversation.chat.node 槽位与 uiConversation 服务声明。
+import type {} from '@deepseek-ai/dsh-client-ui-chat/client';
 import { AuthOverlay } from './auth-overlay.tsx';
 import { PluginConfigForm, ROW_ID, ROW_KEY } from './config-form.ts';
 import { ConfigPage } from './config-page.tsx';
@@ -27,6 +28,7 @@ import {
 import { PresenceController } from './presence-controller.ts';
 import { PresetDefaults, type PresetRemoteLike } from './preset-defaults.ts';
 import { ReportCard } from './report-card.tsx';
+import { REPORT_NODE_KIND, registerReportDefinition } from './report-node.ts';
 import { StatusController } from './status-controller.ts';
 import {
   COMMON_TASK_MODEL_FIELD_NAMES,
@@ -40,6 +42,17 @@ export const inject = ['slots', 'locale', 'configForms', 'remote', 'remote.sessi
 export function apply(ctx: Context): void {
   ctx.inject(['locale'], (ctx) => {
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), `${NS}: dictionaries`);
+  });
+
+  // 上报卡片：成功的 send_report 产出轮次层级的卡片节点，工具行保持宿主默认行。
+  ctx.inject(['slots', 'uiConversation'], (ctx) => {
+    ctx.effect(() => registerReportDefinition(ctx), `${NS}: report definition`);
+    ctx.slots.inject('conversation.chat.node', () =>
+      ctx.slots.register(
+        { name: 'conversation.chat.node', key: REPORT_NODE_KIND, locale: NS },
+        ReportCard as never,
+      ),
+    );
   });
 
   ctx.inject(['slots', 'locale', 'configForms', 'remote', 'remote.session'], (ctx) => {
@@ -166,17 +179,6 @@ export function apply(ctx: Context): void {
       };
     }, `${NS}: presence button`);
 
-    // 上报卡片：按工具名替换 send_report 的默认行。
-    ctx.slots.inject('tool.call.toolview', () =>
-      ctx.slots.register(
-        {
-          name: 'tool.call.toolview',
-          key: 'send_report',
-          locale: NS,
-        },
-        ReportCard as never,
-      ),
-    );
     ctx.slots.inject('plugins.row.config', () =>
       ctx.slots.register(
         {

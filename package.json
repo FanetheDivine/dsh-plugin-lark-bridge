@@ -61,8 +61,8 @@
         "@deepseek-ai/dsh-client-ui-plugin-manager",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-ui-tool",
-        "@deepseek-ai/dsh-client-ui-workspace"
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-chat"
       ]
     }
   },
@@ -108,6 +108,7 @@
     "@deepseek-ai/dsh-client-locale": "0.2.2-rc.5",
     "@deepseek-ai/dsh-client-product-analytics": "0.2.2-rc.5",
     "@deepseek-ai/dsh-client-store": "0.2.2-rc.5",
+    "@deepseek-ai/dsh-client-ui-chat": "0.2.2-rc.5",
     "@deepseek-ai/dsh-client-ui-conversation": "0.2.2-rc.5",
     "@deepseek-ai/dsh-client-ui-layout": "0.2.2-rc.5",
     "@deepseek-ai/dsh-client-ui-model-selection": "0.2.2-rc.5",
@@ -149,8 +150,7 @@
     "vitest": "^4.1.10",
     "yaml": "^2.9.1",
     "zod": "4.6.6",
-    "zustand": "^5.1.0",
-    "@deepseek-ai/dsh-client-ui-tool": "0.2.2-rc.5"
+    "zustand": "^5.1.0"
   },
   "description": "配置lark-cli即可在手机和dsh对话，体验Super Agent！"
 }
