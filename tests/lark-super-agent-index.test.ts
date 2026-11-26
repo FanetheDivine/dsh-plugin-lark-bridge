@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readPresenceAlarms, readPresenceSwitches } from '../src/lark-super-agent/config.ts';
 import { apply, Config, inject } from '../src/lark-super-agent/index.ts';
 import { ASK_TOOL, AWAY_ERROR } from '../src/lark-super-agent/managed/ask-guard.ts';
-import { TASK_RULES_SOURCE_KIND } from '../src/lark-super-agent/managed/task-rules.ts';
+import { SEND_REPORT_DESCRIPTION } from '../src/lark-super-agent/managed/report-tool.ts';
+import { TASK_RULES_SOURCE_KIND, TASK_RULES_TEXT } from '../src/lark-super-agent/managed/task-rules.ts';
 import { PresenceStore } from '../src/lark-super-agent/presence.ts';
 import { PRESENCE_PATH } from '../src/lark-super-agent/routes.ts';
 import { SuperAgentService } from '../src/lark-super-agent/service.ts';
@@ -279,6 +280,25 @@ describe('lark-super-agent 全局行', () => {
     await expect(
       base._toolWhen('send_report', { agent: { session: { id: 'dispatch' } } }),
     ).resolves.toBe(true);
+  });
+
+  it('send_report 描述规定上报送达后正文只作简短收尾', () => {
+    expect(SEND_REPORT_DESCRIPTION).toContain('Call it only when you are asked to report');
+    expect(SEND_REPORT_DESCRIPTION).toContain('relays it to the user');
+    expect(SEND_REPORT_DESCRIPTION).toContain('a second copy of it');
+    expect(SEND_REPORT_DESCRIPTION).toContain('at most one short closing line');
+    expect(SEND_REPORT_DESCRIPTION).toContain('An empty body is fine');
+    expect(SEND_REPORT_DESCRIPTION).toContain('belong in the report alone');
+    expect(SEND_REPORT_DESCRIPTION).toContain('When a report was not delivered');
+    expect(SEND_REPORT_DESCRIPTION).not.toContain('never in both');
+    expect(SEND_REPORT_DESCRIPTION).not.toMatch(/card/i);
+  });
+
+  it('临时指令与 send_report 描述同口径要求正文收尾', () => {
+    expect(TASK_RULES_TEXT).toContain('Put everything for the user in the report');
+    expect(TASK_RULES_TEXT).toContain('at most one short closing line, or stays empty');
+    expect(TASK_RULES_TEXT).not.toContain('Keep the response body minimal');
+    expect(TASK_RULES_TEXT).not.toMatch(/card/i);
   });
 
   it('归档被管理会话时通知调度会话', () => {
