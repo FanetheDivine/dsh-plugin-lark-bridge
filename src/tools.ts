@@ -3,6 +3,7 @@
  * 导出 NOTIFY_TOOL 与 sendNotification。
  */
 import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import type { LarkCli } from './cli.ts';
 import { MAX_MESSAGE_CHARS, NOTIFY_TOOL_NAME } from './constants.ts';
 import { BridgeError } from './errors.ts';
@@ -29,6 +30,19 @@ export interface NotifyDeps {
 export interface NotifyToolDeps extends NotifyDeps {
   /** 判断 agent 所在的会话是否是桥接会话。 */
   readonly isBridgeAgent: (agent: Agent) => Promise<boolean>;
+}
+
+/** 参数 schema：`text` 必填，`reply_to` 可选。 */
+export const NOTIFY_ARGS_SCHEMA = z.object({
+  text: z.string().describe('要发送给用户的文本；过长时插件自动按顺序拆分'),
+  reply_to: z.string().describe('要回复的用户消息 message_id；省略时直接发送').optional(),
+});
+
+/** 把 zod schema 转成工具声明用的 JSON Schema；去掉模型不需要的 `$schema`。 */
+function parametersOf(schema: z.ZodType): Record<string, unknown> {
+  const json = z.toJSONSchema(schema) as Record<string, unknown>;
+  delete json['$schema'];
+  return json;
 }
 
 /** 非桥接会话的拒绝结果。 */
@@ -137,19 +151,8 @@ export function buildNotifyTool(deps: NotifyToolDeps): ToolDefinition {
   return {
     name: NOTIFY_TOOL_NAME,
     description:
-      '以飞书机器人身份给已绑定的用户发送消息。只发往用户与机器人的私聊，不接受其他接收目标。可选 reply_to 精确回复某条用户消息。',
-    parameters: {
-      text: {
-        type: 'string',
-        description: '要发送给用户的文本；过长时插件自动按顺序拆分',
-        required: true,
-      },
-      reply_to: {
-        type: 'string',
-        description: '要回复的用户消息 message_id；省略时直接发送',
-        required: false,
-      },
-    },
+      'lark_notify：以飞书机器人身份给已绑定的用户发送消息。只发往用户与机器人的私聊，不接受其他接收目标。可选 reply_to 精确回复某条用户消息。',
+    parameters: parametersOf(NOTIFY_ARGS_SCHEMA),
     output: {
       schema: {
         type: 'object',
