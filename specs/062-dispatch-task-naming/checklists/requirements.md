@@ -22,8 +22,8 @@
 
 ## 未决项可见性
 
-- [ ] CHK011 无未决开放决策：D-001 至 D-005 需在 clarify 阶段确认后关闭
+- [x] CHK011 无未决开放决策：D-001 至 D-005 已在 clarify 关闭
 
 ## Notes
 
-- CHK011 在 clarify 关闭全部开放决策后勾选。
+- D-004 按用户预授权采用推荐默认，已在 Clarifications 与 Review Record 记录风险。
