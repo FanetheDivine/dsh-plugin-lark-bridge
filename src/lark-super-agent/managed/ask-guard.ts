@@ -1,7 +1,6 @@
 /**
- * 离开期间拦截被管理会话的 ask_user_question：
- * 拒绝新调用、中止正在等待的调用，并取消插件加载前就已在等待的请求。
- * 导出 ASK_TOOL、AWAY_ERROR 与 AskGuard。
+ * 被管理会话的提问拦截：无条件拒绝 `ask_user_question`，结束已在等待的提问并排队 S。
+ * 导出 ASK_TOOL、ASK_BLOCKED_ERROR、GatewayLike 与 AskGuard。
  */
 import type {
   PostToolDecision,
@@ -9,14 +8,12 @@ import type {
   ToolExecutionResult,
 } from '@deepseek-ai/dsh-tools';
 
-import type { PresenceStore } from '../presence.ts';
-
 /** 被拦截的工具名。 */
 export const ASK_TOOL = 'ask_user_question';
 
-/** 用户离开时提问返回的错误。 */
-export const AWAY_ERROR =
-  'The user is away from the computer and cannot answer ask_user_question right now. Call send_report with kind question instead.';
+/** 被管理会话提问时返回的错误。 */
+export const ASK_BLOCKED_ERROR =
+  'This session is managed by the dispatch session and cannot ask the user directly. Call send_report with kind question instead.';
 
 /** 宿主网关中等待中的远端事件。 */
 interface PendingRemoteEvent {
@@ -30,7 +27,6 @@ export interface GatewayLike {
 }
 
 export interface AskGuardOptions {
-  readonly presence: PresenceStore;
   /** 判断会话是否被管理。 */
   readonly isManaged: (sessionId: string) => Promise<boolean>;
   /** 读取宿主网关；不可用时返回 undefined。 */
@@ -40,26 +36,18 @@ export interface AskGuardOptions {
   };
 }
 
-/** 离开期间对等待中提问的拦截。 */
+/** 被管理会话对等待中提问的拦截。 */
 export class AskGuard {
   private readonly options: AskGuardOptions;
   /** 会话到正在等待的提问中止控制器。 */
   private readonly waiting = new Map<string, Map<string, AbortController>>();
-  /** 由插件中止的调用，用于把结果改写为离开错误。 */
+  /** 由插件中止的调用，用于把结果改写为统一反馈。 */
   private readonly aborted = new Set<string>();
   /** 需要在下一次模型请求前收到 S 的会话。 */
   private readonly pendingRules = new Set<string>();
 
   constructor(options: AskGuardOptions) {
     this.options = options;
-  }
-
-  /** 订阅在场状态；切为离开时中止等待中的提问。 */
-  start(): () => void {
-    return this.options.presence.subscribe((snapshot) => {
-      if (snapshot.presence !== 'remote') return;
-      void this.interruptAll();
-    });
   }
 
   /** 取走一次「需要 S」的标记。 */
@@ -72,60 +60,51 @@ export class AskGuard {
     this.pendingRules.add(sessionId);
   }
 
-  /** 中止全部等待中的提问，并取消网关中残留的请求。 */
-  async interruptAll(): Promise<void> {
-    for (const [sessionId, calls] of [...this.waiting]) {
-      for (const [callId, controller] of calls) {
-        this.aborted.add(callId);
-        controller.abort();
-      }
-      this.requireRules(sessionId);
-      this.cancelPending(sessionId);
-    }
+  /** 结束该会话等待中的提问；确实结束过时排队 S。 */
+  cancel(sessionId: string): void {
+    if (sessionId === '') return;
+    const aborted = this.abortWaiting(sessionId);
+    const cancelled = this.cancelGateway(sessionId);
+    if (aborted || cancelled) this.requireRules(sessionId);
   }
 
-  /** 取消宿主网关中该会话等待中的提问请求。 */
-  cancelPending(sessionId: string): void {
-    const gateway = this.options.gateway();
-    const pendings = gateway?.pendingRemoteEvents;
-    const cancel = gateway?.cancelRemoteEvent;
-    if (!(pendings instanceof Map) || typeof cancel !== 'function') {
+  /** 扫描网关，取消被管理会话在插件加载前就开始等待的提问。 */
+  async sweep(): Promise<void> {
+    const pendings = this.pendings();
+    if (pendings === undefined) {
       this.options.logger.warn?.(
         'lark-super-agent: the host gateway cannot cancel a waiting question; it keeps waiting',
-        { sessionId },
       );
       return;
     }
-    for (const pending of [...(pendings as Map<unknown, PendingRemoteEvent>).values()]) {
+    const sessions = new Set<string>();
+    for (const pending of pendings.values()) {
       if (pending?.frame?.event !== 'user-questions/request') continue;
-      if (pending.frame.agentId !== sessionId) continue;
-      try {
-        cancel.call(gateway, pending, new Error(AWAY_ERROR));
-        this.requireRules(sessionId);
-      } catch (error) {
-        this.options.logger.warn?.('lark-super-agent: gateway cancel failed', error);
-      }
+      const agentId = pending.frame.agentId;
+      if (typeof agentId !== 'string' || agentId === '') continue;
+      if (!(await this.options.isManaged(agentId))) continue;
+      sessions.add(agentId);
     }
+    for (const sessionId of sessions) this.cancel(sessionId);
   }
 
-  /** 离开期间拒绝被管理会话的新提问。 */
+  /** 被管理会话的新提问一律拒绝；他方已拒绝或取消时保持原决定。 */
   async beforeExecute(
     exec: ExecuteLike,
     next: () => Promise<PreToolDecision>,
   ): Promise<PreToolDecision> {
     const decision = await next();
     if (exec.name !== ASK_TOOL) return decision;
-    // 他方已拒绝或取消时保持原决定；放行与待审批都改为离开错误，避免离开期间等待审批。
     if (decision.kind === 'deny' || decision.kind === 'cancel') return decision;
     const sessionId = exec.agent?.session?.id;
     if (sessionId === undefined || sessionId === '') return decision;
-    if (this.options.presence.get().presence !== 'remote') return decision;
     if (!(await this.options.isManaged(sessionId))) return decision;
+    this.cancel(sessionId);
     this.requireRules(sessionId);
-    return { kind: 'deny', reason: AWAY_ERROR };
+    return { kind: 'deny', reason: ASK_BLOCKED_ERROR };
   }
 
-  /** 给等待中的被管理会话提问装上可由插件中止的信号。 */
+  /** 给等待中的提问装上可由插件中止的信号；会话中途被管理时据此结束等待。 */
   async aroundExecute(
     exec: DispatchExecutionLike,
     next: () => Promise<ToolExecutionResult>,
@@ -133,19 +112,6 @@ export class AskGuard {
     if (exec.name !== ASK_TOOL) return next();
     const sessionId = exec.agent?.session?.id;
     if (sessionId === undefined || sessionId === '') return next();
-    if (this.options.presence.get().presence === 'remote') {
-      if (await this.options.isManaged(sessionId)) {
-        this.requireRules(sessionId);
-        this.cancelPending(sessionId);
-        return {
-          isError: true,
-          error: { code: 'ASK_ABORTED', message: AWAY_ERROR },
-          content: [{ type: 'text', text: AWAY_ERROR }],
-        } as ToolExecutionResult;
-      }
-      return next();
-    }
-    if (!(await this.options.isManaged(sessionId))) return next();
 
     const controller = new AbortController();
     const calls = this.waiting.get(sessionId) ?? new Map<string, AbortController>();
@@ -162,7 +128,7 @@ export class AskGuard {
     }
   }
 
-  /** 把插件中止的提问结果改写为离开错误。 */
+  /** 把插件中止的提问结果改写为统一反馈。 */
   afterExecute(
     exec: ExecuteLike,
     _result: Readonly<ToolExecutionResult>,
@@ -171,8 +137,45 @@ export class AskGuard {
     if (exec.name !== ASK_TOOL || !this.aborted.delete(String(exec.callId))) return next();
     return Promise.resolve({
       kind: 'block',
-      feedback: [{ type: 'text', text: AWAY_ERROR }],
+      feedback: [{ type: 'text', text: ASK_BLOCKED_ERROR }],
     });
+  }
+
+  /** 中止该会话正在等待的提问；返回是否中止了调用。 */
+  private abortWaiting(sessionId: string): boolean {
+    const calls = this.waiting.get(sessionId);
+    if (calls === undefined) return false;
+    for (const [callId, controller] of calls) {
+      this.aborted.add(callId);
+      controller.abort();
+    }
+    return true;
+  }
+
+  /** 取消网关中该会话等待中的提问请求；返回是否取消成功。 */
+  private cancelGateway(sessionId: string): boolean {
+    const gateway = this.options.gateway();
+    const pendings = gateway?.pendingRemoteEvents;
+    const cancel = gateway?.cancelRemoteEvent;
+    if (!(pendings instanceof Map) || typeof cancel !== 'function') return false;
+    let cancelled = false;
+    for (const pending of [...(pendings as Map<unknown, PendingRemoteEvent>).values()]) {
+      if (pending?.frame?.event !== 'user-questions/request') continue;
+      if (pending.frame.agentId !== sessionId) continue;
+      try {
+        cancel.call(gateway, pending, new Error(ASK_BLOCKED_ERROR));
+        cancelled = true;
+      } catch (error) {
+        this.options.logger.warn?.('lark-super-agent: gateway cancel failed', error);
+      }
+    }
+    return cancelled;
+  }
+
+  /** 读取网关里的等待事件；网关缺失或结构不符时返回 undefined。 */
+  private pendings(): Map<unknown, PendingRemoteEvent> | undefined {
+    const pendings = this.options.gateway()?.pendingRemoteEvents;
+    return pendings instanceof Map ? (pendings as Map<unknown, PendingRemoteEvent>) : undefined;
   }
 }
 

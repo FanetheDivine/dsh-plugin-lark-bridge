@@ -30,12 +30,12 @@ export const DEFAULT_TASK_TYPE_FIELD = 'defaultTaskType';
 
 /** 任务模型项读取的文案键。 */
 export type TaskModelLocaleKey =
-  | 'presenceConfig.commonTaskModel.label'
-  | 'presenceConfig.commonTaskModel.description'
-  | 'presenceConfig.complexTaskModel.label'
-  | 'presenceConfig.complexTaskModel.description'
-  | 'presenceConfig.taskType.default'
-  | 'presenceConfig.taskType.setDefault';
+  | 'taskConfig.commonTaskModel.label'
+  | 'taskConfig.commonTaskModel.description'
+  | 'taskConfig.complexTaskModel.label'
+  | 'taskConfig.complexTaskModel.description'
+  | 'taskConfig.taskType.default'
+  | 'taskConfig.taskType.setDefault';
 
 /** 任务模型项的属性。 */
 export interface TaskModelFieldProps {
@@ -53,12 +53,12 @@ const KEYS: Record<
   { readonly label: TaskModelLocaleKey; readonly description: TaskModelLocaleKey }
 > = {
   common: {
-    label: 'presenceConfig.commonTaskModel.label',
-    description: 'presenceConfig.commonTaskModel.description',
+    label: 'taskConfig.commonTaskModel.label',
+    description: 'taskConfig.commonTaskModel.description',
   },
   complex: {
-    label: 'presenceConfig.complexTaskModel.label',
-    description: 'presenceConfig.complexTaskModel.description',
+    label: 'taskConfig.complexTaskModel.label',
+    description: 'taskConfig.complexTaskModel.description',
   },
 };
 
@@ -83,9 +83,7 @@ export function TaskModelField({
           disabled={disabled}
           onClick={onSetDefault}
         >
-          {isDefault
-            ? t('presenceConfig.taskType.default')
-            : t('presenceConfig.taskType.setDefault')}
+          {isDefault ? t('taskConfig.taskType.default') : t('taskConfig.taskType.setDefault')}
         </Pill>
       </div>
       <div style={{ display: 'grid' }}>

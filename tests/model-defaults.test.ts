@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { PluginConfigForm } from '../src/client/config-form.ts';
 import { ModelDefaults } from '../src/client/model-defaults.ts';
-import { PresenceConfigForm } from '../src/client/presence-config.tsx';
+import { TaskConfigForm } from '../src/client/task-config.tsx';
 import {
   COMMON_TASK_MODEL_FIELD_NAMES,
   COMPLEX_TASK_MODEL_FIELD_NAMES,
@@ -77,7 +77,7 @@ describe('ModelDefaults 自定义字段名', () => {
     const fake = makeConfigFormScope({
       value: { guiInputSetsLocal: true, larkInputSetsRemote: true },
     });
-    const form = new PresenceConfigForm(fake.scope);
+    const form = new TaskConfigForm(fake.scope);
     const injected = form.inject();
     // 主行的默认模型草稿与存储，用来确认选择任务会话模型不会触碰它们。
     const main = setup({ sessionProvider: 'deepseek', sessionModel: 'deepseek-chat' });
@@ -92,13 +92,13 @@ describe('ModelDefaults 自定义字段名', () => {
     };
     const commonModels = new ModelDefaults(
       ctx as never,
-      injected.hooks.presenceConfig,
+      injected.hooks.taskConfig,
       injected.edit,
       COMMON_TASK_MODEL_FIELD_NAMES,
     );
     const complexModels = new ModelDefaults(
       ctx as never,
-      injected.hooks.presenceConfig,
+      injected.hooks.taskConfig,
       injected.edit,
       COMPLEX_TASK_MODEL_FIELD_NAMES,
     );
@@ -117,7 +117,7 @@ describe('ModelDefaults 自定义字段名', () => {
       model: 'deepseek-chat',
       reasoningEffort: 'high' as never,
     });
-    const state = injected.hooks.presenceConfig.getSnapshot();
+    const state = injected.hooks.taskConfig.getSnapshot();
     expect(state.commonTaskProvider.text).toBe('deepseek');
     expect(state.commonTaskModel.text).toBe('deepseek-chat');
     expect(state.commonTaskEffort.text).toBe('low');

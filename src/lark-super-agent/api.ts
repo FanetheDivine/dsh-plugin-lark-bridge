@@ -3,7 +3,6 @@
  */
 
 import type { ModelSelection } from '@deepseek-ai/dsh-agent';
-import type { PresenceStore } from './presence.ts';
 
 /** 任务类型：普通任务与复杂任务。 */
 export const TASK_TYPES = ['common', 'complex'] as const;
@@ -105,8 +104,6 @@ export interface BridgeState {
 
 /** 笔记与上报服务。 */
 export interface LarkSuperAgentService {
-  /** 全局在场状态。 */
-  readonly presence: PresenceStore;
   /** 按任务类型（省略时取默认任务类型）读取新建任务会话时使用的模型；未配置时返回 undefined。 */
   readonly taskModel: (taskType?: TaskType) => ModelSelection | undefined;
   /** 读取新建任务会话时使用的预设；未配置时返回空串。 */
@@ -116,6 +113,8 @@ export interface LarkSuperAgentService {
   /** 读取会话对应的未结束任务；会话未被管理时返回 undefined。 */
   managedTask(sessionId: string): Promise<Task | undefined>;
   createTask(input: CreateTaskInput): Promise<{ taskId: string }>;
+  /** 任务建立后通知监听者；用于结束该会话等待中的提问。 */
+  setManagedSessionListener(listener: (sessionId: string) => void): void;
   /** 校验工作区可派发：已在宿主注册且已有工作区笔记。 */
   assertDispatchable(workspaceId: string): Promise<void>;
   /** 为一个已有会话建立任务，使其成为被管理会话。 */

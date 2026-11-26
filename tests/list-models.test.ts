@@ -104,7 +104,6 @@ describe('SA-调度会话子行注册 list_models', () => {
       larkSuperAgent: {
         taskModel: () => undefined,
         taskPreset: () => '',
-        presence: { reminderFor: () => undefined },
       },
       systemPrompt: { section: () => () => true },
       logger: base.logger,

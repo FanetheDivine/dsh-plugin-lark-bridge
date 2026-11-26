@@ -1,19 +1,16 @@
-// 全局行测试：共享服务归属当前 fiber，被管理会话能力与在场状态路由随行注册与注销。
+// 全局行测试：共享服务归属当前 fiber，被管理会话能力随行注册与注销。
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { readPresenceAlarms, readPresenceSwitches } from '../src/lark-super-agent/config.ts';
 import { apply, Config, inject } from '../src/lark-super-agent/index.ts';
-import { ASK_TOOL, AWAY_ERROR } from '../src/lark-super-agent/managed/ask-guard.ts';
+import { ASK_BLOCKED_ERROR, ASK_TOOL } from '../src/lark-super-agent/managed/ask-guard.ts';
 import { SEND_REPORT_DESCRIPTION } from '../src/lark-super-agent/managed/report-tool.ts';
 import {
   TASK_RULES_SOURCE_KIND,
   TASK_RULES_TEXT,
 } from '../src/lark-super-agent/managed/task-rules.ts';
-import { PresenceStore } from '../src/lark-super-agent/presence.ts';
-import { PRESENCE_PATH } from '../src/lark-super-agent/routes.ts';
 import { SuperAgentService } from '../src/lark-super-agent/service.ts';
 import type { Context } from '../src/types.ts';
 import { makeCtx } from './helpers.ts';
@@ -29,19 +26,12 @@ interface Decision {
 // 行启用时会取一次节假日数据：隔离状态目录并让网络直接失败，避免写入真实目录。
 beforeEach(() => {
   process.env['DSH_HOME'] = mkdtempSync(join(tmpdir(), 'rdt-053-dsh-'));
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => {
-      throw new Error('offline');
-    }),
-  );
 });
 
 afterEach(() => {
   const home = process.env['DSH_HOME'];
   if (home !== undefined) rmSync(home, { recursive: true, force: true });
   delete process.env['DSH_HOME'];
-  vi.unstubAllGlobals();
 });
 
 /** 写入桥接状态。 */
@@ -141,66 +131,27 @@ describe('lark-super-agent 全局行', () => {
     expect(inject).toContain('tools');
   });
 
-  it('提供带在场状态的 larkSuperAgent', () => {
+  it('提供 larkSuperAgent 服务', () => {
     const { provided, service } = startRow();
     expect(provided).toHaveLength(1);
     expect(provided[0]?.[0]).toBe('larkSuperAgent');
     expect(service).toBeInstanceOf(SuperAgentService);
-    expect(service.presence).toBeInstanceOf(PresenceStore);
-    expect(service.presence.get().presence).toBe('local');
   });
 
-  it('导出两个默认开启的开关与空的闹钟列表', () => {
-    const config = Config({});
-    expect(readPresenceSwitches(config)).toEqual({
-      guiInputSetsLocal: true,
-      larkInputSetsRemote: true,
-    });
-    expect(readPresenceAlarms(config)).toEqual([]);
-  });
-
-  it('到点调度随行启停', () => {
-    vi.useFakeTimers();
-    try {
-      const { base, ctx } = makeRowCtx();
-      apply(ctx);
-      expect(vi.getTimerCount()).toBe(1);
-      base._dispose();
-      expect(vi.getTimerCount()).toBe(0);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('webServer 作为可选依赖等待就绪', () => {
-    const { injected } = startRow();
-    expect(injected).toEqual([['webServer']]);
-  });
-
-  it('有 webServer 时注册在场状态路由，卸载时注销', () => {
-    const routes = new Set<string>();
-    const webServer = {
-      getOrigin: () => 'http://127.0.0.1:1',
-      register: (route: { path: string }) => {
-        routes.add(route.path);
-        return () => routes.delete(route.path);
+  it('旧在场配置键被忽略', () => {
+    const { service } = startRow({
+      config: {
+        guiInputSetsLocal: false,
+        larkInputSetsRemote: false,
+        presenceAlarms: [{ id: 'a', time: '09:00', action: 'remote' }],
+        commonTaskProvider: 'deepseek',
+        commonTaskModel: 'deepseek-chat',
       },
-    };
-    const { base } = startRow({ services: { webServer } });
-    expect([...routes]).toEqual([PRESENCE_PATH]);
-    base._dispose();
-    expect(routes.size).toBe(0);
-  });
-
-  it('全局 pre-step 观察任一会话的输入，reject 不观察', async () => {
-    const { base, service } = startRow();
-    const payload = { agent: { session: { id: 'any' } } };
-    const lark = sourcedMessage('lark-bridge');
-    await runPreStep(base, payload, async () => ({ kind: 'reject', messages: [lark] }));
-    expect(service.presence.get().presence).toBe('local');
-    const decision = { kind: 'enter', messages: [sourcedMessage('lark-bridge')] };
-    expect(await runPreStep(base, payload, async () => decision)).toBe(decision);
-    expect(service.presence.get().presence).toBe('remote');
+    });
+    expect(service.taskModel('common')).toEqual({
+      provider: 'deepseek',
+      model: 'deepseek-chat',
+    });
   });
 
   it('pre-step 把调度会话转来的消息包进 dispatch_session_message', async () => {
@@ -215,16 +166,6 @@ describe('lark-super-agent 全局行', () => {
     expect(first?.content.map((block) => block.text).join('')).toBe(
       '<dispatch_session_message>\nrun the tests\n</dispatch_session_message>',
     );
-  });
-
-  it('开关读取行配置的实时值', () => {
-    const { service } = startRow({
-      config: { guiInputSetsLocal: true, larkInputSetsRemote: false },
-    });
-    service.presence.observe([
-      { role: 'user', content: [], source: { kind: 'lark-bridge' } },
-    ] as never);
-    expect(service.presence.get().presence).toBe('local');
   });
 
   it('taskModel 与 taskPreset 读取行配置的实时值，支持按任务类型与默认任务类型读取', () => {
@@ -330,20 +271,19 @@ describe('lark-super-agent 全局行', () => {
     expect(notify).toHaveBeenCalledOnce();
   });
 
-  it('离开期间提问被拒后，下一次模型请求前注入一次 S', async () => {
+  it('被管理会话的提问被拒后，下一次模型请求前注入一次 S', async () => {
     const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
     mkdirSync(workspaceRoot, { recursive: true });
     writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
     writeManagedTask(workspaceRoot, 'worker', 'task-20260101000000-0001');
-    const { base, service } = startRow();
-    service.presence.set('remote');
+    const { base } = startRow();
 
     const beforeExecute = base._onCallbacks.get('tools/pre-execute')?.[0];
     if (beforeExecute === undefined) throw new Error('missing tools/pre-execute listener');
     const exec = { name: ASK_TOOL, callId: 'call-1', agent: { session: { id: 'worker' } } };
     await expect(beforeExecute(exec, async () => ({ kind: 'allow' }))).resolves.toEqual({
       kind: 'deny',
-      reason: AWAY_ERROR,
+      reason: ASK_BLOCKED_ERROR,
     });
 
     const messages = [sourcedMessage('user')];

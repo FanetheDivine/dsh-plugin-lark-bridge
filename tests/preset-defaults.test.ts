@@ -2,8 +2,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { PluginConfigForm } from '../src/client/config-form.ts';
-import { PresenceConfigForm } from '../src/client/presence-config.tsx';
 import { PresetDefaults, type PresetRemoteLike } from '../src/client/preset-defaults.ts';
+import { TaskConfigForm } from '../src/client/task-config.tsx';
 import { makeConfigFormScope } from './helpers.ts';
 
 /** 构造目录依赖的客户端 ctx 与配置表单。 */
@@ -76,11 +76,11 @@ describe('PresetDefaults', () => {
     const fake = makeConfigFormScope({
       value: { guiInputSetsLocal: true, larkInputSetsRemote: true, taskPreset: 'sa-dispatch' },
     });
-    const form = new PresenceConfigForm(fake.scope);
+    const form = new TaskConfigForm(fake.scope);
     const injected = form.inject();
     const presets = new PresetDefaults(
       { on: () => () => undefined } as never,
-      injected.hooks.presenceConfig,
+      injected.hooks.taskConfig,
       injected.edit,
       'taskPreset',
       { list: async () => ({ ok: true, value: { presets: [{ id: 'sa-dispatch' }] } }) },
@@ -88,7 +88,7 @@ describe('PresetDefaults', () => {
     await presets.load(true);
     expect(presets.inject().hooks.presetDefaults.getSnapshot().current).toBe('sa-dispatch');
     presets.inject().select('other');
-    expect(injected.hooks.presenceConfig.getSnapshot().taskPreset.text).toBe('other');
+    expect(injected.hooks.taskConfig.getSnapshot().taskPreset.text).toBe('other');
     expect(fake.writes).toEqual([]);
     form.dispose();
   });
@@ -135,11 +135,11 @@ describe('PresetDefaults', () => {
     const fake = makeConfigFormScope({
       value: { guiInputSetsLocal: true, larkInputSetsRemote: true, taskPreset: 'sa-dispatch' },
     });
-    const form = new PresenceConfigForm(fake.scope);
+    const form = new TaskConfigForm(fake.scope);
     const injected = form.inject();
     const presets = new PresetDefaults(
       { on: () => () => undefined } as never,
-      injected.hooks.presenceConfig,
+      injected.hooks.taskConfig,
       injected.edit,
       'taskPreset',
       { list: async () => ({ ok: true, value: { presets: [{ id: 'worker' }] } }) },
@@ -149,7 +149,7 @@ describe('PresetDefaults', () => {
     const state = presets.inject().hooks.presetDefaults.getSnapshot();
     expect(state.current).toBe('sa-dispatch');
     expect(state.rows.map((row) => row.id)).toEqual(['worker']);
-    expect(injected.hooks.presenceConfig.getSnapshot().taskPreset.text).toBe('sa-dispatch');
+    expect(injected.hooks.taskConfig.getSnapshot().taskPreset.text).toBe('sa-dispatch');
     expect(fake.writes).toEqual([]);
     form.dispose();
   });

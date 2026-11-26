@@ -77,12 +77,13 @@ export function applyManagedSessions(
   ctx.effect(() => () => unregister(), 'lark-super-agent: send_report tool');
 
   const askGuard = new AskGuard({
-    presence: service.presence,
     isManaged,
     gateway: () => ctx.get('typertGateway') as never,
     logger: ctx.logger,
   });
-  ctx.effect(() => askGuard.start(), 'lark-super-agent: ask guard');
+  // 会话开始被管理时结束它等待中的提问；加载时再清一次网关里残留的请求。
+  service.setManagedSessionListener((sessionId) => askGuard.cancel(sessionId));
+  void askGuard.sweep();
 
   ctx.on('tools/pre-execute', (exec, next) => askGuard.beforeExecute(exec as never, next));
   ctx.on('tools/execute', (exec, next) => askGuard.aroundExecute(exec as never, next) as never);
@@ -110,7 +111,7 @@ export function applyManagedSessions(
     });
   });
 
-  // 调度消息来源标记与 S 注入；在场提醒只属于调度会话。
+  // 调度消息来源标记与 S 注入。
   ctx.on('agent/pre-step', async ({ agent }, next) => {
     const decision = await next();
     if (decision.kind === 'reject') return decision;

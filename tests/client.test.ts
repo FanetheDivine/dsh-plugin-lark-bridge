@@ -53,16 +53,12 @@ import { en, NS, zh } from '../src/client/locales.ts';
 import type { ModelDefaultsInjected } from '../src/client/model-defaults.ts';
 import { NotifyCard } from '../src/client/notify-card.tsx';
 import { NOTIFY_DEFINITION_KIND, NOTIFY_NODE_KIND } from '../src/client/notify-node.ts';
-import {
-  PRESENCE_ROW_ID,
-  PRESENCE_ROW_KEY,
-  PresenceConfigPage,
-} from '../src/client/presence-config.tsx';
 import type { PresetDefaultsInjected, PresetDefaultsState } from '../src/client/preset-defaults.ts';
 import { currentText, menuItems, PresetSelect } from '../src/client/preset-select.tsx';
 import { ReportCard } from '../src/client/report-card.tsx';
 import { REPORT_DEFINITION_KIND, REPORT_NODE_KIND } from '../src/client/report-node.ts';
 import { StatusController } from '../src/client/status-controller.ts';
+import { TASK_ROW_ID, TASK_ROW_KEY, TaskConfigPage } from '../src/client/task-config.tsx';
 import type { ConnectionState } from '../src/types.ts';
 import {
   type ClientServiceName,
@@ -334,13 +330,13 @@ describe('前端入口', () => {
     expect(ctx._slotRegistrations[3]?.component).toBe(ConfigPage);
     expect(ctx._slotRegistrations[4]?.options).toMatchObject({
       name: 'plugins.row.config',
-      key: PRESENCE_ROW_KEY,
+      key: TASK_ROW_KEY,
       locale: NS,
     });
-    expect(ctx._slotRegistrations[4]?.component).toBe(PresenceConfigPage);
-    expect(ctx._configFormRequests).toEqual([ROW_ID, PRESENCE_ROW_ID]);
+    expect(ctx._slotRegistrations[4]?.component).toBe(TaskConfigPage);
+    expect(ctx._configFormRequests).toEqual([ROW_ID, TASK_ROW_ID]);
     expect(ROW_KEY).toBe(`${ROW_ID}#${ROW_ID}`);
-    expect(PRESENCE_ROW_KEY).toBe('dsh-plugin-lark-bridge#lark-super-agent');
+    expect(TASK_ROW_KEY).toBe('dsh-plugin-lark-bridge#lark-super-agent');
 
     type SharedSlotInjected = ConfigPageInjected & {
       readonly controller: StatusController;
@@ -418,7 +414,7 @@ describe('前端服务可选', () => {
     expect(activeRegistrations(ctx).configPage).toBe(false);
     ctx._grant('configForms', 'remote', 'remote.session');
     expect(activeRegistrations(ctx)).toEqual({ dictionary: true, overlay: true, configPage: true });
-    expect(ctx._configFormRequests).toEqual([ROW_ID, PRESENCE_ROW_ID]);
+    expect(ctx._configFormRequests).toEqual([ROW_ID, TASK_ROW_ID]);
   });
 
   it('服务撤掉后只清理依赖它的功能', () => {

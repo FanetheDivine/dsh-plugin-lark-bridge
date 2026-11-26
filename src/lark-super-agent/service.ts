@@ -23,7 +23,6 @@ import type {
 import { taskSessionArchived, taskSessionFailure, taskSessionMessage } from './blocks.ts';
 import { readBridgeState } from './bridge.ts';
 import { findTaskBySession, NotesStore } from './notes.ts';
-import { PresenceStore } from './presence.ts';
 import { ReportStore } from './reports.ts';
 
 export { readBridgeState } from './bridge.ts';
@@ -87,8 +86,6 @@ export interface ContextLike {
 }
 
 export interface SuperAgentServiceOptions {
-  /** 全局在场状态；缺省时新建一份，两个开关均开启。 */
-  presence?: PresenceStore;
   /** 按任务类型（省略时取默认任务类型）读取任务会话模型的实时值；缺省时视为未配置。 */
   taskModel?: (taskType?: TaskType) => ModelSelection | undefined;
   /** 读取任务会话预设的实时值；缺省时视为未配置。 */
@@ -142,28 +139,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** 没有宿主配置时的开关取值。 */
-const DEFAULT_SWITCHES = { guiInputSetsLocal: true, larkInputSetsRemote: true } as const;
-
 /** 会话未被管理时 send_report 的错误。 */
 export const NOT_MANAGED_ERROR =
   'send_report is only available in a session managed by the dispatch session';
 
 /** lark-super-agent 的任务、上报与失败通知服务。 */
 export class SuperAgentService implements LarkSuperAgentService {
-  /** 全局在场状态；整个插件共用一份。 */
-  readonly presence: PresenceStore;
   /** 按任务类型（省略时取默认任务类型）读取任务会话模型的实时值；未配置时返回 undefined。 */
   readonly taskModel: (taskType?: TaskType) => ModelSelection | undefined;
   /** 读取任务会话预设的实时值；未配置时返回空串。 */
   readonly taskPreset: () => string;
   private readonly ctx: ContextLike;
   private readonly options: SuperAgentServiceOptions;
+  /** 任务建立后的监听；由被管理会话能力设置。 */
+  private managedListener: ((sessionId: string) => void) | undefined;
 
   constructor(ctx: ContextLike, options: SuperAgentServiceOptions = {}) {
     this.ctx = ctx;
     this.options = options;
-    this.presence = options.presence ?? new PresenceStore({ switches: () => DEFAULT_SWITCHES });
     this.taskModel = options.taskModel ?? (() => undefined);
     this.taskPreset = options.taskPreset ?? (() => '');
   }
@@ -271,7 +264,14 @@ export class SuperAgentService implements LarkSuperAgentService {
   }
 
   async createTask(input: CreateTaskInput): Promise<{ taskId: string }> {
-    return this.notes(await this.storageRoot()).createTask(input);
+    const result = await this.notes(await this.storageRoot()).createTask(input);
+    this.managedListener?.(input.sessionId);
+    return result;
+  }
+
+  /** 任务建立后通知监听者；由被管理会话能力在加载时设置。 */
+  setManagedSessionListener(listener: (sessionId: string) => void): void {
+    this.managedListener = listener;
   }
 
   async updateTask(input: UpdateTaskInput): Promise<{ taskId: string; status: Task['status'] }> {
