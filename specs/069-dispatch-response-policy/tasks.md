@@ -12,17 +12,17 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 在 worktree 根目录运行 `pnpm install`，确认 `pnpm typecheck` 与 `pnpm test:code --reporter=minimal` 在改动前通过，记录基线
+- [x] T001 在 worktree 根目录运行 `pnpm install`，确认 `pnpm typecheck` 与 `pnpm test:code --reporter=minimal` 在改动前通过，记录基线
 
 ## Phase 2: Foundational
 
 **Purpose**: 后续阶段共用的基础件
 
-- [ ] T002 新增 `src/steering.ts`：导出 `settleSteering(agent, message, logger)`，逻辑与 `src/sessions.ts` 现有 `settleSteering` 一致（让出两个微任务；`agent.status === 'idle'` 且 `agent.inbox.nextStep` 仍含该消息时移除并改为 `agent.followup`）；文件顶部一句职责注释
-- [ ] T003 `src/sessions.ts` 改为调用 `src/steering.ts` 的 `settleSteering`，删除私有副本；运行 `tests/sessions.test.ts` 确认行为不变
-- [ ] T004 [P] 新增 `src/lark-super-agent/paths.ts`：导出 `workspaceRelative(root, absolutePath)`，返回相对调度工作区根、以 `/` 分隔的路径（FR-021）
-- [ ] T005 [P] 为 T002、T004 新增 `tests/steering.test.ts` 与 `tests/lark-super-agent-paths.test.ts`
-- [ ] T006 提交 Phase 2：`feat(069): 共享投递兜底与相对路径工具`
+- [x] T002 新增 `src/steering.ts`：导出 `settleSteering(agent, message, logger)`，逻辑与 `src/sessions.ts` 现有 `settleSteering` 一致（让出两个微任务；`agent.status === 'idle'` 且 `agent.inbox.nextStep` 仍含该消息时移除并改为 `agent.followup`）；文件顶部一句职责注释
+- [x] T003 `src/sessions.ts` 改为调用 `src/steering.ts` 的 `settleSteering`，删除私有副本；运行 `tests/sessions.test.ts` 确认行为不变
+- [x] T004 [P] 新增 `src/lark-super-agent/paths.ts`：导出 `workspaceRelative(root, absolutePath)`，返回相对调度工作区根、以 `/` 分隔的路径（FR-021）
+- [x] T005 [P] 为 T002、T004 新增 `tests/steering.test.ts` 与 `tests/lark-super-agent-paths.test.ts`
+- [x] T006 提交 Phase 2：`feat(069): 共享投递兜底与相对路径工具`
 
 ## Phase 3: User Story 1–4 - 调度提示词与桥接提醒 (Priority: P1/P2)
 

@@ -17,6 +17,7 @@ import { SESSION_TITLE } from './constants.ts';
 import { BridgeError } from './errors.ts';
 import { isLarkMessage, LARK_SOURCE } from './message.ts';
 import type { StateStore } from './state.ts';
+import { type SteeringAgent, settleSteering } from './steering.ts';
 import { describeError } from './utils.ts';
 import {
   normalizeWorkspacePath,
@@ -365,22 +366,6 @@ export class SessionManager {
   }
 
   /**
-   * 收尾一次运行中投递。
-   * 驱动已判定 turn 结束时，插话可能留在 next-step 而无人唤醒；此时改为 followup。
-   */
-  private async settleSteering(agent: Agent, message: UserMessage): Promise<void> {
-    await Promise.resolve();
-    await Promise.resolve();
-    if (agent.status !== 'idle') return;
-    if (!agent.inbox.nextStep.some((pending) => pending.id === message.id)) return;
-    agent.inbox.remove(message.id);
-    this.deps.logger.warn(
-      `lark-bridge: steering landed after the turn ended; delivering ${message.id} as a followup`,
-    );
-    agent.followup(message);
-  }
-
-  /**
    * 把一段飞书消息块注入桥接会话。
    * @param block - 已格式化的 `<lark-message>` 块。
    * @returns 注入目标与会话是否新建。
@@ -403,7 +388,11 @@ export class SessionManager {
         content: [{ type: 'text', text: block }],
         source: LARK_SOURCE,
       });
-      if (this.deliver(agent, message) !== 'followup') await this.settleSteering(agent, message);
+      if (this.deliver(agent, message) !== 'followup') {
+        await settleSteering(agent as SteeringAgent, message, {
+          warn: (text) => this.deps.logger.warn(`lark-bridge: ${text}`),
+        });
+      }
       this.failure = undefined;
       return { sessionId, created };
     } catch (error) {
