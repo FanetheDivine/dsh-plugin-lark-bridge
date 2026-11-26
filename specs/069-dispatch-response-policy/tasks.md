@@ -61,13 +61,13 @@
 
 **Independent Test**: `tests/tools.test.ts`、`tests/notify-node.test.ts`、`tests/notify-card.test.ts`；实机验收场景 5、6
 
-- [ ] T022 [US6] 新增 `src/notify-card.ts`：导出 `buildCards({ summary, markdown, taskLabel? })`，生成 Card 2.0（`header.title` 总结句，多张带 `（i/n）`；带任务时 `header.subtitle` 为「<title> (<task id>)」；body 为 `collapsible_panel` `expanded:false` 内放 `markdown`）；按 research.md R-011 在段落边界贪心装箱，每张 `Buffer.byteLength(JSON.stringify(card))` ≤ 28 000，超长段落按行再按字符切分
-- [ ] T023 [P] [US6] 新增 `src/notify-tasks.ts`：导出 `resolveTask(taskId)`——用 `readBridgeState` 取工作区根（经 `toHostWorkspacePath`），`readTaskState(root)` 读台账；`workspaceRoot` 缺失或台账 `invalid` 抛 `task-ledger-unavailable`，任务不存在抛 `task-not-found`；返回 `{ id, title, sessionId }`（FR-030、FR-031）
-- [ ] T024 [US6] 改写 `src/tools.ts`：`NOTIFY_ARGS_SCHEMA` 新增 `mode`（`text`｜`card`）、`summary`、`task_id`；校验 `invalid-mode`、`invalid-summary`（card 必填且非空）；`text` 模式带任务时首段首行加「<title> (<task id>)」；`card` 模式经 `buildCards` 逐张 `+messages-send|+messages-reply --as bot --msg-type interactive --content -`（首张带 `reply_to`）；部分发送成功后失败时错误消息含已发条数与第一条消息 id；成功返回 `{ ok:true, messageId, taskSessionId? }`；`render` 输出「已发送给用户（消息 <messageId>）」，`presentationMeta` 只投影 `{ taskSessionId }`；`NotifyDeps` 增加可选 `resolveTask`，`src/index.ts` 注入 `notify-tasks`
-- [ ] T025 [US6] `src/client/notify-node.ts`：`SUCCESS_RESULT` 同时匹配旧文案与新文案 `已发送给用户（消息 <id>）`；调用参数解析新增 `mode`、`summary`、`task_id`；`NotifyCardData` 增加 `summary?`、`taskId?`，`sessionId` 改读 `presentationMeta.taskSessionId`，同时兼容旧元数据 `sessionId`
-- [ ] T026 [US6] `src/client/notify-card.tsx`、`notify-card.css`、`src/client/locales.ts`：`card` 模式显示总结句与完整 Markdown 原文；带任务时显示 task id 与任务会话链接（沿用现有已归档/缺失状态）；无 `task_id` 且无元数据时不显示会话链接；补中英文案键
-- [ ] T027 [P] [US6] 新增或更新 `tests/notify-card-builder.test.ts`（卡片结构、拆分边界与 28 000 字节上限、序号）、`tests/tools.test.ts`（参数校验、发送命令参数、`task_id` 前缀、部分发送失败、结果契约、`not-bridge-session`）、`tests/notify-node.test.ts`、`tests/notify-card.test.ts`（新旧文案、链接）
-- [ ] T028 提交 Phase 5：`feat(069): lark_notify 卡片模式、任务关联与精简返回值`
+- [x] T022 [US6] 新增 `src/notify-card.ts`：导出 `buildCards({ summary, markdown, taskLabel? })`，生成 Card 2.0（`header.title` 总结句，多张带 `（i/n）`；带任务时 `header.subtitle` 为「<title> (<task id>)」；body 为 `collapsible_panel` `expanded:false` 内放 `markdown`）；按 research.md R-011 在段落边界贪心装箱，每张 `Buffer.byteLength(JSON.stringify(card))` ≤ 28 000，超长段落按行再按字符切分
+- [x] T023 [P] [US6] 新增 `src/notify-tasks.ts`：导出 `resolveTask(taskId)`——用 `readBridgeState` 取工作区根（经 `toHostWorkspacePath`），`readTaskState(root)` 读台账；`workspaceRoot` 缺失或台账 `invalid` 抛 `task-ledger-unavailable`，任务不存在抛 `task-not-found`；返回 `{ id, title, sessionId }`（FR-030、FR-031）
+- [x] T024 [US6] 改写 `src/tools.ts`：`NOTIFY_ARGS_SCHEMA` 新增 `mode`（`text`｜`card`）、`summary`、`task_id`；校验 `invalid-mode`、`invalid-summary`（card 必填且非空）；`text` 模式带任务时首段首行加「<title> (<task id>)」；`card` 模式经 `buildCards` 逐张 `+messages-send|+messages-reply --as bot --msg-type interactive --content -`（首张带 `reply_to`）；部分发送成功后失败时错误消息含已发条数与第一条消息 id；成功返回 `{ ok:true, messageId, taskSessionId? }`；`render` 输出「已发送给用户（消息 <messageId>）」，`presentationMeta` 只投影 `{ taskSessionId }`；`NotifyDeps` 增加可选 `resolveTask`，`src/index.ts` 注入 `notify-tasks`
+- [x] T025 [US6] `src/client/notify-node.ts`：`SUCCESS_RESULT` 同时匹配旧文案与新文案 `已发送给用户（消息 <id>）`；调用参数解析新增 `mode`、`summary`、`task_id`；`NotifyCardData` 增加 `summary?`、`taskId?`，`sessionId` 改读 `presentationMeta.taskSessionId`，同时兼容旧元数据 `sessionId`
+- [x] T026 [US6] `src/client/notify-card.tsx`、`notify-card.css`、`src/client/locales.ts`：`card` 模式显示总结句与完整 Markdown 原文；带任务时显示 task id 与任务会话链接（沿用现有已归档/缺失状态）；无 `task_id` 且无元数据时不显示会话链接；补中英文案键
+- [x] T027 [P] [US6] 新增或更新 `tests/notify-card-builder.test.ts`（卡片结构、拆分边界与 28 000 字节上限、序号）、`tests/tools.test.ts`（参数校验、发送命令参数、`task_id` 前缀、部分发送失败、结果契约、`not-bridge-session`）、`tests/notify-node.test.ts`、`tests/notify-card.test.ts`（新旧文案、链接）
+- [x] T028 提交 Phase 5：`feat(069): lark_notify 卡片模式、任务关联与精简返回值`
 
 ## Phase 6: User Story 7 - 任务日志 (Priority: P2)
 

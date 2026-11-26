@@ -14,6 +14,7 @@ import { installReminderGuard } from './reminder.ts';
 import { type ConnectionLike, registerRoutes, type WebServerLike } from './routes.ts';
 import { SessionManager } from './sessions.ts';
 import { StateStore } from './state.ts';
+import { resolveTask } from './notify-tasks.ts';
 import { buildNotifyTool } from './tools.ts';
 import type { Agent, Context } from './types.ts';
 import { describeError } from './utils.ts';
@@ -95,6 +96,7 @@ export function apply(ctx: Context, config?: unknown): void {
   const notifyTool = buildNotifyTool({
     getCli: () => cli,
     getOwner: () => auth.current.ownerOpenId,
+    resolveTask: (taskId) => resolveTask(taskId),
     isBridgeAgent,
   });
   const unregisterTool = ctx.tools.register(notifyTool, {

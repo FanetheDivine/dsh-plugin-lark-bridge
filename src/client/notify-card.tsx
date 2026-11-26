@@ -23,6 +23,8 @@ export interface NotifyCardProps {
 
 /** 翻译座缺席时的英文文案。 */
 const FALLBACK: Partial<Record<BridgeKey, string>> = {
+  'notify.task': 'Task',
+  'notify.expand': 'Full content',
   'notify.session': 'Session',
   'notify.openSession': 'Open session',
   'notify.archived': 'Archived',
@@ -36,9 +38,9 @@ function translate(t: NotifyCardProps['t'], key: BridgeKey): string {
     : (FALLBACK[key] ?? key);
 }
 
-/** 渲染通知正文与来源会话状态。 */
+/** 渲染通知正文、卡片总结、所属任务与会话状态。 */
 export function NotifyCard({ node, useWorkspaces, openSession, t }: NotifyCardProps) {
-  const { text, sessionId } = node.data;
+  const { text, summary, taskId, sessionId } = node.data;
   const sessionState = useWorkspaces(
     (state: WorkspaceSnapshot): 'active' | 'archived' | 'missing' | 'unassociated' => {
       if (sessionId === undefined) return 'unassociated';
@@ -54,7 +56,27 @@ export function NotifyCard({ node, useWorkspaces, openSession, t }: NotifyCardPr
   const canOpen = sessionState === 'active';
   return (
     <section className="dsh-lark-notify" data-dsh-lark-notify-card="">
-      <div className="dsh-lark-notify-body">{text}</div>
+      {summary === undefined ? (
+        <div className="dsh-lark-notify-body">{text}</div>
+      ) : (
+        <>
+          <div className="dsh-lark-notify-summary" data-dsh-lark-notify-summary="">
+            {summary}
+          </div>
+          <details className="dsh-lark-notify-details" data-dsh-lark-notify-details="">
+            <summary>{translate(t, 'notify.expand')}</summary>
+            <div className="dsh-lark-notify-body">{text}</div>
+          </details>
+        </>
+      )}
+      {taskId === undefined ? null : (
+        <footer className="dsh-lark-notify-session" data-dsh-lark-notify-task="">
+          <span className="dsh-lark-notify-session-label">{translate(t, 'notify.task')}</span>
+          <span className="dsh-lark-notify-session-id" title={taskId}>
+            {taskId}
+          </span>
+        </footer>
+      )}
       {sessionId === undefined ? null : (
         <footer className="dsh-lark-notify-session" data-dsh-lark-notify-session="">
           <span className="dsh-lark-notify-session-label">{translate(t, 'notify.session')}</span>

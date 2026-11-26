@@ -20,12 +20,19 @@ export const NOTIFY_DEFINITION_KIND = 'lark-notify-result';
 /** 工具名。 */
 const NOTIFY_TOOL = 'lark_notify';
 
-/** 现有成功结果；分段数只用于完整匹配，不在卡片展示。 */
-const SUCCESS_RESULT = /^已(?:发送|回复)给用户（[1-9]\d* 条）$/;
+/** 成功结果：新文案带消息标识，历史文案带分段数；两者都识别，使旧会话的卡片继续显示。 */
+const SUCCESS_RESULT =
+  /^(?:已(?:发送|回复)给用户（[1-9]\d* 条）|已发送给用户(?:（消息 [^）\s]+）)?)$/;
 
-/** 卡片展示的数据：发送正文与可选的来源会话。 */
+/** 卡片展示的数据：正文、卡片模式的总结、所属任务与可选的会话。 */
 export interface NotifyCardData {
+  /** 文本模式的正文，或卡片模式的完整 Markdown。 */
   readonly text: string;
+  /** 卡片模式的一句总结。 */
+  readonly summary?: string;
+  /** 关联的任务标识，取自调用参数。 */
+  readonly taskId?: string;
+  /** 任务会话标识（新结果）或来源会话标识（历史结果），取自结果展示元数据。 */
   readonly sessionId?: string;
 }
 
@@ -36,29 +43,57 @@ declare module '@deepseek-ai/dsh-client-ui-chat/client' {
   }
 }
 
+/** 从调用参数读取的展示字段。 */
+interface NotifyArgs {
+  readonly text: string;
+  readonly summary?: string;
+  readonly taskId?: string;
+}
+
+/** 取非空字符串字段。 */
+function nonEmpty(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+/**
+ * 解析 `lark_notify` 的调用参数。
+ * @param raw - `tool/call` 的参数字符串。
+ * @returns 完整正文、卡片模式的总结与任务标识；缺失、非法 JSON 或类型不符时正文为空字符串。
+ */
+export function parseNotifyArgs(raw: string | undefined): NotifyArgs {
+  if (raw === undefined || raw === '') return { text: '' };
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return { text: '' };
+  }
+  if (typeof value !== 'object' || value === null) return { text: '' };
+  const record = value as Record<string, unknown>;
+  const text = typeof record.text === 'string' ? record.text : '';
+  const summary = record.mode === 'card' ? nonEmpty(record.summary) : undefined;
+  const taskId = nonEmpty(record.task_id);
+  return {
+    text,
+    ...(summary === undefined ? {} : { summary }),
+    ...(taskId === undefined ? {} : { taskId }),
+  };
+}
+
 /**
  * 解析 `lark_notify` 的调用参数，只读取完整 `text`。
  * @param raw - `tool/call` 的参数字符串。
  * @returns 原始正文；缺失、非法 JSON 或类型不符时为空字符串。
  */
 export function parseNotifyText(raw: string | undefined): string {
-  if (raw === undefined || raw === '') return '';
-  let value: unknown;
-  try {
-    value = JSON.parse(raw);
-  } catch {
-    return '';
-  }
-  if (typeof value !== 'object' || value === null) return '';
-  const text = (value as Record<string, unknown>).text;
-  return typeof text === 'string' ? text : '';
+  return parseNotifyArgs(raw).text;
 }
 
-/** 从工具结果的展示元数据读取非空来源会话标识。 */
+/** 从工具结果的展示元数据读取非空会话标识：优先任务会话，兼容历史的来源会话。 */
 function parseNotifySessionId(meta: unknown): string | undefined {
   if (typeof meta !== 'object' || meta === null || Array.isArray(meta)) return undefined;
-  const sessionId = (meta as Record<string, unknown>).sessionId;
-  return typeof sessionId === 'string' && sessionId.trim() !== '' ? sessionId : undefined;
+  const record = meta as Record<string, unknown>;
+  return nonEmpty(record.taskSessionId) ?? nonEmpty(record.sessionId);
 }
 
 /** 结果是单条文本时返回它；其余形状不提供读数。 */
@@ -131,9 +166,12 @@ function cardSource(call: ConversationMatch | undefined, result: ConversationMat
   const cached = cardSources.get(event);
   if (cached !== undefined && cached.call === call?.event) return cached;
   const sessionId = parseNotifySessionId(event.data.meta);
+  const args = parseNotifyArgs(argsRawOf(call));
   const source: CardSource = {
     data: {
-      text: parseNotifyText(argsRawOf(call)),
+      text: args.text,
+      ...(args.summary === undefined ? {} : { summary: args.summary }),
+      ...(args.taskId === undefined ? {} : { taskId: args.taskId }),
       ...(sessionId === undefined ? {} : { sessionId }),
     },
     resultSeq: event.seq,

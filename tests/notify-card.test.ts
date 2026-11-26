@@ -12,6 +12,8 @@ const t = ((key: keyof typeof zh) => zh[key]) as TranslateNS<typeof NS>;
 
 interface RenderOptions {
   readonly sessionId?: string;
+  readonly summary?: string;
+  readonly taskId?: string;
   readonly known?: boolean;
   readonly archived?: boolean;
   readonly openSession?: (sessionId: string) => void;
@@ -28,7 +30,14 @@ function cardProps(options: RenderOptions = {}): NotifyCardProps {
       archivedSessionIds: archived && sessionId !== undefined ? [sessionId] : [],
     })) as NotifyCardProps['useWorkspaces'];
   return {
-    node: { data: { text: '第一行\n第二行', ...(sessionId === undefined ? {} : { sessionId }) } },
+    node: {
+      data: {
+        text: '第一行\n第二行',
+        ...(options.summary === undefined ? {} : { summary: options.summary }),
+        ...(options.taskId === undefined ? {} : { taskId: options.taskId }),
+        ...(sessionId === undefined ? {} : { sessionId }),
+      },
+    },
     t,
     useWorkspaces,
     openSession: options.openSession ?? vi.fn(),
@@ -118,9 +127,53 @@ describe('NotifyCard 会话链接', () => {
   });
 });
 
+describe('NotifyCard 卡片模式与任务', () => {
+  it('卡片模式常显总结，完整 Markdown 原文放进折叠区', () => {
+    const html = render({ summary: 'xxx 任务已完成' });
+    expect(html).toContain('data-dsh-lark-notify-summary');
+    expect(html).toContain('xxx 任务已完成');
+    expect(html).toContain('<details');
+    expect(html).not.toContain('<details open');
+    expect(html).toContain('第一行\n第二行');
+  });
+
+  it('文本模式没有总结与折叠区', () => {
+    const html = render();
+    expect(html).not.toContain('data-dsh-lark-notify-summary');
+    expect(html).not.toContain('<details');
+  });
+
+  it('带 task_id 时显示任务标识，并链接到任务会话', () => {
+    const html = render({ taskId: 'task-1', sessionId: 'session-task-1' });
+    expect(html).toContain('data-dsh-lark-notify-task');
+    expect(html).toContain('任务');
+    expect(html).toContain('task-1');
+    expect(html).toContain('data-dsh-lark-notify-session-link');
+    expect(html).toContain('打开会话 session-task-1');
+  });
+
+  it('任务会话已归档时沿用已归档标记', () => {
+    const html = render({ taskId: 'task-1', sessionId: 'session-task-1', archived: true });
+    expect(html).toContain('已归档');
+    expect(html).not.toContain('data-dsh-lark-notify-session-link');
+  });
+
+  it('不带 task_id 且没有元数据时不显示任务与会话', () => {
+    const html = render();
+    expect(html).not.toContain('data-dsh-lark-notify-task');
+    expect(html).not.toContain('dsh-lark-notify-session');
+  });
+});
+
 describe('NotifyCard 文案', () => {
   it('会话与归档文案键在中英文字典中都有值', () => {
-    for (const key of ['notify.session', 'notify.openSession', 'notify.archived'] as const) {
+    for (const key of [
+      'notify.session',
+      'notify.openSession',
+      'notify.archived',
+      'notify.task',
+      'notify.expand',
+    ] as const) {
       expect(zh[key]).not.toBe('');
       expect(en[key]).not.toBe('');
     }
