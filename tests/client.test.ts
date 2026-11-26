@@ -51,6 +51,8 @@ import {
 import * as clientEntry from '../src/client/index.ts';
 import { en, NS, zh } from '../src/client/locales.ts';
 import type { ModelDefaultsInjected } from '../src/client/model-defaults.ts';
+import { NotifyCard } from '../src/client/notify-card.tsx';
+import { NOTIFY_DEFINITION_KIND, NOTIFY_NODE_KIND } from '../src/client/notify-node.ts';
 import type { PresetDefaultsInjected, PresetDefaultsState } from '../src/client/preset-defaults.ts';
 import { currentText, menuItems, PresetSelect } from '../src/client/preset-select.tsx';
 import { ReportCard } from '../src/client/report-card.tsx';
@@ -284,13 +286,14 @@ describe('前端入口', () => {
     ]);
   });
 
-  it('注册双语字典、上报卡片节点、全局鉴权弹窗与面板配置页', () => {
+  it('注册双语字典、上报与通知卡片节点、全局鉴权弹窗与面板配置页', () => {
     const ctx = makeClientCtx();
     apply(ctx);
 
     expect(ctx._localeRegistrations.map((entry) => entry.ns)).toEqual([NS]);
     expect(Object.keys(ctx._localeRegistrations[0]?.dicts ?? {}).sort()).toEqual(['en', 'zh']);
     expect(ctx._slotInjections).toEqual([
+      'conversation.chat.node',
       'conversation.chat.node',
       'shell.overlay',
       'plugins.row.config',
@@ -302,28 +305,35 @@ describe('前端入口', () => {
       locale: NS,
     });
     expect(ctx._slotRegistrations[0]?.component).toBe(ReportCard);
+    expect(ctx._slotRegistrations[1]?.options).toMatchObject({
+      name: 'conversation.chat.node',
+      key: NOTIFY_NODE_KIND,
+      locale: NS,
+    });
+    expect(ctx._slotRegistrations[1]?.component).toBe(NotifyCard);
     expect(ctx._conversationDefinitions.map((entry) => entry.kind)).toEqual([
       REPORT_DEFINITION_KIND,
+      NOTIFY_DEFINITION_KIND,
     ]);
-    expect(ctx._slotRegistrations[1]?.options).toMatchObject({
+    expect(ctx._slotRegistrations[2]?.options).toMatchObject({
       name: 'shell.overlay',
       id: 'lark-bridge-auth',
       order: 20,
       locale: NS,
     });
-    expect(ctx._slotRegistrations[1]?.component).toBe(AuthOverlay);
-    expect(ctx._slotRegistrations[2]?.options).toMatchObject({
+    expect(ctx._slotRegistrations[2]?.component).toBe(AuthOverlay);
+    expect(ctx._slotRegistrations[3]?.options).toMatchObject({
       name: 'plugins.row.config',
       key: ROW_KEY,
       locale: NS,
     });
-    expect(ctx._slotRegistrations[2]?.component).toBe(ConfigPage);
-    expect(ctx._slotRegistrations[3]?.options).toMatchObject({
+    expect(ctx._slotRegistrations[3]?.component).toBe(ConfigPage);
+    expect(ctx._slotRegistrations[4]?.options).toMatchObject({
       name: 'plugins.row.config',
       key: TASK_ROW_KEY,
       locale: NS,
     });
-    expect(ctx._slotRegistrations[3]?.component).toBe(TaskConfigPage);
+    expect(ctx._slotRegistrations[4]?.component).toBe(TaskConfigPage);
     expect(ctx._configFormRequests).toEqual([ROW_ID, TASK_ROW_ID]);
     expect(ROW_KEY).toBe(`${ROW_ID}#${ROW_ID}`);
     expect(TASK_ROW_KEY).toBe('dsh-plugin-lark-bridge#lark-super-agent');
@@ -334,10 +344,10 @@ describe('前端入口', () => {
       readonly modelDefaults: ModelDefaultsInjected;
       readonly presetDefaults: PresetDefaultsInjected;
     };
-    const overlayInject = ctx._slotRegistrations[1]?.options.inject as
+    const overlayInject = ctx._slotRegistrations[2]?.options.inject as
       | (() => SharedSlotInjected)
       | undefined;
-    const configInject = ctx._slotRegistrations[2]?.options.inject as
+    const configInject = ctx._slotRegistrations[3]?.options.inject as
       | (() => SharedSlotInjected)
       | undefined;
     const overlay = overlayInject?.();
@@ -419,7 +429,7 @@ describe('前端服务可选', () => {
     });
     expect(scope?.subscriberCount()).toBe(0);
     ctx._grant('configForms');
-    expect(ctx._activeSlots.size).toBe(4);
+    expect(ctx._activeSlots.size).toBe(5);
     expect(ctx._activeLocales.size).toBe(1);
   });
 

@@ -183,6 +183,13 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 其余段仍用 `+messages-send`。`reply_to` 不做预先校验，无法回复时返回 `reply-failed` 错误，不回落为普通发送。
 
+成功的 `lark_notify` 在对话中显示为只含完整 `text` 的正文卡片：
+
+- 前端注册 Conversation Definition `lark-notify-result`，匹配 `lark_notify` 的 `tool/call` 与符合现有成功文案的 `tool/result`。结果只用于确认成功，卡片正文取自 `tool/call` 的 `arguments.text`。
+- Definition 产出 `lark-notify` Chat 节点，`groupTree` 为 `turn`，位于结果之后。节点不进入过程分组，轮次折叠后仍然可见。
+- 卡片注册在 `conversation.chat.node` 的 `lark-notify` 键，按纯文本保留换行，不显示标题、回执、分段数、`reply_to` 或 `messageId`。
+- 进行中、失败与中断沿用宿主默认工具行。历史窗口缺少调用参数或正文为空时不产生空卡片。
+
 ## 调度服务与预设叠加
 
 `lark-super-agent` 全局行声明 `tools` 依赖并提供 `larkSuperAgent` 服务，组合任务台账、上报存档、git 队列、被管理会话能力与消息投递。`sa-dispatch` 预设子行声明 `larkSuperAgent`、`systemPrompt`、`tools` 三项依赖，并通过 `ctx.inject` 注册调度能力；三项缺一不可，否则 Cordis 拒绝读取未声明的服务。全局行停用时，子行的工具与监听随依赖下线，飞书对话与 `lark_notify` 照常工作。
@@ -284,6 +291,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
   - 前端注册 Conversation Definition `lark-report-result`，匹配 `send_report` 的 `tool/call` 与投递成功的 `tool/result`，参数取自 `tool/call` 的 `arguments`。
   - Definition 产出 `lark-report` Chat 节点，`groupTree` 为 `turn`，位于结果之后。节点不进入过程分组，轮次折叠后仍然可见。
   - 卡片注册在 `conversation.chat.node` 的 `lark-report` 键，附件按钮调用宿主 `openFile` 在右侧栏打开。
+  - 卡片容器、Markdown 正文、任务简介与附件名使用 `--dsw-alias-label-primary`，与宿主对话正文同色；回执、标签与完整路径保留辅助色。
   - `send_report` 的工具行由宿主默认工具行显示，进行中、失败与中断都沿用它。
 
 ## 生命周期

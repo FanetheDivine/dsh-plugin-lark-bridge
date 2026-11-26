@@ -259,6 +259,8 @@ src/
     ├── task-config.tsx     # lark-super-agent 行的任务模型、默认类型与任务会话预设
     ├── report-card.tsx     # 上报卡片的渲染
     ├── report-node.ts      # 上报卡片的 Conversation Definition
+    ├── notify-card.tsx     # 通知正文卡片的渲染
+    ├── notify-node.ts      # 通知正文卡片的 Conversation Definition
     ├── preset-defaults.ts  # 预设名册与选择
     ├── preset-select.tsx   # 预设下拉
     ├── task-model-field.tsx # 任务会话模型选择项

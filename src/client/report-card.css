@@ -9,7 +9,7 @@
   border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-markdown-code-block);
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary);
   font: var(--dsw-font-xs-13);
   min-width: 0;
 }

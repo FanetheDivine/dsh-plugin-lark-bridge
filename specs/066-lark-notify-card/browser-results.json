@@ -1,0 +1,35 @@
+[
+  {
+    "label": "R1 成功通知只显示完整正文并使用正文色",
+    "status": "PASS",
+    "detail": {
+      "text": "通知正文第一行\n通知正文第二行：**保留记号**",
+      "color": "rgb(15, 17, 21)"
+    }
+  },
+  {
+    "label": "R2 失败通知不产生卡片并保留默认工具行",
+    "status": "PASS",
+    "detail": {
+      "cards": 1,
+      "notifyCard": false
+    }
+  },
+  {
+    "label": "R3 上报卡片主要内容使用正文色",
+    "status": "PASS",
+    "detail": {
+      ".dsh-lark-report-body": "rgb(15, 17, 21)",
+      ".dsh-lark-report-desc-text": "rgb(15, 17, 21)",
+      ".dsh-lark-report-file-name": "rgb(15, 17, 21)"
+    }
+  },
+  {
+    "label": "R4 重新加载后通知与上报卡片仍默认可见",
+    "status": "PASS",
+    "detail": {
+      "notify": true,
+      "report": true
+    }
+  }
+]
