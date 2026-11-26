@@ -128,9 +128,7 @@ lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 2. `message_id` 已在去重窗口时忽略。
 3. `create_time` 早于 `startedAt` 时过滤并记日志；飞书会按 `15 秒 / 5 分钟 / 1 小时 / 6 小时` 重推未确认事件，这些历史消息不会注入。
 4. 有 `reply_to` 时读取被引消息：`lark-cli im +messages-mget --no-reactions`，user 身份优先、bot 兜底，单次 8 秒。
-5. 其余消息进入队列，并重置 15 秒静默计时。
-
-计时到点且队列非空时，一次取走全部消息，按 `create_time` 升序拼成一个用户消息，每条一个 `<lark-message message_id="…" reply_to="…" time="…">` 块：
+5. 其余消息进入队列并立即投递：队列按 `create_time` 升序逐条注入，每条一个用户消息，内含一个 `<lark-message message_id="…" reply_to="…" time="…">` 块：
 
 - 普通文本：块内是正文；非文本消息使用类型占位。
 - 引用回复：块内先放 `<quote message_id="…" from="…" time="…">`，再放本条正文。读取失败时 `<quote>` 保留消息 ID 与失败说明，并记录一条警告。
@@ -138,7 +136,7 @@ lark-cli event consume im.message.receive_v1 --as bot --quiet --timeout 0
 - 聊天记录消息：块内是 `<forwarded_messages message_id="…"/>`，不展开子消息。
 - 块边界与属性值会转义。
 
-注入失败时整批丢弃并记录原因，不重试。监听停止时清空队列与计时器。
+注入失败时丢弃该条并记录原因，不重试，队列中的后续消息继续注入。会话空闲时开新轮，运行中并入当前轮的下一步。监听停止时清空队列。
 
 ACK 由 lark-cli 完成；插件持续读取消费者输出，注入不阻塞事件读取。
 
@@ -156,8 +154,9 @@ ACK 由 lark-cli 完成；插件持续读取消费者输出，注入不阻塞事
 - 注入使用 `createUserMessage`，`source.kind` 是 `lark-bridge`，再调用 `agent.followup`。
 - 桥接提醒是一条 `source.reminder` 为 true 的 `<system-reminder>` 用户消息。
 - 桥接提醒要求所有桥接会话一律经 `lark_notify` 回复：完整内容写在通知里，成功送达后正文最多一句概述；通知失败时正文保留完整内容。
+- 同一批输入里，同一任务的内容合并成一条回复，不同任务各回一条，回复之后到达的消息单独回复。带 `task_id` 的通知由插件在开头补写「名称 (id)」，正文不重复。上报块、失败通知、归档通知与任务日志块不是用户消息，不为它们本身回复。
 
-`agent/pre-step` 检查桥接会话的表层：缺少提醒时把它插到本批第一条 `<lark-message>` 之前，已有提醒时跳过。桥接会话由状态文件的 `sessionId` 识别，因此压缩覆盖提醒后，下一次模型请求前会补回。
+`agent/pre-step` 检查桥接会话的表层：缺少提醒时把它插到本批第一条 `<lark-message>` 或任务日志注入消息之前，已有提醒时跳过。桥接会话由状态文件的 `sessionId` 识别，因此压缩覆盖提醒后，下一次模型请求前会补回。
 
 会话归档由 DSH 管理，插件没有重置入口。
 
@@ -165,9 +164,9 @@ ACK 由 lark-cli 完成；插件持续读取消费者输出，注入不阻塞事
 
 `lark_notify` 只在桥接会话可见与可执行。判定用状态文件的 `sessionId`，与提醒补注一致；其他会话的步骤既拿不到工具声明，也无法执行该工具。执行体在 agent 缺失或不是桥接会话时返回 `not-bridge-session`，不发送请求。
 
-参数用 zod 声明，经 `z.toJSONSchema` 转换后复制成纯 JSON 副本作为工具声明：剔除 `$schema` 与 zod 的不可枚举 `~standard` 键，宿主只能克隆可枚举字符串键。声明里 `text` 必填，`reply_to` 可选。执行体自行校验参数，失败码为 `invalid-args`、`invalid-text`、`invalid-reply-to`。
+参数用 zod 声明，经 `z.toJSONSchema` 转换后复制成纯 JSON 副本作为工具声明：剔除 `$schema` 与 zod 的不可枚举 `~standard` 键，宿主只能克隆可枚举字符串键。声明里 `text` 必填，`reply_to`、`mode`（`text` 或 `card`）、`summary` 与 `task_id` 可选。执行体自行校验参数，失败码为 `invalid-args`、`invalid-text`、`invalid-reply-to`、`invalid-mode`、`invalid-summary`、`invalid-task-id`、`task-not-found`、`task-ledger-unavailable`。
 
-`lark_notify` 读取当前 owner open_id，按 15 000 字符分段，逐段执行：
+`lark_notify` 读取当前 owner open_id。`text` 模式按 15 000 字符分段，逐段执行：
 
 ```sh
 lark-cli im +messages-send --as bot --user-id <open_id> --text - --idempotency-key <key>
@@ -183,12 +182,30 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 其余段仍用 `+messages-send`。`reply_to` 不做预先校验，无法回复时返回 `reply-failed` 错误，不回落为普通发送。
 
-成功的 `lark_notify` 在对话中显示完整正文与来源会话：
+`card` 模式发送 Card 2.0：`header.title` 是 `summary`，`body` 是默认收起的 `collapsible_panel`，面板内是 `text` 的 Markdown。卡片 JSON 经 stdin 传入：
 
-- 成功结果携带当前 `agent.session.id` 为 `sessionId`，`output.presentationMeta` 把标识持久化到 `tool/result.meta`。模型可见的回执文本不变。
-- 前端注册 Conversation Definition `lark-notify-result`，匹配 `lark_notify` 的 `tool/call` 与符合现有成功文案的 `tool/result`。卡片正文取自 `tool/call` 的 `arguments.text`，来源会话取自结果元数据。
+```sh
+lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive --content - --idempotency-key <key>
+```
+
+- 单张卡片 JSON 不超过 28 000 字节（飞书上限 30 KB，留出余量）。超过时在 Markdown 段落边界拆成多张，标题带「（i/n）」；单个超长段落再按行、按字符拆分。
+- 首张卡片使用 `reply_to`，其余用普通发送。
+- 插件不自动发卡片，卡片只由调度会话主动调用。
+
+带 `task_id` 时，`lark_notify` 自行读取状态文件与调度工作区台账查找未结束任务，不依赖 `lark-super-agent` 行是否启用。任务不存在或已结束返回 `task-not-found`；工作区未配置或台账校验失败返回 `task-ledger-unavailable`；两者都不发送。找到任务后：
+
+- 文本模式在正文首行加「<title> (<task id>)」；卡片模式把它写在 `header.subtitle`。
+- 不带 `task_id` 的调用不读台账，照常发送。
+
+多段或多张发送中第 n 张失败时，错误说明已发送条数与第一条消息标识，已发出的消息不撤回；调度会话只补发剩余部分。
+
+模型可见的成功结果只有「已发送给用户（消息 <messageId>）」。`output.presentationMeta` 只把任务会话标识 `taskSessionId` 持久化到 `tool/result.meta`，仅在带 `task_id` 且解析成功时出现。
+
+成功的 `lark_notify` 在对话中显示完整正文与所属任务：
+
+- 前端注册 Conversation Definition `lark-notify-result`，匹配 `lark_notify` 的 `tool/call` 与成功的 `tool/result`。成功文案同时识别新文案与历史文案（「已发送给用户（消息 …）」「已发送给用户（N 条）」「已回复给用户（N 条）」）。卡片内容取自 `tool/call` 的 `arguments`：`text`、卡片模式的 `summary` 与 `task_id`；会话取自结果元数据的 `taskSessionId`，兼容历史元数据的 `sessionId`。
 - Definition 产出 `lark-notify` Chat 节点，`groupTree` 为 `turn`，位于结果之后。节点不进入过程分组，轮次折叠后仍然可见。
-- 卡片注册在 `conversation.chat.node` 的 `lark-notify` 键，按纯文本保留换行。会话区域显示完整标识，并通过 `useWorkspaces` 同时读取工作区成员关系与归档状态。
+- 卡片注册在 `conversation.chat.node` 的 `lark-notify` 键，按纯文本保留换行。卡片模式常显总结，完整 Markdown 放在默认收起的 `<details>`。带 `task_id` 时显示任务标识，会话区域显示任务会话标识，并通过 `useWorkspaces` 同时读取工作区成员关系与归档状态。没有 `task_id` 且没有历史元数据时不显示任务与会话。
 - 目标属于工作区且未归档时显示按钮，点击调用 `ctx.uiWorkspace.openSession`。已归档目标显示「已归档」标签，未知目标只显示标识。
 - 进行中、失败与中断沿用宿主默认工具行。历史窗口缺少调用参数或正文为空时不产生空卡片；历史结果缺少元数据时只显示正文。
 
@@ -203,7 +220,8 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 「被管理」是会话状态，与预设无关：`message-task-status.json` 中某个未结束任务记录的 `sessionId` 即为被管理会话，一个会话最多对应一个任务。
 - 被管理会话的能力全部注册在全局行，见[被管理会话能力](#被管理会话能力)。
 - meta-tools 是 `SA-调度会话` 的子行，预设补丁关闭它的 `session_create`，其余九项能力开启。`session_create` 由 `sa-dispatch` 子行提供，见「任务会话模型」。
-- `SA-调度会话` 用 `ctx.systemPrompt.section` 注册提示词，要求回复只给结论、保持简短。
+- `SA-调度会话` 用 `ctx.systemPrompt.section` 注册提示词，要求自己的话只给结论、保持简短；转达报告全文不受此限。
+- 提示词写明用户只能看到 `lark_notify` 的内容。用户每条消息都回复；`session_create`、`session_send`、`session_manage`、`session_unmanage`、`task_end` 成功后下一步用 `lark_notify` 回应，置顶与归档排在同一步或其后，失败另发一条通知。同一任务的内容合并为一条并带 `task_id`，不同任务分开发送；`task_end` 与 `session_unmanage` 之后任务已不存在，通知不带 `task_id`，正文开头写「<title> (<task id>)」。
 - 对用户提及任务时写成「名称 (id)」：名称取台账当前标题，每次提及都用全形式；名称取不到时说明并给出 id。桥接提醒对提及任务的情况提出同样要求。
 - 提示词要求调度会话自行回答 DSH 元信息问题（工作区、会话、任务状态），不为这类问题建任务。
 - 提示词把用户指令默认理解为交给新建任务会话在工作区执行的独立任务。调度会话自身只在调度工作区读写笔记、任务归档与报告。
@@ -211,9 +229,12 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 每条用户消息默认是新任务。只有引用了未结束任务的消息，或点名未结束任务的标题或 id，才归入该任务；无法判断时询问用户。
 - 用户要接管已有会话时调用 `session_manage`，要停止管理时调用 `session_unmanage`。用户归档会话时任务随之归档。
 - 派发与接管任务时，调度会话用 `session_pin` 置顶任务会话；再次置顶与取消置顶只在用户要求时进行。取消管理不归档，会话与其置顶保留。
-- 调度会话把用户消息追加到任务后，用 `session_send` 投递到任务会话。
-- 调度会话按上报的 `kind` 更新任务：`progress` 设为 `in_progress`，`question` 设为 `waiting_user`。上报不结束任务。
-- 调度会话转述上报时按上报原文送达用户，只补充任务、工作区与待决问题等自己掌握的信息。
+- 调度会话先判断点名任务的消息是否是给任务会话的指令：指令追加到任务后用 `session_send` 投递；给调度会话自己的说明只用 `task_update` 的 `add_message` 记录并回应用户，不投递；无法判断时询问用户。
+- 发往任务会话的消息只有两类：用户本人的指令、补充或回答，以及请求重发报告的消息。调度会话不向任务会话发送对报告的确认或转述。
+- 调度会话按上报的 `kind` 更新任务：`progress` 设为 `in_progress`，`question` 设为 `waiting_user`，不论是否通知用户。上报不结束任务。
+- 报告既没有描述任务当前状态、也没有需要用户确认的点时，调度会话向任务会话发一次重发请求，要求用 `send_report` 报告当前状态与待确认点；`turn_end` 与 `send_report` 两类都适用，不设次数上限。
+- 只有本份报告含新的结果、里程碑、阻塞、失败或提问时，调度会话才通知用户，并按上报原文送达，只补充任务、工作区与待决问题等自己掌握的信息；长报告用 `lark_notify` 的卡片模式。
+- 任务会话轮次失败时，调度会话把任务设为 `failed`，就该次失败通知用户一次，用户要求后才重试。
 - 调度会话自行判断任务是否完成：判断完成时先询问用户，用户确认后才用 `task_end(completed)` 结束；用户要求结束或取消时直接用 `task_end(cancelled)`。结束任务后以 `session_archive` 的 `stop_activity: true` 归档该任务的会话，归档同时移除置顶。
 - `SA-调度会话` 不含 `tool-jobs`，保留 `persona`、`agent-instructions`、`time-context`、`skill-filesystem` 与压缩组。压缩组的 `compaction-basic` 设 `thresholdRatio: 0.3`，上下文压力到模型窗口 30% 时触发压缩。
 - 全局行与预设子行的工具叠加。`lark_notify` 来自本插件主行，其他插件的全局工具也照常可见。
@@ -261,8 +282,10 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 | `workspaces.json` | 工作区笔记与派发白名单；由工作区写工具维护 |
 | `reports/<taskId>/<reportId>.md` | 上报正文与元数据；由 `send_report` 与自动上报写入 |
 | `reports/<taskId>/<reportId>-<n>-<文件名>.md` | 上报附件副本 |
+| `task-logs/<taskId>.jsonl` | 任务日志：用户直接与任务会话交互的记录；由插件在 `session/event` 中追加，不单独 git 提交 |
 | `archive/<taskId>/task.json` | 任务全量快照、归档时间与结束原因 |
 | `archive/<taskId>/reports/` | 已结束任务的全部上报与附件 |
+| `archive/<taskId>/task-log.jsonl` | 任务结束时由 `task-logs/` 迁入的日志；归档后插件与调度会话都不再读取 |
 | `AGENTS.md` | 长期记忆；由调度会话自行维护与提交 |
 
 - `message-task-status.json` 与 `workspaces.json` 用 zod 校验。校验不通过时按空台账处理，下次写入覆盖。
@@ -272,19 +295,21 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 首次写笔记时，若调度工作区根目录不是 git 仓库顶层，程序执行 `git init`。
 - 程序用路径限定的 `git add` 与 `git commit` 提交本次文件，提交作者沿用本机 git 配置。
 - 本机需要安装 git，并配置 `user.name` 与 `user.email`。
-- `task_end` 把任务移入归档并记录结束原因，同时移动上报目录，再从 `message-task-status.json` 移除该任务。会话保持未归档。
+- `task_end` 把任务移入归档并记录结束原因，同时移动上报目录与任务日志，再从 `message-task-status.json` 移除该任务。会话保持未归档。
+- 日志迁移的 git 提交含 `archive/<taskId>/task-log.jsonl`；日志平时不提交，源文件通常未被跟踪，只有已被跟踪时才同时提交其删除。
 - 结束原因取 `completed`、`cancelled`、`unmanaged`、`session_archived` 或 `session_missing`。
 
 ## 上报投递与失败监听
 
 - 服务每次调用从 `$DSH_HOME/lark-bridge/state.json` 读取桥接会话 `sessionId` 与调度工作区 `workspaceRoot`；缺省 `$DSH_HOME` 为 `~/.dsh`。`workspaceRoot` 经 `toHostWorkspacePath` 转为当前平台的原生路径后再访问文件与 git。
 - `send_report` 的 `kind` 必填，取值为 `progress` 与 `question`。取值之外报参数错误，不存档也不投递。
-- `send_report` 的 `text` 与 `files` 至少提供一项，`files` 为 Markdown 文件路径；`desc` 可选，记录在 front matter 与投递块中。
+- `send_report` 的 `text` 与 `files` 至少提供一项，`files` 为 Markdown 文件路径；`desc` 可选，只记录在 front matter 中。
 - 未被管理的会话调用 `send_report` 直接报错，不存档也不投递。
 - 上报存档的 front matter 记录 `kind`、`origin`、可选 `desc` 与任务标识。服务不按 `kind` 修改任务状态。
 - `send_report` 校验文本与 Markdown 附件，生成 `reportId`，复制附件并写入上报记录，再把 `<task_session_message>` 块投递到调度会话。
 - 投递使用 `sessionController.resolveAgent(sessionId)` 取得 agent，再调用 `agent.steer`。消息采用 `user` 角色，`source.kind` 为 `lark-super-agent`；空闲会话因此被唤醒。
-- 注入块含 `sessionid`、`reportid`、`taskid`、`kind` 与 `origin`，`<desc>` 仅在提供时出现，`<text>` 与 `<files>` 始终保留。闭合标签与属性值会转义。
+- `steer` 之后让出两个微任务：会话已空闲且消息仍在 `next-step` 队列时，移除并改为 `followup`，与飞书消息注入共用同一段收尾逻辑（`src/steering.ts`）。上报、失败通知与归档通知都经此投递。
+- 注入块含 `sessionid`、`reportid`、`taskid`、`kind` 与 `origin` 属性，以及 `<report_path>` 与 `<attachment_paths>`：路径相对调度工作区根、以 `/` 分隔，报告位于 `reports/<taskId>/<reportId>.md`。块内没有 `desc` 与正文，调度会话自行读取文件。任务结束后报告移到 `archive/<taskId>/reports/`，调度提示词要求读取失败时改读该位置。闭合标签与属性值会转义。
 - 文件写入并投递后执行 git 提交。提交失败不撤回已投递上报，工具结果附带 `warning`。
 - 自动上报在轮次正常结束、本轮没有调用 `send_report`、会话没有运行中的子代理时触发，来源记为 `turn_end`；调度会话不可用时只写日志。
 - 全局行监听 `reason.kind === 'error'` 的 `turn/end`，每轮失败向调度会话投递一次 `<task_session_failure>`；取消不触发通知。
@@ -295,6 +320,19 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
   - 卡片注册在 `conversation.chat.node` 的 `lark-report` 键，附件按钮调用宿主 `openFile` 在右侧栏打开。
   - 卡片容器、Markdown 正文、任务简介与附件名使用 `--dsw-alias-label-primary`，与宿主对话正文同色；回执、标签与完整路径保留辅助色。
   - `send_report` 的工具行由宿主默认工具行显示，进行中、失败与中断都沿用它。
+
+## 任务日志
+
+任务日志让调度会话知道用户直接在任务会话 GUI 里做过什么。
+
+- 全局行在 `session/event` 中观察被管理会话：`source.kind` 为 `user` 的 `user/message` 写 `user_message` 条目；`turn/end` 的原因为 `{ kind: 'aborted', reason: { kind: 'user' } }` 且会话不在 `workspaceRegistry.archivedSessionIds` 时写 `user_stop` 条目。
+- 宿主归档会话并停止活动时，先写归档集合再以同样的 `{ kind: 'user' }` 取消轮次，所以归档引发的取消按归档集合排除。
+- 条目 `id` 是 `<任务会话 id>:<事件 seq>`；追加在工作区串行队列内完成，写前重新读台账确认任务仍未结束，文件内已有同 `id` 则跳过。原文超过 2000 字符时截断并标记 `truncated`。
+- 写日志不唤醒调度会话。
+- 调度会话每次 `agent/pre-step` 前，插件扫描该会话完整事件日志，取出来源为 `lark-task-log` 的消息里已注入的条目 `id`，只注入还没有的条目，合成一条消息，按时间升序，排在桥接提醒之后、本批第一条 `<lark-message>` 之前。扫描位置缓存在进程内，缓存丢失时从头重建。压缩只改变模型可见表层，事件日志仍在，因此不会重复注入。
+- 没有任何注入标记的调度会话视为全新会话：先注入 `<task_snapshot covers_entries="…">`，列出全部未结束任务的标识、标题、状态、工作区、任务会话与最新报告路径，并附各任务最新报告之后的日志条目；更早的条目记入 `covers_entries`，视为已覆盖。没有未结束任务时注入空快照，使标记落地。
+- 注入消息因请求失败没有写入会话日志时，下一次 pre-step 会再次注入。
+- 日志与报告存档、台账互相独立：台账 `task.messages` 记调度会话处理过的用户消息，报告存档只记上报，日志只记调度会话看不到的用户直接交互。
 
 ## 生命周期
 

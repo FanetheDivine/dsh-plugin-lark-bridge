@@ -1,0 +1,3 @@
+{"id":"session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104:54","time":"2026-11-27T00:18:48.647+08:00","taskId":"task-20261127001110-1889","sessionId":"session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104","type":"user_message","text":"第二行写：second line from gui"}
+{"id":"session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104:78","time":"2026-11-27T00:21:49.972+08:00","taskId":"task-20261127001110-1889","sessionId":"session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104","type":"user_message","text":"用 bash 执行 sleep 300，等它结束后再回复。"}
+{"id":"session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104:90","time":"2026-11-27T00:22:05.222+08:00","taskId":"task-20261127001110-1889","sessionId":"session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104","type":"user_stop","text":""}

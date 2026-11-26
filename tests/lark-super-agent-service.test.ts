@@ -268,9 +268,13 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     expect(message.source).toEqual({ kind: 'lark-super-agent' });
     const block = messageText(message);
     expect(block).toContain(`taskid="${taskId}" kind="question" origin="send_report">`);
-    expect(block).toContain('<desc>\nFix the widget\n</desc>');
-    expect(block).toContain('question <\\/text>');
-    expect(block).toContain('report-20260102030405-abc123-1-answer.md');
+    expect(block).not.toContain('Fix the widget');
+    expect(block).not.toContain('question </text>');
+    expect(block).toContain(
+      `<report_path>reports/${taskId}/report-20260102030405-abc123.md</report_path>`,
+    );
+    expect(block).toContain(`reports/${taskId}/report-20260102030405-abc123-1-answer.md`);
+    expect(block).not.toContain(root);
     const reportPath = join(root, 'reports', taskId, 'report-20260102030405-abc123.md');
     const archived = await readFile(reportPath, 'utf8');
     expect(archived).toContain('origin: "send_report"');
@@ -355,6 +359,45 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     await expect(unavailable.notifyFailure('worker', new Error('failed'))).resolves.toBeUndefined();
     expect(warnings).toHaveLength(1);
     expect(String(warnings[0]?.[0])).toContain('sessionController');
+  });
+
+  it('投递的消息停在待处理队列且调度会话已空闲时改为 followup', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root);
+    const nextStep: { id: string }[] = [];
+    const followup = vi.fn();
+    const dispatch = {
+      status: 'idle',
+      steer: (message: { id: string }) => {
+        nextStep.push({ id: message.id });
+      },
+      inbox: {
+        nextStep,
+        remove: (id: string) => {
+          const index = nextStep.findIndex((item) => item.id === id);
+          if (index >= 0) nextStep.splice(index, 1);
+        },
+      },
+      followup,
+    };
+    const warnings: unknown[][] = [];
+    const service = new SuperAgentService(
+      makeContext(
+        { sessionController: { resolveAgent: async () => ({ agent: dispatch }) } },
+        warnings,
+      ),
+      { home },
+    );
+    const { taskId } = await seedTask(service, 'worker');
+
+    await service.notifyFailure('worker', new Error('boom'));
+
+    expect(followup).toHaveBeenCalledOnce();
+    expect(messageText(followup.mock.calls[0]?.[0])).toContain(
+      `<task_session_failure sessionid="worker" taskid="${taskId}">`,
+    );
+    expect(nextStep).toEqual([]);
+    expect(String(warnings[0]?.[0])).toContain('delivering');
   });
 
   it('归档被管理会话时结束任务并投递归档通知', async () => {

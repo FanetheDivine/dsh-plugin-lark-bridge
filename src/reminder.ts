@@ -18,10 +18,12 @@ export const BRIDGE_REMINDER = [
   '- 回复用户时调用 lark_notify，把要发给用户的内容放进 text。',
   '- lark_notify 成功送达后，本轮正文最多一句概述，可以为空；完整内容只写在通知里。',
   '- 通知失败时把完整内容留在正文，不因概述规则丢失信息。',
-  '- 用户连续发来多条 <lark-message> 时只回复一次，用一次 lark_notify 覆盖全部内容。',
+  '- 同一批输入里，同一任务的内容合并成一条回复，不同任务各回一条；回复之后到达的消息单独回复。',
   '- 填入 reply_to（某条的 message_id）可以让这条通知引用该消息。',
   '- 回复用户时引用用户的消息，以提高对应关系的准确性。',
   '- 向用户提及任务时写成「名称 (id)」：名称取任务当前标题，id 取 task id；缺少名称时说明并给出 id。',
+  '- lark_notify 带 task_id 时，插件在通知开头补写「名称 (id)」，正文不重复这段。',
+  '- 上报块、失败通知、归档通知与任务日志块不是用户消息，不为它们本身回复。',
   '- <quote> 是用户引用的原消息；<forwarded_messages> 只给记录 id，需要内容时用 lark-cli im +messages-mget --as user --message-ids <id> 读取。',
   '- 用户通过飞书与你通信，回复要简洁，不涉及细节。',
 ].join('\n');
@@ -71,7 +73,9 @@ export function installReminderGuard(deps: ReminderGuardDeps): () => void {
     if (!bridge) return decision;
     if (surfaceHasReminder(session)) return decision;
     if (decision.messages.some(isReminderMessage)) return decision;
-    const index = decision.messages.findIndex(isLarkMessage);
+    const index = decision.messages.findIndex(
+      (message) => isLarkMessage(message) || message.source.kind === 'lark-task-log',
+    );
     const messages = decision.messages.toSpliced(
       index === -1 ? 0 : index,
       0,

@@ -1,4 +1,4 @@
-/* lark_notify 成功通知正文卡片。只含正文，颜色与宿主对话正文一致。 */
+/* lark_notify 成功通知卡片：正文、卡片模式的总结与折叠内容、任务与会话。颜色与宿主对话正文一致。 */
 
 .dsh-lark-notify {
   margin: 4px 0 8px;
@@ -57,4 +57,23 @@
 
 .dsh-lark-notify-archived {
   flex: none;
+}
+
+.dsh-lark-notify-summary {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.dsh-lark-notify-details {
+  margin-top: 6px;
+}
+
+.dsh-lark-notify-details > summary {
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.dsh-lark-notify-details > .dsh-lark-notify-body {
+  margin-top: 6px;
 }

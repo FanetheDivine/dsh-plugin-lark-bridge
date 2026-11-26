@@ -10,6 +10,7 @@ import { EventBridge } from './bridge.ts';
 import { LarkCli } from './cli.ts';
 import { type PluginConfig, readConfig, statePath } from './config.ts';
 import { PLUGIN_LABEL } from './constants.ts';
+import { resolveTask } from './notify-tasks.ts';
 import { installReminderGuard } from './reminder.ts';
 import { type ConnectionLike, registerRoutes, type WebServerLike } from './routes.ts';
 import { SessionManager } from './sessions.ts';
@@ -95,6 +96,7 @@ export function apply(ctx: Context, config?: unknown): void {
   const notifyTool = buildNotifyTool({
     getCli: () => cli,
     getOwner: () => auth.current.ownerOpenId,
+    resolveTask: (taskId) => resolveTask(taskId),
     isBridgeAgent,
   });
   const unregisterTool = ctx.tools.register(notifyTool, {

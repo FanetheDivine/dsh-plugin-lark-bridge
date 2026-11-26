@@ -1,0 +1,61 @@
+3203e3b lark-super-agent: update task-20261127003220-959d
+
+ message-task-status.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+a8697f1 lark-super-agent: report report-20261127003413-e487e0
+
+ message-task-status.json                            |  5 +++--
+ .../report-20261127003413-e487e0.md                 | 21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)
+1745f45 lark-super-agent: report report-20261127003355-947909
+
+ message-task-status.json                                      |  5 +++--
+ .../task-20261127003220-959d/report-20261127003355-947909.md  | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+4436e5a lark-super-agent: update task-20261127003220-959d
+
+ message-task-status.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+d91b4dd lark-super-agent: report report-20261127003227-3f5146
+
+ message-task-status.json                                   |  6 ++++--
+ .../report-20261127003227-3f5146.md                        | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)
+0c4ba9d lark-super-agent: create task-20261127003220-959d
+
+ message-task-status.json | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+2d74455 lark-super-agent: archive task-20261127002802-2808
+
+ .../reports}/report-20261127002813-9eb482.md       |  0
+ .../reports}/report-20261127002935-020b43.md       |  0
+ archive/task-20261127002802-2808/task.json         | 23 +++++++++++++++++++++
+ message-task-status.json                           | 24 +---------------------
+ 4 files changed, 24 insertions(+), 23 deletions(-)
+31a7aac lark-super-agent: report report-20261127002935-020b43
+
+ message-task-status.json                                     |  5 +++--
+ .../task-20261127002802-2808/report-20261127002935-020b43.md | 12 ++++++++++++
+ 2 files changed, 15 insertions(+), 2 deletions(-)
+a7161e6 lark-super-agent: update task-20261127002802-2808
+
+ message-task-status.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+f34ff5f lark-super-agent: report report-20261127002813-9eb482
+
+ message-task-status.json                                     |  6 ++++--
+ .../task-20261127002802-2808/report-20261127002813-9eb482.md | 12 ++++++++++++
+ 2 files changed, 16 insertions(+), 2 deletions(-)
+c4a3588 lark-super-agent: create task-20261127002802-2808
+
+ message-task-status.json | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+6514200 lark-super-agent: archive task-20261127001110-1889
+
+ .../reports}/report-20261127001116-9a4f18.md       |  0
+ .../reports}/report-20261127001344-9423b4.md       |  0
+ .../reports}/report-20261127001858-a3b640.md       |  0
+ archive/task-20261127001110-1889/task-log.jsonl    |  3 ++
+ archive/task-20261127001110-1889/task.json         | 34 +++++++++++++++++++++
+ message-task-status.json                           | 35 +---------------------
+ 6 files changed, 38 insertions(+), 34 deletions(-)
