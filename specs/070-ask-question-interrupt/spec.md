@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-26
 
-**Status**: Draft
+**Status**: Waived
 
 **Change Category**: 缺陷修复
 
@@ -12,19 +12,23 @@
 
 ## Open Decisions
 
-- [ ] [D-001] 提问转上报的正文格式。建议：逐条列出问题、表头与选项，结尾提示「在调度会话或飞书中回答即可」，不要求任务会话再调 `send_report`。理由：正文必须让用户无需回到任务会话就能直接回答。 | Depends on: none | Status: pending
-- [ ] [D-002] 投递 `question` 上报后由谁把任务置 `waiting_user`。建议：插件在投递成功时直接把 `in_progress` 的任务置 `waiting_user`，已是 `waiting_user` 时跳过。理由：去除对调度会话再执行 `task_update` 的依赖，状态与问题同时落地。 | Depends on: D-005 | Status: pending
-- [ ] [D-003] 上报投递失败时的行为。建议：退回现状——拒绝该次调用、注入 S 提示模型改用 `send_report`，轮次继续。理由：静默丢问题比多一轮模型重试更糟。 | Depends on: none | Status: pending
-- [ ] [D-004] 被拦截调用对模型的结果反馈。建议：结果文本明确「问题已代为上报，任务等待用户回答，本轮到此结束」；空 `answers` 仅作占位。理由：模型不能把拦截误解为用户跳过了问题。 | Depends on: none | Status: pending
-- [ ] [D-005] 同一轮次多次提问的处理。建议：每次调用独立拦截并各自上报一条 `question`，任务保持 `waiting_user`。理由：与单次行为一致，无需去重逻辑。 | Depends on: none | Status: pending
+None.
 
 ## Clarifications
 
-尚无记录。
+### Session 2026-11-26
+
+用户要求自行推进、免中途确认；以下决策按推荐值落定，依据为当日实机与生产证据（现状基线 1-8）。
+
+- [D-001] Q: 提问转上报的正文格式？ -> A: 逐条列出题面、表头与选项，结尾提示直接在调度会话或飞书回答；正文由插件从调用参数生成。
+- [D-002] Q: 谁把任务置 `waiting_user`？ -> A: 插件在拦截上报投递成功时直接置状态；已是 `waiting_user` 或 `failed` 时跳过（`task_update` 的转换表只允许 `in_progress → waiting_user`）。
+- [D-003] Q: 投递失败行为？ -> A: 退回既有拒绝反馈与 S 注入，轮次继续、状态不变。
+- [D-004] Q: 被拦截调用的结果反馈？ -> A: 结果文本说明「问题已代为上报，任务等待用户回答，本轮结束」；`answers` 以空数组占位。
+- [D-005] Q: 同轮多次提问？ -> A: 每次调用独立拦截并各自上报一条 `question`。
 
 ## Review Record
 
-尚无记录。
+- 2026-11-26 | Decision: Waived | Scope: current full document | Open items: none | Risks: 依赖宿主 `concludeTurn`/`concludesTurn` 数据通道与网关私有取消接口（0.2.2-rc.5 已验证，宿主升级需重测）；拦截后模型无法在本轮继续处理该问题的答复。
 
 ## 现状基线
 
