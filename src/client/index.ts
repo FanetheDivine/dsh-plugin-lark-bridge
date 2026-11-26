@@ -1,4 +1,4 @@
-/** 浏览器入口：注册字典、共用连接弹窗、配置页、页脚在场按钮与上报卡片。导出 inject 与 apply。 */
+/** 浏览器入口：注册字典、共用连接弹窗、配置页、页脚在场按钮、上报卡片与通知正文卡片。导出 inject 与 apply。 */
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
@@ -16,6 +16,8 @@ import { PluginConfigForm, ROW_ID, ROW_KEY } from './config-form.ts';
 import { ConfigPage } from './config-page.tsx';
 import { en, NS, zh } from './locales.ts';
 import { ModelDefaults } from './model-defaults.ts';
+import { NotifyCard } from './notify-card.tsx';
+import { NOTIFY_NODE_KIND, registerNotifyDefinition } from './notify-node.ts';
 import { PRESENCE_SLOT_ID, PresenceButton, RAIL_CSS } from './presence-button.tsx';
 import {
   PRESENCE_ROW_ID,
@@ -44,13 +46,26 @@ export function apply(ctx: Context): void {
     ctx.effect(() => ctx.locale.register(NS, { zh, en }), `${NS}: dictionaries`);
   });
 
-  // 上报卡片：成功的 send_report 产出轮次层级的卡片节点，工具行保持宿主默认行。
+  // 上报与通知卡片：成功结果产出轮次层级节点，工具行保持宿主默认行。
   ctx.inject(['slots', 'uiConversation'], (ctx) => {
-    ctx.effect(() => registerReportDefinition(ctx), `${NS}: report definition`);
+    ctx.effect(() => {
+      const unregisterReport = registerReportDefinition(ctx);
+      const unregisterNotify = registerNotifyDefinition(ctx);
+      return () => {
+        unregisterNotify();
+        unregisterReport();
+      };
+    }, `${NS}: report and notify definitions`);
     ctx.slots.inject('conversation.chat.node', () =>
       ctx.slots.register(
         { name: 'conversation.chat.node', key: REPORT_NODE_KIND, locale: NS },
         ReportCard as never,
+      ),
+    );
+    ctx.slots.inject('conversation.chat.node', () =>
+      ctx.slots.register(
+        { name: 'conversation.chat.node', key: NOTIFY_NODE_KIND, locale: NS },
+        NotifyCard as never,
       ),
     );
   });
