@@ -11,9 +11,7 @@ import type { BridgeKey } from './locales.ts';
 import type { NotifyCardData } from './notify-node.ts';
 
 /** 宿主工作区快照类型。 */
-type WorkspaceSnapshot = Parameters<
-  Parameters<GlobalStandardProps['useWorkspaces']>[0]
->[0];
+type WorkspaceSnapshot = Parameters<Parameters<GlobalStandardProps['useWorkspaces']>[0]>[0];
 
 /** 本组件用到的槽位 props 子集。 */
 export interface NotifyCardProps {
@@ -41,16 +39,18 @@ function translate(t: NotifyCardProps['t'], key: BridgeKey): string {
 /** 渲染通知正文与来源会话状态。 */
 export function NotifyCard({ node, useWorkspaces, openSession, t }: NotifyCardProps) {
   const { text, sessionId } = node.data;
-  const sessionState = useWorkspaces((state: WorkspaceSnapshot): 'active' | 'archived' | 'missing' | 'unassociated' => {
-    if (sessionId === undefined) return 'unassociated';
-    const id = sessionId as SessionId;
-    if (state.archivedSessionIds.includes(id)) return 'archived';
-    return state.items.some((workspace: { readonly sessionIds: readonly SessionId[] }) =>
-      workspace.sessionIds.includes(id),
-    )
-      ? 'active'
-      : 'missing';
-  });
+  const sessionState = useWorkspaces(
+    (state: WorkspaceSnapshot): 'active' | 'archived' | 'missing' | 'unassociated' => {
+      if (sessionId === undefined) return 'unassociated';
+      const id = sessionId as SessionId;
+      if (state.archivedSessionIds.includes(id)) return 'archived';
+      return state.items.some((workspace: { readonly sessionIds: readonly SessionId[] }) =>
+        workspace.sessionIds.includes(id),
+      )
+        ? 'active'
+        : 'missing';
+    },
+  );
   const canOpen = sessionState === 'active';
   return (
     <section className="dsh-lark-notify" data-dsh-lark-notify-card="">

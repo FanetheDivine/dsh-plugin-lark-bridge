@@ -34,14 +34,7 @@ import {
 } from './task-model-field.tsx';
 
 /** 需要宿主注入的客户端服务。 */
-export const inject = [
-  'slots',
-  'locale',
-  'configForms',
-  'remote',
-  'remote.session',
-  'uiWorkspace',
-];
+export const inject = ['slots', 'locale', 'configForms', 'remote', 'remote.session', 'uiWorkspace'];
 
 /** 注册共享状态、弹窗和配置页。 */
 export function apply(ctx: Context): void {

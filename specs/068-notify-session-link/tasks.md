@@ -59,9 +59,9 @@
 
 ## Phase 5: Polish & Cross-cutting Concerns
 
-- [ ] T015 [P] 更新 `README.md` 与 `docs/how-it-works.md`，记录用户行为、持久化元数据与导航机制
-- [ ] T016 [P] 更新 `docs/known-risks.md` 与 `CHANGELOG.md`，记录历史兼容和宿主接口依赖
-- [ ] T017 运行 `pnpm format && pnpm full-check`，修复全部问题并复核最终 diff
+- [X] T015 [P] 更新 `README.md` 与 `docs/how-it-works.md`，记录用户行为、持久化元数据与导航机制
+- [X] T016 [P] 更新 `docs/known-risks.md` 与 `CHANGELOG.md`，记录历史兼容和宿主接口依赖
+- [X] T017 运行 `pnpm format && pnpm full-check`，修复全部问题并复核最终 diff
 
 **Commit**: `docs(068): 记录通知会话链接与归档标记`
 

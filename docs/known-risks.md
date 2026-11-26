@@ -190,6 +190,8 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 - 通知卡片与上报卡片使用同一套宿主 Chat 接口；接口变化时工具行仍由宿主显示。
 - 成功识别依赖 `lark_notify` 现有的结果 render 文案。文案变化时不再产生卡片，发送行为不受影响。
 - 结果对应的 `tool/call` 不在已加载窗口内时没有正文来源，因此不产生空卡片。
+- 旧通知没有 `tool/result.meta.sessionId` 时只显示正文，无法补回来源会话。
+- 会话链接依赖 `useWorkspaces` 的工作区成员关系与归档状态，以及 `uiWorkspace.openSession`。宿主改变这些接口后入口退化为只读标识或无法跳转。
 
 ## Windows 长路径
 

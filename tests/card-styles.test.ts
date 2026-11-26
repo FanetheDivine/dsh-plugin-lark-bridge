@@ -38,6 +38,7 @@ describe('卡片正文颜色', () => {
     const css = cssOf('notify-card.css');
     expectPrimaryColor(css, '.dsh-lark-notify');
     expectPrimaryColor(css, '.dsh-lark-notify-body');
+    expectPrimaryColor(css, '.dsh-lark-notify-session-link');
     expect(ruleOf(css, '.dsh-lark-notify-body')).toContain('white-space: pre-wrap');
   });
 });

@@ -142,10 +142,17 @@ describe('buildNotifyNode', () => {
   });
 
   it('缺失或非法元数据不会伪造会话关联', () => {
-    for (const meta of [undefined, null, {}, { sessionId: '' }, { sessionId: '  ' }, { sessionId: 3 }, [], 'session-1']) {
-      const node = buildNotifyNode(
-        contextOf([callEvent(1), resultEvent(5, undefined, { meta })]),
-      );
+    for (const meta of [
+      undefined,
+      null,
+      {},
+      { sessionId: '' },
+      { sessionId: '  ' },
+      { sessionId: 3 },
+      [],
+      'session-1',
+    ]) {
+      const node = buildNotifyNode(contextOf([callEvent(1), resultEvent(5, undefined, { meta })]));
       expect(node?.data).toEqual({ text: '第一行\n第二行' });
     }
   });

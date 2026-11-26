@@ -22,10 +22,9 @@ function cardProps(options: RenderOptions = {}): NotifyCardProps {
   const sessionId = options.sessionId;
   const known = options.known ?? true;
   const archived = options.archived ?? false;
-  const useWorkspaces = (<S,>(selector: (state: unknown) => S): S =>
+  const useWorkspaces = (<S>(selector: (state: unknown) => S): S =>
     selector({
-      items:
-        known && sessionId !== undefined ? [{ sessionIds: [sessionId] }] : [],
+      items: known && sessionId !== undefined ? [{ sessionIds: [sessionId] }] : [],
       archivedSessionIds: archived && sessionId !== undefined ? [sessionId] : [],
     })) as NotifyCardProps['useWorkspaces'];
   return {
