@@ -21,6 +21,7 @@ import {
   PRESENCE_ROW_KEY,
   PresenceConfigForm,
   PresenceConfigPage,
+  TASK_PRESET_EXCLUDED_IDS,
   TASK_PRESET_FIELD,
 } from './presence-config.tsx';
 import { PresenceController } from './presence-controller.ts';
@@ -65,6 +66,8 @@ export function apply(ctx: Context): void {
       presenceInjected.hooks.presenceConfig,
       presenceInjected.edit,
       TASK_PRESET_FIELD,
+      undefined,
+      TASK_PRESET_EXCLUDED_IDS,
     );
     // 预设服务是可选依赖：就绪后接入，缺失时选择器保持禁用。
     ctx.inject(['remote.agentPresets'], (scoped) => {

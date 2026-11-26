@@ -71,6 +71,9 @@ const TASK_MODEL_FIELDS = [
 /** 任务会话预设的字段名。 */
 export const TASK_PRESET_FIELD = 'taskPreset';
 
+/** 任务会话预设不提供的预设标识：调度会话自己不作为任务会话的预设。 */
+export const TASK_PRESET_EXCLUDED_IDS = ['sa-dispatch'] as const;
+
 /** 两个自动切换分区。 */
 const SECTIONS = [
   {

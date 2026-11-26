@@ -7,7 +7,12 @@ import { PresetDefaults, type PresetRemoteLike } from '../src/client/preset-defa
 import { makeConfigFormScope } from './helpers.ts';
 
 /** 构造目录依赖的客户端 ctx 与配置表单。 */
-function setup(remote?: PresetRemoteLike, preset = '', field?: string) {
+function setup(
+  remote?: PresetRemoteLike,
+  preset = '',
+  field?: string,
+  excludeIds?: readonly string[],
+) {
   const ctx = {
     on: () => () => undefined,
   };
@@ -28,6 +33,7 @@ function setup(remote?: PresetRemoteLike, preset = '', field?: string) {
     injected.edit,
     field,
     remote,
+    excludeIds,
   );
   return { presets, injected, fake, form };
 }
@@ -91,6 +97,61 @@ describe('PresetDefaults', () => {
     const { presets } = setup();
     await presets.load();
     expect(presets.inject().hooks.presetDefaults.getSnapshot().status).toBe('noService');
+  });
+
+  it('排除列表把预设移出可选项，其余条目保留', async () => {
+    const list = vi.fn(async () => ({
+      ok: true as const,
+      value: {
+        presets: [
+          { id: 'sa-dispatch', name: 'SA-调度会话' },
+          { id: 'worker', name: 'W' },
+        ],
+      },
+    }));
+    const { presets } = setup({ list }, '', 'taskPreset', ['sa-dispatch']);
+    await presets.load(true);
+    const state = presets.inject().hooks.presetDefaults.getSnapshot();
+    expect(state.status).toBe('ready');
+    expect(state.rows.map((row) => row.id)).toEqual(['worker']);
+  });
+
+  it('未提供排除列表时名册保持原样', async () => {
+    const list = vi.fn(async () => ({
+      ok: true as const,
+      value: { presets: [{ id: 'sa-dispatch' }] },
+    }));
+    const { presets } = setup({ list });
+    await presets.load(true);
+    expect(
+      presets
+        .inject()
+        .hooks.presetDefaults.getSnapshot()
+        .rows.map((row) => row.id),
+    ).toEqual(['sa-dispatch']);
+  });
+
+  it('已存的排除预设值保留在草稿与当前选择中', async () => {
+    const fake = makeConfigFormScope({
+      value: { guiInputSetsLocal: true, larkInputSetsRemote: true, taskPreset: 'sa-dispatch' },
+    });
+    const form = new PresenceConfigForm(fake.scope);
+    const injected = form.inject();
+    const presets = new PresetDefaults(
+      { on: () => () => undefined } as never,
+      injected.hooks.presenceConfig,
+      injected.edit,
+      'taskPreset',
+      { list: async () => ({ ok: true, value: { presets: [{ id: 'worker' }] } }) },
+      ['sa-dispatch'],
+    );
+    await presets.load(true);
+    const state = presets.inject().hooks.presetDefaults.getSnapshot();
+    expect(state.current).toBe('sa-dispatch');
+    expect(state.rows.map((row) => row.id)).toEqual(['worker']);
+    expect(injected.hooks.presenceConfig.getSnapshot().taskPreset.text).toBe('sa-dispatch');
+    expect(fake.writes).toEqual([]);
+    form.dispose();
   });
 
   it('gateway 不可用映射为 noService', async () => {

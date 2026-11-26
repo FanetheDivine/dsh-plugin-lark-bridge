@@ -74,6 +74,7 @@ export class PresetDefaults {
    * @param edit - 配置草稿编辑动作。
    * @param field - 草稿中保存预设的字段名。
    * @param remote - 预设名册远程命名空间；缺失时选择器保持禁用。
+   * @param excludeIds - 不进入可选项的预设标识；已存值不受影响。
    */
   constructor(
     ctx: Context,
@@ -81,6 +82,7 @@ export class PresetDefaults {
     private readonly edit: (field: string, text: string) => void,
     private readonly field: string = 'sessionPreset',
     remote?: PresetRemoteLike,
+    private readonly excludeIds: readonly string[] = [],
   ) {
     this.remote = remote;
     this.disposers.push(form.subscribe(() => this.sync()));
@@ -130,7 +132,9 @@ export class PresetDefaults {
     try {
       const result = await remote.list();
       if (result.ok) {
-        const rows = result.value.presets.filter((row) => row.broken === undefined);
+        const rows = result.value.presets.filter(
+          (row) => row.broken === undefined && !this.excludeIds.includes(row.id),
+        );
         this.store.update((state) => {
           state.status = 'ready';
           state.rows = rows;
