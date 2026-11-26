@@ -38,11 +38,13 @@ export const NOTIFY_ARGS_SCHEMA = z.object({
   reply_to: z.string().describe('要回复的用户消息 message_id；省略时直接发送').optional(),
 });
 
-/** 把 zod schema 转成工具声明用的 JSON Schema；去掉模型不需要的 `$schema`。 */
+/**
+ * 把 zod schema 转成工具声明用的纯 JSON 副本。
+ * zod 在返回值上挂不可枚举的 `~standard` 键，宿主只接受可枚举字符串键，因此展开复制并剔除 `$schema`。
+ */
 function parametersOf(schema: z.ZodType): Record<string, unknown> {
-  const json = z.toJSONSchema(schema) as Record<string, unknown>;
-  delete json['$schema'];
-  return json;
+  const { $schema: _schema, ...parameters } = z.toJSONSchema(schema) as Record<string, unknown>;
+  return parameters;
 }
 
 /** 非桥接会话的拒绝结果。 */

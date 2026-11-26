@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { LarkCli } from '../src/cli.ts';
 import { buildNotifyTool, sendNotification } from '../src/tools.ts';
+import { assertLosslessJson } from './support/lossless-json.ts';
 
 /** 记录调用并返回固定 JSON 的 CLI。 */
 function makeCli(results: Array<{ ok: boolean }> = [{ ok: true }]) {
@@ -207,6 +208,13 @@ describe('buildNotifyTool', () => {
     expect(parameters.properties?.['reply_to']).toMatchObject({ type: 'string' });
     expect(parameters.required).toEqual(['text']);
     expect(parameters).not.toHaveProperty('$schema');
+    expect(Object.keys(parameters)).toEqual([
+      'type',
+      'properties',
+      'required',
+      'additionalProperties',
+    ]);
+    expect(() => assertLosslessJson(parameters, 'lark_notify.parameters')).not.toThrow();
     expect(typeof tool.execute).toBe('function');
     expect(tool.output.render({}, { ok: true, parts: 1 })).toEqual([
       { type: 'text', text: expect.stringContaining('已发送') },
