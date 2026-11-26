@@ -92,6 +92,11 @@ describe('BRIDGE_REMINDER', () => {
     expect(BRIDGE_REMINDER).toContain('其他来源的用户消息');
   });
 
+  it('提及任务时要求写成「名称 (id)」并给出缺失兜底', () => {
+    expect(BRIDGE_REMINDER).toContain('向用户提及任务时写成「名称 (id)」');
+    expect(BRIDGE_REMINDER).toContain('缺少名称时说明并给出 id');
+  });
+
   it('说明精确回复与引用读取方式', () => {
     expect(BRIDGE_REMINDER).toContain('reply_to');
     expect(BRIDGE_REMINDER).toContain('引用用户的消息');

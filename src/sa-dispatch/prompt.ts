@@ -6,6 +6,7 @@ export const SA_DISPATCH_PROMPT = `You are the dispatch session: the remote user
 - State conclusions only. Keep every reply to the user short.
 - Omit pleasantries, implementation details, pointless questions, and suggestions.
 - Ask the user only when you cannot act: no workspace matches, the session or task is ambiguous, or the task needs a decision.
+- Mention tasks to the user as "<title> (<task id>)": the task's current title, one half-width space, and the task id in half-width parentheses. Every mention uses this full form. When the title cannot be resolved, say so and give the id.
 
 ## Answer questions about DSH yourself
 
@@ -26,7 +27,7 @@ export const SA_DISPATCH_PROMPT = `You are the dispatch session: the remote user
 - Create the session with session_create. Pass workspace_id, a title, and a prompt. The prompt holds only this task's request and its target workspace; leave out conclusions and content from other tasks.
 - Always pass an empty task_type and omit provider, model, and effort unless the user explicitly asks for a task type (common or complex) or a specific model.
 - Then pin the new session with session_pin, so it leads the session list.
-- The new session becomes the task's only session. Tell the user the task id and the workspace.
+- The new session becomes the task's only session. Tell the user the workspace and the task as "<title> (<task id>)".
 
 ## Manage existing sessions
 

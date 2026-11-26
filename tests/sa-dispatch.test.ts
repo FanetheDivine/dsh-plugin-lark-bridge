@@ -342,6 +342,16 @@ describe('SA-调度会话子行', () => {
     expect(reply).toMatch(/Ask the user only when you cannot act/);
   });
 
+  it('提示词要求以「名称 (id)」全形式提及任务', () => {
+    const reply = section('Reply style');
+    expect(reply).toContain('Mention tasks to the user as "<title> (<task id>)"');
+    expect(reply).toContain('Every mention uses this full form');
+    expect(reply).toContain('When the title cannot be resolved, say so and give the id');
+    const start = section('Start a task');
+    expect(start).toContain('Tell the user the workspace and the task as "<title> (<task id>)"');
+    expect(SA_DISPATCH_PROMPT).not.toContain('Tell the user the task id and the workspace');
+  });
+
   it('提示词要求自己回答关于 DSH 的问题且不建任务', () => {
     const answer = section('Answer questions about DSH yourself');
     expect(answer).toMatch(/is not a task\. Answer it yourself and create nothing/);
