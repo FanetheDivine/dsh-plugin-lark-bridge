@@ -193,11 +193,20 @@ function makeTool(isBridge: boolean, results?: Array<{ ok: boolean }>) {
 }
 
 describe('buildNotifyTool', () => {
-  it('定义字段完整', () => {
+  it('声明是含 properties 与 required 的 JSON Schema', () => {
     const { tool } = makeTool(true);
     expect(tool.name).toBe('lark_notify');
-    expect(tool.parameters['text']).toMatchObject({ required: true, type: 'string' });
-    expect(tool.parameters['reply_to']).toMatchObject({ required: false, type: 'string' });
+    expect(tool.description).toContain('lark_notify');
+    const parameters = tool.parameters as {
+      type?: string;
+      properties?: Record<string, { type?: string; description?: string }>;
+      required?: string[];
+    };
+    expect(parameters.type).toBe('object');
+    expect(parameters.properties?.['text']).toMatchObject({ type: 'string' });
+    expect(parameters.properties?.['reply_to']).toMatchObject({ type: 'string' });
+    expect(parameters.required).toEqual(['text']);
+    expect(parameters).not.toHaveProperty('$schema');
     expect(typeof tool.execute).toBe('function');
     expect(tool.output.render({}, { ok: true, parts: 1 })).toEqual([
       { type: 'text', text: expect.stringContaining('已发送') },
