@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "identity": "bot",
+  "data": {
+    "messages": [
+      {
+        "chat_id": "<chat>",
+        "content": "\u003ccard title=\"[069 实机验证] 创建 hello.md：文件已更新并验证，任务仍在进行中\" subtitle=\"创建 hello.md (task-20261127001110-1889)\"\u003e\n▶ 展开完整内容\n    ## 当前情况- **任务状态**：进行中。\n    - **工�…
+        "create_time": "2026-11-27 00:24",
+        "deleted": false,
+        "message_app_link": "https://applink.feishu.cn/client/chat/open?openChatId=<chat>\u0026position=429",
+        "message_id": "om_x100b7fb19bf744a4c01c6dd20d2ee1b",
+        "message_position": "429",
+        "msg_type": "interactive",
+        "sender": {
+          "id": "cli_ab8acf48a0b8dcfa",
+          "id_type": "app_id",
+          "name": "DSH",
+          "open_bot_id": "ou_52aefedae333ee12cfa9bdd774fb97bd",
+          "sender_i18n_names": {
+            "en_us": "DSH",
+            "zh_cn": "DSH"
+          },
+          "sender_type": "app",
+          "tenant_key": "12b32914408e975f"
+        },
+        "updated": false
+      }
+    ],
+    "total": 1

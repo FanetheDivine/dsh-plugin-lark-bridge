@@ -1,0 +1,82 @@
+{
+  "cards": 11,
+  "details": [
+    {
+      "summary": null,
+      "detailsOpen": null,
+      "task": null,
+      "link": null,
+      "text": "收到"
+    },
+    {
+      "summary": null,
+      "detailsOpen": null,
+      "task": null,
+      "link": null,
+      "text": "收到"
+    },
+    {
+      "summary": null,
+      "detailsOpen": null,
+      "task": "任务\ntask-20261127001110-1889",
+      "link": "session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104",
+      "text": "已在 ws-a 工作区创建任务，开始创建 hello.md。 | 任务 | task-20261127001110-1889 | 会话 | session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104"
+    },
+    {
+      "summary": null,
+      "detailsOpen": null,
+      "task": "任务\ntask-20261127001110-1889",
+      "link": "session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104",
+      "text": "已在 ws-a 工作区创建 hello.md，并回读验证内容为单行 `hi`。任务是否完成？ | 任务 | task-20261127001110-1889 | 会话 | session-a12b4aee-4dee-42a8-bb5d-a013e8fa91"
+    },
+    {
+      "summary": null,
+      "detailsOpen": null,
+      "task": "任务\ntask-20261127001110-1889",
+      "link": "session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104",
+      "text": "已记录，暂不处理该任务。 | 任务 | task-20261127001110-1889 | 会话 | session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104"
+    },
+    {
+      "summary": null,
+      "detailsOpen": null,
+      "task": "任务\ntask-20261127001110-1889",
+      "link": "session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104",
+      "text": "已继续任务，会先向你确认新增内容，再修改文件。 | 任务 | task-20261127001110-1889 | 会话 | session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104"
+    },
+    {
+      "summary": null,
+      "detailsOpen": null,
+      "task": "任务\ntask-20261127001110-1889",
+      "link": "session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104",
+      "text": "请确认：hello.md 的第二行要写什么内容？收到你的答复前不会修改文件。 | 任务 | task-20261127001110-1889 | 会话 | session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104"
+    },
+    {
+      "summary": null,
+      "detailsOpen": null,
+      "task": "任务\ntask-20261127001110-1889",
+      "link": "session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104",
+      "text": "已在 hello.md 追加第二行 `second line from gui`，并回读验证无误。当前共两行：`hi`、`second line from gui`。任务是否完成？ | 任务 | task-20261127001110-1889 | 会"
+    },
+    {
+      "summary": null,
+      "detailsOpen": null,
+      "task": null,
+      "link": null,
+      "text": "目前有 1 个未结束任务：创建 hello.md (task-20261127001110-1889)，状态为进行中。"
+    },
+    {
+      "summary": null,
+      "detailsOpen": null,
+      "task": "任务\ntask-20261127001110-1889",
+      "link": "session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104",
+      "text": "收到了：任务会话收到执行 `sleep 300` 的消息后，你停止了该次运行；任务当前仍为进行中。 | 任务 | task-20261127001110-1889 | 会话 | session-a12b4aee-4dee-42a8-bb5d-a013e8f"
+    },
+    {
+      "summary": "创建 hello.md：文件已更新并验证，任务仍在进行中",
+      "detailsOpen": false,
+      "task": "任务\ntask-20261127001110-1889",
+      "link": "session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104",
+      "text": "创建 hello.md：文件已更新并验证，任务仍在进行中 | 完整内容 | 任务 | task-20261127001110-1889 | 会话 | session-a12b4aee-4dee-42a8-bb5d-a013e8fa9104"
+    }
+  ]
+}

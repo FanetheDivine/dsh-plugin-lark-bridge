@@ -7,6 +7,7 @@ import {
   NOTIFY_DEFINITION_KIND,
   NOTIFY_NODE_KIND,
   notifyDefinition,
+  parseNotifyArgs,
   parseNotifyText,
   registerNotifyDefinition,
 } from '../src/client/notify-node.ts';
@@ -85,10 +86,30 @@ describe('parseNotifyText', () => {
   });
 });
 
+describe('parseNotifyArgs', () => {
+  it('读取卡片模式的总结与任务标识', () => {
+    expect(
+      parseNotifyArgs(
+        JSON.stringify({ text: '全文', mode: 'card', summary: '已完成', task_id: 'task-1' }),
+      ),
+    ).toEqual({ text: '全文', summary: '已完成', taskId: 'task-1' });
+  });
+
+  it('文本模式忽略 summary，空值不产生字段', () => {
+    expect(parseNotifyArgs(JSON.stringify({ text: 'a', summary: '总结' }))).toEqual({ text: 'a' });
+    expect(
+      parseNotifyArgs(JSON.stringify({ text: 'a', mode: 'card', summary: ' ', task_id: '' })),
+    ).toEqual({ text: 'a' });
+    expect(parseNotifyArgs('{')).toEqual({ text: '' });
+  });
+});
+
 describe('isSuccessfulNotifyResult', () => {
-  it('只接受现有的两种成功结果', () => {
+  it('同时接受新文案与历史的两种成功结果', () => {
     expect(isSuccessfulNotifyResult(resultEvent(2))).toBe(true);
     expect(isSuccessfulNotifyResult(resultEvent(2, '已回复给用户（1 条）'))).toBe(true);
+    expect(isSuccessfulNotifyResult(resultEvent(2, '已发送给用户（消息 om_abc123）'))).toBe(true);
+    expect(isSuccessfulNotifyResult(resultEvent(2, '已发送给用户'))).toBe(true);
   });
 
   it('失败、其他文本与替换副本都不算成功', () => {
@@ -131,6 +152,26 @@ describe('buildNotifyNode', () => {
       anchorSeq: 5.5,
       location: LOCATION,
       data: { text: '第一行\n第二行' },
+    });
+  });
+
+  it('从展示元数据恢复任务会话，并从参数恢复任务标识与总结', () => {
+    const node = buildNotifyNode(
+      contextOf([
+        callEvent(1, 'lark_notify', {
+          text: '全文',
+          mode: 'card',
+          summary: '已完成',
+          task_id: 'task-1',
+        }),
+        resultEvent(5, '已发送给用户（消息 om_1）', { meta: { taskSessionId: 'session-task-1' } }),
+      ]),
+    );
+    expect(node?.data).toEqual({
+      text: '全文',
+      summary: '已完成',
+      taskId: 'task-1',
+      sessionId: 'session-task-1',
     });
   });
 

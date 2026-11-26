@@ -5,6 +5,7 @@
 
 import type { ModelSelection } from '@deepseek-ai/dsh-agent';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
+import { type SteeringAgent, settleSteering } from '../steering.ts';
 import type { Context } from '../types.ts';
 import { toHostWorkspacePath } from '../workspace-path.ts';
 import type {
@@ -23,7 +24,9 @@ import type {
 import { taskSessionArchived, taskSessionFailure, taskSessionMessage } from './blocks.ts';
 import { readBridgeState } from './bridge.ts';
 import { findTaskBySession, NotesStore } from './notes.ts';
+import { workspaceRelative } from './paths.ts';
 import { ReportStore } from './reports.ts';
+import { appendTaskLogEntry } from './task-log.ts';
 
 export { readBridgeState } from './bridge.ts';
 
@@ -47,6 +50,10 @@ export interface AgentLike {
   /** 会话的首条用户消息文本，用于手动管理时填充任务首条消息。 */
   firstUserText?: string;
   steer?(message: unknown): unknown;
+  /** 轮次结束兜底所需；缺失时不做兜底。 */
+  status?: string;
+  inbox?: SteeringAgent['inbox'];
+  followup?(message: never): unknown;
 }
 
 interface SessionControllerLike {
@@ -361,6 +368,12 @@ export class SuperAgentService implements LarkSuperAgentService {
       source: { kind: 'lark-super-agent' },
     });
     await agent.steer?.(message);
+    if (agent.status === undefined || agent.inbox === undefined || agent.followup === undefined) {
+      return;
+    }
+    await settleSteering(agent as SteeringAgent, message, {
+      warn: (text) => this.ctx.logger?.warn?.(`lark-super-agent: ${text}`),
+    });
   }
 
   /** 存档并投递一份上报；调用方必须已被管理。 */
@@ -397,9 +410,10 @@ export class SuperAgentService implements LarkSuperAgentService {
             taskId: report.taskId,
             kind: input.kind,
             origin,
-            ...(input.desc === undefined ? {} : { desc: input.desc }),
-            text: input.text ?? '',
-            files: report.files,
+            reportPath: workspaceRelative(state.workspaceRoot as string, report.reportPath),
+            attachmentPaths: report.files.map((file) =>
+              workspaceRelative(state.workspaceRoot as string, file),
+            ),
           }),
         ),
     );
@@ -409,6 +423,27 @@ export class SuperAgentService implements LarkSuperAgentService {
       delivered: true,
       ...(archived.warning === undefined ? {} : { warning: archived.warning }),
     };
+  }
+
+  /** 为被管理会话追加一条任务日志；会话未被管理或任务已结束时丢弃。 */
+  async appendTaskLog(
+    sessionId: string,
+    input: { seq: number; type: 'user_message' | 'user_stop'; text: string },
+  ): Promise<'written' | 'duplicate' | 'dropped'> {
+    const root = await this.storageRoot();
+    const task = findTaskBySession(await this.notes(root).listTasks(), sessionId);
+    if (task === undefined) return 'dropped';
+    return appendTaskLogEntry(root, task.id, {
+      sessionId,
+      ...input,
+      ...(this.options.now === undefined ? {} : { now: this.options.now }),
+    });
+  }
+
+  /** 读取调度工作区根与未结束任务，供任务日志注入。 */
+  async taskLogContext(): Promise<{ root: string; tasks: Task[] }> {
+    const root = await this.storageRoot();
+    return { root, tasks: await this.notes(root).listTasks() };
   }
 
   /** 为被管理会话投递轮次失败通知；未被管理的会话不通知。 */
