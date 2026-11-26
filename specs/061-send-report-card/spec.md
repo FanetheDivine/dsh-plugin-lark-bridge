@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-26
 
-**Status**: Draft
+**Status**: Approved
 
 **Change Category**: 插件变更
 
@@ -12,19 +12,20 @@
 
 ## Open Decisions
 
-- [ ] [D-001] 成功卡片放在哪里，是否保留默认工具行 | Depends on: none | Status: asked
-- [ ] [D-002] 文件列表是否可点击打开 | Depends on: none | Status: asked
-- [ ] [D-003] 实机测试在哪个宿主上做 | Depends on: none | Status: asked
+None.
+
 
 ## Clarifications
 
 ### Session 2026-11-26
 
-（待回答）
+- [D-001] Q: 成功卡片放在哪里，是否保留默认工具行？ -> A: 插件不再接管 `send_report` 工具行；进行中、失败、中断由宿主默认行显示。成功结果另生成一种上报卡片节点，位于轮次层级，不进过程分组，不受轮次折叠影响。
+- [D-002] Q: 文件列表是否可点击打开？ -> A: 每个文件显示为可点击路径，点击在右侧栏打开；相对路径按该会话工作目录解析。
+- [D-003] Q: 实机测试用哪个宿主？ -> A: 按 `real-device-test` 起隔离 profile 的 `dsh web`（同宿主版本、插件链到本分支构建产物），成功与失败各测一次并截图。
 
 ## Review Record
 
-（待审查）
+- 2026-11-26 | Decision: Approved | Scope: current full document | Open items: none | Risks: 成功上报在过程分组里仍会留下宿主默认工具行；卡片依赖宿主 `conversation.chat.node` 扩展点，宿主升级后需回归。
 
 ## 根因
 
