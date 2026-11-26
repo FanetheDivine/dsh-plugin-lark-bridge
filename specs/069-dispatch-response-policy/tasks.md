@@ -86,12 +86,12 @@
 
 ## Phase 7: Polish、文档与验证
 
-- [ ] T037 [P] 更新 `README.md`：`lark_notify` 的 `mode`、`summary`、`task_id` 与卡片说明，调度会话回应规则（宪章原则 III，只写用户可见行为）
-- [ ] T038 [P] 更新 `docs/how-it-works.md`：上报块与相对路径、投递兜底、卡片发送、返回值与 `presentationMeta`、任务日志与归档、飞书消息立即注入（删除「15 秒静默」描述）、调度工作区目录表加入 `task-logs/` 与 `archive/<taskId>/task-log.jsonl`
-- [ ] T039 [P] 更新 `docs/known-risks.md`：成功文案耦合改写为新旧文案；删除「每次注入要等 15 秒」；新增任务日志只记用户直接交互、归档后不读取、部分发送失败靠模型补发、卡片依赖客户端 ≥ 7.20 的风险
-- [ ] T040 更新 `CHANGELOG.md`：按分支规则增加条目
-- [ ] T041 运行 `pnpm format && pnpm check && pnpm build && pnpm test:dist`，全部通过
-- [ ] T042 提交 Phase 7：`docs(069): 文档、变更日志与门禁`
+- [x] T037 [P] 更新 `README.md`：`lark_notify` 的 `mode`、`summary`、`task_id` 与卡片说明，调度会话回应规则（宪章原则 III，只写用户可见行为）
+- [x] T038 [P] 更新 `docs/how-it-works.md`：上报块与相对路径、投递兜底、卡片发送、返回值与 `presentationMeta`、任务日志与归档、飞书消息立即注入（删除「15 秒静默」描述）、调度工作区目录表加入 `task-logs/` 与 `archive/<taskId>/task-log.jsonl`
+- [x] T039 [P] 更新 `docs/known-risks.md`：成功文案耦合改写为新旧文案；删除「每次注入要等 15 秒」；新增任务日志只记用户直接交互、归档后不读取、部分发送失败靠模型补发、卡片依赖客户端 ≥ 7.20 的风险
+- [x] T040 更新 `CHANGELOG.md`：按分支规则增加条目
+- [x] T041 运行 `pnpm format && pnpm check && pnpm build && pnpm test:dist`，全部通过
+- [x] T042 提交 Phase 7：`docs(069): 文档、变更日志与门禁`
 
 ## Phase 8: 真实宿主验证与交付
 

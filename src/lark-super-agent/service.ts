@@ -5,8 +5,8 @@
 
 import type { ModelSelection } from '@deepseek-ai/dsh-agent';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
-import type { Context } from '../types.ts';
 import { type SteeringAgent, settleSteering } from '../steering.ts';
+import type { Context } from '../types.ts';
 import { toHostWorkspacePath } from '../workspace-path.ts';
 import type {
   BridgeState,
@@ -24,9 +24,9 @@ import type {
 import { taskSessionArchived, taskSessionFailure, taskSessionMessage } from './blocks.ts';
 import { readBridgeState } from './bridge.ts';
 import { findTaskBySession, NotesStore } from './notes.ts';
-import { appendTaskLogEntry } from './task-log.ts';
 import { workspaceRelative } from './paths.ts';
 import { ReportStore } from './reports.ts';
+import { appendTaskLogEntry } from './task-log.ts';
 
 export { readBridgeState } from './bridge.ts';
 

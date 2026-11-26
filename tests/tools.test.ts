@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { LarkCli } from '../src/cli.ts';
 import { BridgeError } from '../src/errors.ts';
-import { type NotifyDeps, buildNotifyTool, sendNotification } from '../src/tools.ts';
+import { buildNotifyTool, type NotifyDeps, sendNotification } from '../src/tools.ts';
 import { assertLosslessJson } from './support/lossless-json.ts';
 
 /** 记录调用并返回固定 JSON 的 CLI。 */

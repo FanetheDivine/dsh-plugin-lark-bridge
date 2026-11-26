@@ -11,7 +11,7 @@ import {
   TASK_LOG_SOURCE_KIND,
 } from '../src/lark-super-agent/managed/task-log-injector.ts';
 import { isoTime } from '../src/lark-super-agent/notes.ts';
-import { SuperAgentService } from '../src/lark-super-agent/service.ts';
+import type { SuperAgentService } from '../src/lark-super-agent/service.ts';
 import { appendTaskLogEntry, readTaskLog } from '../src/lark-super-agent/task-log.ts';
 import type { Context } from '../src/types.ts';
 import { makeCtx } from './helpers.ts';

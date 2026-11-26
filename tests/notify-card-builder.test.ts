@@ -5,6 +5,13 @@ import { buildCards, CARD_BYTE_LIMIT } from '../src/notify-card.ts';
 
 const bytes = (card: unknown) => Buffer.byteLength(JSON.stringify(card), 'utf8');
 
+/** 取第一张卡片；没有时直接失败。 */
+function firstCard(cards: Record<string, unknown>[]): Record<string, unknown> {
+  const [card] = cards;
+  if (card === undefined) throw new Error('expected at least one card');
+  return card;
+}
+
 function markdownOf(card: Record<string, unknown>): string {
   const body = card.body as { elements: Array<{ elements: Array<{ content: string }> }> };
   return body.elements[0]?.elements[0]?.content ?? '';
@@ -12,27 +19,32 @@ function markdownOf(card: Record<string, unknown>): string {
 
 describe('buildCards', () => {
   it('短内容生成一张 Card 2.0：标题是总结，面板默认收起', () => {
-    const [card, ...rest] = buildCards({ summary: '任务已完成', markdown: '# 结果\n\n全部通过' });
-    expect(rest).toEqual([]);
+    const cards = buildCards({ summary: '任务已完成', markdown: '# 结果\n\n全部通过' });
+    expect(cards).toHaveLength(1);
+    const card = firstCard(cards);
     expect(card).toMatchObject({ schema: '2.0' });
-    expect((card?.header as { title: { content: string } }).title.content).toBe('任务已完成');
-    const panel = (card?.body as { elements: Array<Record<string, unknown>> }).elements[0];
+    expect((card.header as { title: { content: string } }).title.content).toBe('任务已完成');
+    const panel = (card.body as { elements: Array<Record<string, unknown>> }).elements[0];
     expect(panel).toMatchObject({ tag: 'collapsible_panel', expanded: false });
-    expect(markdownOf(card as Record<string, unknown>)).toBe('# 结果\n\n全部通过');
+    expect(markdownOf(card)).toBe('# 结果\n\n全部通过');
   });
 
   it('带任务名时写进副标题，不带时没有副标题', () => {
-    const [withTask] = buildCards({ summary: 's', markdown: 'm', taskLabel: '修复 (task-1)' });
-    expect((withTask?.header as { subtitle?: { content: string } }).subtitle?.content).toBe(
+    const withTask = firstCard(
+      buildCards({ summary: 's', markdown: 'm', taskLabel: '修复 (task-1)' }),
+    );
+    expect((withTask.header as { subtitle?: { content: string } }).subtitle?.content).toBe(
       '修复 (task-1)',
     );
-    const [without] = buildCards({ summary: 's', markdown: 'm' });
-    expect((without?.header as { subtitle?: unknown }).subtitle).toBeUndefined();
+    const without = firstCard(buildCards({ summary: 's', markdown: 'm' }));
+    expect((without.header as { subtitle?: unknown }).subtitle).toBeUndefined();
   });
 
   it('总结压成单行并限长', () => {
-    const [card] = buildCards({ summary: `第一行\n第二行 ${'长'.repeat(300)}`, markdown: 'm' });
-    const title = (card?.header as { title: { content: string } }).title.content;
+    const card = firstCard(
+      buildCards({ summary: `第一行\n第二行 ${'长'.repeat(300)}`, markdown: 'm' }),
+    );
+    const title = (card.header as { title: { content: string } }).title.content;
     expect(title.includes('\n')).toBe(false);
     expect(title.length).toBeLessThanOrEqual(200);
   });

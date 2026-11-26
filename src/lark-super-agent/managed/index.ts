@@ -9,8 +9,8 @@ import type { LarkSuperAgentService } from '../api.ts';
 import { AskGuard } from './ask-guard.ts';
 import { wrapDispatchMessages } from './dispatch-message.ts';
 import { buildSendReportTool } from './report-tool.ts';
-import { TaskLogObserver } from './task-log-observer.ts';
 import { insertionIndex, type SessionLike, TaskLogInjector } from './task-log-injector.ts';
+import { TaskLogObserver } from './task-log-observer.ts';
 import { hasTaskRules, taskRulesMessage } from './task-rules.ts';
 import { TurnReporter } from './turn-report.ts';
 
