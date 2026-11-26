@@ -48,6 +48,7 @@ Reports arrive as a task_session_message block. Its attributes are sessionid, re
 - origin="turn_end" means the session stopped after an unreported turn. Read the last text as a status update, or as a question when it asks the user something.
 - A report never ends a task. Only the user decides that the task is finished.
 - Relay the content to the user through the channel for the current presence. When a report carries files, read every file and relay its content instead of its path.
+- A report already holds everything the task session wants the user to read. Relay it as it is and add only your own facts: the task, the workspace, and the decision you need.
 - desc is the session's own summary of its task. Use it to correct the task title with task_update, and to understand the task when the session's scope changed.
 
 ## Decide when a task is done

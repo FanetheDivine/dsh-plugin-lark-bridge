@@ -204,6 +204,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 派发与接管任务时，调度会话用 `session_pin` 置顶任务会话；再次置顶与取消置顶只在用户要求时进行。取消管理不归档，会话与其置顶保留。
 - 调度会话把用户消息追加到任务后，用 `session_send` 投递到任务会话。
 - 调度会话按上报的 `kind` 更新任务：`progress` 设为 `in_progress`，`question` 设为 `waiting_user`。上报不结束任务。
+- 调度会话转述上报时按上报原文送达用户，只补充任务、工作区与待决问题等自己掌握的信息。
 - 调度会话自行判断任务是否完成：判断完成时先询问用户，用户确认后才用 `task_end(completed)` 结束；用户要求结束或取消时直接用 `task_end(cancelled)`。结束任务后以 `session_archive` 的 `stop_activity: true` 归档该任务的会话，归档同时移除置顶。
 - 在场状态见[在场状态](#在场状态)。
 - `SA-调度会话` 的提示词按最近的在场提醒选择渠道：离开时经 `lark_notify` 回复与转达，在电脑旁时在正文回复与转达。
@@ -216,7 +217,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 | 能力 | 行为 |
 | --- | --- |
-| `send_report` | 除调度会话外都能看到；未被管理的会话调用报错。描述要求只在被要求时调用 |
+| `send_report` | 除调度会话外都能看到；未被管理的会话调用报错。描述要求只在被要求时调用，并规定上报送达后正文最多一句简短收尾 |
 | 调度消息标记 | `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>` |
 | 提问拦截 | 用户离开时拒绝被管理会话的 `ask_user_question`，并结束正在等待的调用 |
 | S 注入 | 提问因离开失败后，在下一次模型请求前插入一条临时指令 |
@@ -227,7 +228,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 在场提醒只插入调度会话；被管理会话在提问失败前对调度机制无感知。
 - 离开期间被管理会话的提问在执行前即被拒绝；其他插件要求审批时同样改为离开错误，不进入审批等待。
 - 提问拦截有两种途径：插件加载后开始的提问由 `tools/execute` 换上可中止信号；插件加载前已在等待的提问由网关私有接口取消。网关不可用时只记日志。
-- S 是一条临时指令，说明本次无法提问、改用 `send_report` 的 `question`，并要求后续忽略它。同一会话同一时刻只保留一条。
+- S 是一条临时指令，说明本次无法提问、改用 `send_report` 的 `question`，并要求后续忽略它；正文收尾要求与 `send_report` 描述同口径。同一会话同一时刻只保留一条。
 - 自动上报带 `origin="turn_end"`，手动上报带 `origin="send_report"`，调度会话据此区分。
 
 ## 任务会话模型

@@ -1,6 +1,7 @@
 /**
  * `send_report`：把进度或提问报给调度会话。
  * 工具对所有非调度会话可见，只有被管理会话能成功投递。
+ * 描述规定送达事实与上报后的正文收尾上限，正文因此不复述上报内容。
  */
 import { defineTool } from '@deepseek-ai/dsh-tools';
 
@@ -10,12 +11,14 @@ import { REPORT_KINDS } from '../api.ts';
 /** 工具名。 */
 export const SEND_REPORT_TOOL = 'send_report';
 
-/** 描述文本，说明只在被要求时调用。 */
+/** 描述文本，说明只在被要求时调用，并规定上报送达后的正文收尾。 */
 export const SEND_REPORT_DESCRIPTION = `Report to the user. Call it only when you are asked to report; never call it on your own.
 
 A report goes to the dispatch session, which relays it to the user and tracks this session's task. Every session except the dispatch session sees this tool, but only a session managed by the dispatch session can deliver a report; anywhere else the call fails.
 
-Prefer a report over response text. Keep the response body minimal; put user-facing content in text or files, never in both.
+Prefer a report over response text: user-facing content goes in the report's text or files. A delivered report reaches the user through the dispatch session, so the response body would be a second copy of it.
+
+After a report, the response body holds at most one short closing line: what you do next, or what you wait for. An empty body is fine when nothing is left to add. Conclusions, file lists, commit and PR details, and questions belong in the report alone. When a report was not delivered, keep that content in the response body.
 
 - progress: a milestone or a requirement change. The task stays in progress.
 - question: a decision the user must make. The dispatch session relays it and waits for the user.
@@ -41,7 +44,8 @@ export function buildSendReportTool(service: LarkSuperAgentService) {
       },
       text: {
         type: 'string',
-        description: 'Text or a question for the user. Required when files is empty or omitted.',
+        description:
+          'Text or a question for the user. Required when files is empty or omitted. This text is what the user receives, so your response body repeats none of it.',
       },
       files: {
         type: 'array',
