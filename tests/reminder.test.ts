@@ -88,7 +88,9 @@ describe('BRIDGE_REMINDER', () => {
   it('覆盖统一回复渠道与正文收尾规则', () => {
     expect(BRIDGE_REMINDER).toContain('lark_notify');
     expect(BRIDGE_REMINDER).toContain('远程发送');
-    expect(BRIDGE_REMINDER).toContain('只回复一次');
+    expect(BRIDGE_REMINDER).not.toContain('只回复一次');
+    expect(BRIDGE_REMINDER).toContain('同一任务的内容合并成一条回复，不同任务各回一条');
+    expect(BRIDGE_REMINDER).toContain('回复之后到达的消息单独回复');
     expect(BRIDGE_REMINDER).toContain('回复用户时调用 lark_notify');
     expect(BRIDGE_REMINDER).toContain('本轮正文最多一句概述，可以为空');
     expect(BRIDGE_REMINDER).toContain('通知失败时把完整内容留在正文');
@@ -98,6 +100,11 @@ describe('BRIDGE_REMINDER', () => {
   it('提及任务时要求写成「名称 (id)」并给出缺失兜底', () => {
     expect(BRIDGE_REMINDER).toContain('向用户提及任务时写成「名称 (id)」');
     expect(BRIDGE_REMINDER).toContain('缺少名称时说明并给出 id');
+    expect(BRIDGE_REMINDER).toContain('lark_notify 带 task_id 时，插件在通知开头补写「名称 (id)」');
+  });
+
+  it('说明注入类消息不是用户消息', () => {
+    expect(BRIDGE_REMINDER).toContain('上报块、失败通知、归档通知与任务日志块不是用户消息');
   });
 
   it('说明精确回复与引用读取方式', () => {

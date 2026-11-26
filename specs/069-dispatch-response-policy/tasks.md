@@ -30,16 +30,16 @@
 
 **Independent Test**: `tests/sa-dispatch.test.ts` 与 `tests/reminder.test.ts` 断言提示词关键规则；实机验收场景 1、2、3、4
 
-- [ ] T007 [US1] 改写 `src/sa-dispatch/prompt.ts`：新增 `## Respond to the user` 段，写明用户只能看到 `lark_notify`；`session_create`、`session_send`、`session_manage`、`session_unmanage`、`task_end` 成功后下一步 `lark_notify`；`session_pin`/`session_archive` 与通知同步或之后，失败另发 `lark_notify`（改写 `Keep the session list current` 中「in the same reply」）；用户每条消息都回复；日志注入消息、上报块、失败通知、归档通知不触发回复（FR-001 至 FR-003、FR-014、FR-015）
-- [ ] T008 [US1] 同一文件：写明按任务分开通知——同一任务合并为一条并带 `task_id`，不同任务分开，与任务无关的内容单独一条；带 `task_id` 的任务名由插件写标题前缀，正文不再重复；创建任务与追加消息时传入用户消息 `message_id`，通知用最近一条用户消息作 `reply_to`；通知之后到达的消息单独回应（FR-004、FR-006、FR-032）
-- [ ] T009 [US2] 同一文件重写 `## Handle reports`：说明 `origin="turn_end"` 与 `origin="send_report"` 两类来源；报告既没有描述任务当前状态、也没有需用户确认的点时，用 `session_send` 向该任务会话发一次重发请求（要求用 `send_report` 报告当前状态与待确认点）；`turn_end` 与 `send_report` 都适用；除重发请求与用户本人的话外不向任务会话发任何消息（FR-007 至 FR-009）；改写 `Add messages to a task` 中「Answering a task session works the same way」为「用户回答任务提问时，追加回答并投递给任务会话」（FR-010）
-- [ ] T010 [US3] 同一文件：只在本份报告含新的结果、里程碑、阻塞、失败或提问时用 `lark_notify`；只是确认或复述时不通知；无论是否通知，`progress` 设 `in_progress`、`question` 设 `waiting_user`；轮次失败设 `failed` 并通知一次，用户要求后才重试；删除「Relay it as it is」与「Relay the content to the user」中与新规则冲突的表述，长报告用卡片模式（`mode: "card"`，`summary` 为一句总结）发 Markdown 全文，只补充任务、工作区与待决问题；部分发送失败后只补发剩余部分（FR-011 至 FR-013、FR-016、FR-028、FR-029）
-- [ ] T011 [US4] 同一文件：先判断点名任务的消息是否是给任务会话的指令；给调度会话自己的说明不转发，用 `task_update` 的 `add_message` 记录后回应用户；无法判断时询问用户（FR-017、FR-018）
-- [ ] T012 [US2] 同一文件：处理报告时读取 `<report_path>` 指向的报告文件，需要时读取 `<attachment_paths>`；任务归档后报告在 `archive/<taskId>/reports/`，读取失败时改读该位置；`desc` 只在报告文件 front matter 中，需要修正标题或理解范围时读取（FR-022、FR-023）
-- [ ] T013 同一文件：写明日志条目规则——收到 `<task_log_entry>` 不通知用户；任务处于 `waiting_user` 时收到 `user_message` 条目用 `task_update` 设为 `in_progress`；`user_stop` 条目只告知用户停止过，不改状态；`<task_snapshot>` 用于重建任务认知（FR-047）
-- [ ] T014 [US1] 改写 `src/reminder.ts` 的 `BRIDGE_REMINDER`：「连续多条只回复一次」改为同一批内同一任务合并一条、不同任务各回一条、通知之后到达的单独回复；说明带 `task_id` 的通知由插件补写任务名，正文不重复；注入类消息不是用户消息，不回复（FR-005、FR-015、FR-032）
-- [ ] T015 [US1] 更新 `tests/sa-dispatch.test.ts` 与 `tests/reminder.test.ts`：断言上述关键规则存在，且旧冲突表述（`Relay the content to the user`、`in the same reply`、`Answering a task session works the same way`）已消失；`## ` 段落标题测试同步
-- [ ] T016 提交 Phase 3：`feat(069): 调度提示词响应策略与桥接提醒`
+- [x] T007 [US1] 改写 `src/sa-dispatch/prompt.ts`：新增 `## Respond to the user` 段，写明用户只能看到 `lark_notify`；`session_create`、`session_send`、`session_manage`、`session_unmanage`、`task_end` 成功后下一步 `lark_notify`；`session_pin`/`session_archive` 与通知同步或之后，失败另发 `lark_notify`（改写 `Keep the session list current` 中「in the same reply」）；用户每条消息都回复；日志注入消息、上报块、失败通知、归档通知不触发回复（FR-001 至 FR-003、FR-014、FR-015）
+- [x] T008 [US1] 同一文件：写明按任务分开通知——同一任务合并为一条并带 `task_id`，不同任务分开，与任务无关的内容单独一条；带 `task_id` 的任务名由插件写标题前缀，正文不再重复；创建任务与追加消息时传入用户消息 `message_id`，通知用最近一条用户消息作 `reply_to`；通知之后到达的消息单独回应（FR-004、FR-006、FR-032）
+- [x] T009 [US2] 同一文件重写 `## Handle reports`：说明 `origin="turn_end"` 与 `origin="send_report"` 两类来源；报告既没有描述任务当前状态、也没有需用户确认的点时，用 `session_send` 向该任务会话发一次重发请求（要求用 `send_report` 报告当前状态与待确认点）；`turn_end` 与 `send_report` 都适用；除重发请求与用户本人的话外不向任务会话发任何消息（FR-007 至 FR-009）；改写 `Add messages to a task` 中「Answering a task session works the same way」为「用户回答任务提问时，追加回答并投递给任务会话」（FR-010）
+- [x] T010 [US3] 同一文件：只在本份报告含新的结果、里程碑、阻塞、失败或提问时用 `lark_notify`；只是确认或复述时不通知；无论是否通知，`progress` 设 `in_progress`、`question` 设 `waiting_user`；轮次失败设 `failed` 并通知一次，用户要求后才重试；删除「Relay it as it is」与「Relay the content to the user」中与新规则冲突的表述，长报告用卡片模式（`mode: "card"`，`summary` 为一句总结）发 Markdown 全文，只补充任务、工作区与待决问题；部分发送失败后只补发剩余部分（FR-011 至 FR-013、FR-016、FR-028、FR-029）
+- [x] T011 [US4] 同一文件：先判断点名任务的消息是否是给任务会话的指令；给调度会话自己的说明不转发，用 `task_update` 的 `add_message` 记录后回应用户；无法判断时询问用户（FR-017、FR-018）
+- [x] T012 [US2] 同一文件：处理报告时读取 `<report_path>` 指向的报告文件，需要时读取 `<attachment_paths>`；任务归档后报告在 `archive/<taskId>/reports/`，读取失败时改读该位置；`desc` 只在报告文件 front matter 中，需要修正标题或理解范围时读取（FR-022、FR-023）
+- [x] T013 同一文件：写明日志条目规则——收到 `<task_log_entry>` 不通知用户；任务处于 `waiting_user` 时收到 `user_message` 条目用 `task_update` 设为 `in_progress`；`user_stop` 条目只告知用户停止过，不改状态；`<task_snapshot>` 用于重建任务认知（FR-047）
+- [x] T014 [US1] 改写 `src/reminder.ts` 的 `BRIDGE_REMINDER`：「连续多条只回复一次」改为同一批内同一任务合并一条、不同任务各回一条、通知之后到达的单独回复；说明带 `task_id` 的通知由插件补写任务名，正文不重复；注入类消息不是用户消息，不回复（FR-005、FR-015、FR-032）
+- [x] T015 [US1] 更新 `tests/sa-dispatch.test.ts` 与 `tests/reminder.test.ts`：断言上述关键规则存在，且旧冲突表述（`Relay the content to the user`、`in the same reply`、`Answering a task session works the same way`）已消失；`## ` 段落标题测试同步
+- [x] T016 提交 Phase 3：`feat(069): 调度提示词响应策略与桥接提醒`
 
 **Checkpoint**: 提示词层完成，不依赖后续代码阶段
 
