@@ -21,13 +21,13 @@ export interface LlmCatalogLike {
 /** 一个 model 条目：model id 与该路由支持的 effort id。 */
 export interface ModelEntry {
   readonly model: string;
-  readonly efforts: readonly string[];
+  efforts: string[];
 }
 
 /** 一个 provider 条目及其下的全部 model。 */
 export interface ProviderEntry {
   readonly provider: string;
-  readonly models: readonly ModelEntry[];
+  models: ModelEntry[];
 }
 
 /** 被跳过的部分；`model` 缺省表示整个 provider 目录失败。 */
@@ -39,8 +39,8 @@ export interface SkippedEntry {
 
 /** 工具输出封套。 */
 export interface ListModelsResult {
-  readonly providers: readonly ProviderEntry[];
-  readonly skipped: readonly SkippedEntry[];
+  providers: ProviderEntry[];
+  skipped: SkippedEntry[];
 }
 
 /** 工具的依赖。 */

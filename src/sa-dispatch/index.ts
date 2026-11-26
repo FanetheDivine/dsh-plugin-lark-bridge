@@ -1,5 +1,6 @@
 /** SA-调度会话预设子行：注册调度提示词、任务与会话工具，并按全局在场状态插入提醒。 */
 import type { Context } from '../types.ts';
+import { buildListModelsTool, type LlmCatalogLike } from './list-models.ts';
 import { SA_DISPATCH_PROMPT } from './prompt.ts';
 import {
   buildSessionCreateTool,
@@ -40,6 +41,9 @@ export function apply(ctx: Context): void {
             service,
             logger: dispatchCtx.logger,
           }),
+        );
+        scoped.tools.register(
+          buildListModelsTool({ llm: scoped.get('llm') as LlmCatalogLike | undefined }),
         );
       } catch (error) {
         dispatchCtx.logger.warn(
