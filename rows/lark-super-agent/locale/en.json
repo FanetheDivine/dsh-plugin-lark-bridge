@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Lark task dispatch",
-    "description": "Dispatch tasks, coordinate dispatch and worker sessions, and maintain notes, reports, and task archives."
+    "title": "Dispatch session",
+    "description": "Manage task sessions from the dispatch session."
   }
 }

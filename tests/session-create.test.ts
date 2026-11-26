@@ -8,6 +8,8 @@ import type { Context } from '../src/types.ts';
 import { makeCtx } from './helpers.ts';
 
 const TASK_MODEL = { provider: 'mock', model: 'mock-task', reasoningEffort: 'high' } as const;
+const COMMON_MODEL = { provider: 'mock', model: 'mock-common', reasoningEffort: 'low' } as const;
+const COMPLEX_MODEL = { provider: 'mock', model: 'mock-complex', reasoningEffort: 'high' } as const;
 const TASK_PRESET = 'task-preset';
 
 /** 一次合法调用的最少参数。 */
@@ -16,7 +18,10 @@ const BASE = { workspace_id: 'w', title: ' T ', prompt: ' go ' };
 /** 构造一组可观察的依赖。 */
 function makeDeps(
   options: {
-    model?: typeof TASK_MODEL | undefined;
+    model?:
+      | typeof TASK_MODEL
+      | ((taskType?: 'common' | 'complex') => typeof TASK_MODEL | undefined)
+      | undefined;
     preset?: string;
     llm?: { resolveCallConfig: ReturnType<typeof vi.fn> } | null;
     presets?: { id: string; broken?: string }[] | null;
@@ -47,7 +52,9 @@ function makeDeps(
     ),
   };
   const service = {
-    taskModel: vi.fn(() => options.model as never),
+    taskModel: vi.fn((taskType?: 'common' | 'complex') =>
+      typeof options.model === 'function' ? options.model(taskType) : (options.model as never),
+    ),
     taskPreset: vi.fn(() => options.preset ?? TASK_PRESET),
     assertDispatchable: vi.fn(async () => undefined),
     createTask: vi.fn(async () => ({ taskId: 'task-1' })),
@@ -73,15 +80,19 @@ function run(tool: ToolDefinition, args: Record<string, unknown>) {
 }
 
 describe('session_create 的契约', () => {
-  it('参数去掉 agent_preset，title 与 prompt 必填', () => {
+  it('参数去掉 agent_preset，包含 task_type，title 与 prompt 必填，描述说明模型覆盖规则', () => {
     const { tool } = makeDeps();
     expect(tool.name).toBe('session_create');
     expect(tool.description).toMatch(/^Create a DSH \(DeepSeek Harness\) session/);
     expect(tool.description).toContain('task session');
+    expect(tool.description).toContain('task_type');
+    expect(tool.description).toContain('provider/model/effort override');
+    expect(tool.description).toContain('unless the user explicitly asks');
     const parameters = tool.parameters as { properties: object; required?: string[] };
     expect(Object.keys(parameters.properties)).toEqual([
       'workspace_id',
       'cwd',
+      'task_type',
       'provider',
       'model',
       'effort',
@@ -242,9 +253,10 @@ describe('session_create 的预设', () => {
 });
 
 describe('session_create 的模型', () => {
-  it('未传模型参数时使用任务会话模型，校验后先于首条提示写入新会话', async () => {
+  it('未传模型参数时使用默认任务会话模型，校验后先于首条提示写入新会话', async () => {
     const deps = makeDeps({ model: TASK_MODEL });
     await run(deps.tool, BASE);
+    expect(deps.service.taskModel).toHaveBeenCalledWith(undefined);
     expect(deps.llm?.resolveCallConfig).toHaveBeenCalledWith(TASK_MODEL, expect.anything());
     expect(deps.select).toHaveBeenCalledWith(TASK_MODEL);
     expect(deps.select.mock.invocationCallOrder[0]).toBeLessThan(
@@ -255,14 +267,45 @@ describe('session_create 的模型', () => {
     );
   });
 
-  it('显式 provider 与 model 优先于配置，effort 随显式值', async () => {
+  it('task_type 传空串、common、complex 时分别读取默认、普通、复杂任务模型，非法值报错', async () => {
+    const deps = makeDeps({
+      model: (taskType) =>
+        taskType === 'complex' ? (COMPLEX_MODEL as never) : (COMMON_MODEL as never),
+    });
+    await run(deps.tool, { ...BASE, task_type: '   ' });
+    expect(deps.service.taskModel).toHaveBeenLastCalledWith(undefined);
+    expect(deps.select).toHaveBeenLastCalledWith(COMMON_MODEL);
+
+    await run(deps.tool, { ...BASE, task_type: 'common' });
+    expect(deps.service.taskModel).toHaveBeenLastCalledWith('common');
+    expect(deps.select).toHaveBeenLastCalledWith(COMMON_MODEL);
+
+    await run(deps.tool, { ...BASE, task_type: ' complex ' });
+    expect(deps.service.taskModel).toHaveBeenLastCalledWith('complex');
+    expect(deps.select).toHaveBeenLastCalledWith(COMPLEX_MODEL);
+
+    deps.create.mockClear();
+    await expect(run(deps.tool, { ...BASE, task_type: 'urgent' })).rejects.toThrow(
+      'task_type must be common, complex, or empty',
+    );
+    expect(deps.create).not.toHaveBeenCalled();
+  });
+
+  it('显式 provider 与 model 优先于 task_type 配置，effort 随显式值', async () => {
     const deps = makeDeps({ model: TASK_MODEL });
-    await run(deps.tool, { ...BASE, provider: 'mock', model: 'mock-other', effort: 'low' });
+    await run(deps.tool, {
+      ...BASE,
+      task_type: 'complex',
+      provider: 'mock',
+      model: 'mock-other',
+      effort: 'low',
+    });
     expect(deps.select).toHaveBeenCalledWith({
       provider: 'mock',
       model: 'mock-other',
       reasoningEffort: 'low',
     });
+    expect(deps.service.taskModel).not.toHaveBeenCalled();
     expect(deps.llm?.resolveCallConfig).toHaveBeenCalledTimes(1);
   });
 

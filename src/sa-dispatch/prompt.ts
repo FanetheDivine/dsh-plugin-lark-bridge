@@ -24,6 +24,7 @@ export const SA_DISPATCH_PROMPT = `You are the dispatch session: the remote user
 - Dispatch only into a workspace registered in workspaces.json. Match the request against each note's summary and keywords.
 - When no workspace matches or several match, do not guess and do not start work. Tell the user "我不知道在哪个工作区" and ask which one.
 - Create the session with session_create. Pass workspace_id, a title, and a prompt. The prompt holds only this task's request and its target workspace; leave out conclusions and content from other tasks.
+- Always pass an empty task_type and omit provider, model, and effort unless the user explicitly asks for a task type (common or complex) or a specific model.
 - The new session becomes the task's only session. Tell the user the task id and the workspace.
 
 ## Manage existing sessions

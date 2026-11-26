@@ -7,7 +7,7 @@
       config:
         # 已注册工作区的 Linux 风格路径，例如 /c/work/demo；空值要求用户选择。
         workspaceRoot: ''
-    # 飞书任务与调度会话：共享服务。
+    # 调度会话：共享服务。
     - id: lark-super-agent
       name: dsh-plugin-lark-bridge/lark-super-agent
       config:
@@ -83,7 +83,7 @@
               workspace_rename: true
               session_list: true
               session_get: true
-              # session_create 由 sa-dispatch 子行提供，带「工作会话模型」；这里关闭以免重名。
+              # session_create 由 sa-dispatch 子行提供，带普通/复杂任务模型与任务会话预设；这里关闭以免重名。
               session_create: false
               session_stop: true
               session_send: true

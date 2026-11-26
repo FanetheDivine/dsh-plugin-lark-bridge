@@ -25,6 +25,7 @@ import { type NS, zh } from '../src/client/locales.ts';
 import type { ModelDefaultsInjected } from '../src/client/model-defaults.ts';
 import { PRESENCE_SLOT_ID, PresenceButton, presenceLabel } from '../src/client/presence-button.tsx';
 import {
+  defaultTaskTypeField,
   type PresenceConfigFields,
   PresenceConfigForm,
   PresenceConfigPage,
@@ -423,22 +424,36 @@ describe('在场开关配置页', () => {
     form.dispose();
   });
 
-  it('任务会话模型三个字段成组保存，清空的推理等级写入 unset', async () => {
+  it('普通与复杂任务模型及默认任务类型成组保存，清空的推理等级写入 unset', async () => {
+    const spec = defaultTaskTypeField();
+    expect(spec.format('complex')).toBe('complex');
+    expect(spec.format(undefined)).toBe('common');
+    expect(spec.parse('common')).toEqual({ kind: 'set', value: 'common' });
+    expect(spec.parse('complex')).toEqual({ kind: 'set', value: 'complex' });
+    expect(spec.parse('other')).toBeUndefined();
+
     const { fake, form, state } = setupForm({
-      taskProvider: 'deepseek',
-      taskModel: 'deepseek-chat',
-      taskEffort: 'high',
+      commonTaskProvider: 'deepseek',
+      commonTaskModel: 'deepseek-chat',
+      commonTaskEffort: 'high',
     });
-    expect(state().taskModel.text).toBe('deepseek-chat');
+    expect(state().commonTaskModel.text).toBe('deepseek-chat');
+    expect(state().defaultTaskType.text).toBe('common');
     const actions = form.inject();
-    actions.edit('taskProvider', 'other');
-    actions.edit('taskModel', 'big');
-    actions.edit('taskEffort', '');
+    actions.edit('commonTaskProvider', 'other');
+    actions.edit('commonTaskModel', 'big');
+    actions.edit('commonTaskEffort', '');
+    actions.edit('complexTaskProvider', 'anthropic');
+    actions.edit('complexTaskModel', 'claude');
+    actions.edit('defaultTaskType', 'complex');
     await actions.save();
     const ops = fake.writes.flat();
-    expect(ops).toContainEqual({ op: 'set', path: ['taskProvider'], value: 'other' });
-    expect(ops).toContainEqual({ op: 'set', path: ['taskModel'], value: 'big' });
-    expect(ops).toContainEqual({ op: 'unset', path: ['taskEffort'] });
+    expect(ops).toContainEqual({ op: 'set', path: ['commonTaskProvider'], value: 'other' });
+    expect(ops).toContainEqual({ op: 'set', path: ['commonTaskModel'], value: 'big' });
+    expect(ops).toContainEqual({ op: 'unset', path: ['commonTaskEffort'] });
+    expect(ops).toContainEqual({ op: 'set', path: ['complexTaskProvider'], value: 'anthropic' });
+    expect(ops).toContainEqual({ op: 'set', path: ['complexTaskModel'], value: 'claude' });
+    expect(ops).toContainEqual({ op: 'set', path: ['defaultTaskType'], value: 'complex' });
     form.dispose();
   });
 
@@ -452,7 +467,7 @@ describe('在场开关配置页', () => {
     form.dispose();
   });
 
-  it('页面渲染两个开关，摘要视图只给文案', () => {
+  it('页面渲染两个开关、普通与复杂任务模型及默认切换，摘要视图只给文案', () => {
     const { form } = setupForm({ guiInputSetsLocal: false });
     const injected = form.inject();
     const props = {
@@ -461,7 +476,8 @@ describe('在场开关配置页', () => {
       usePresenceConfig: <S>(selector: (state: PresenceConfigState) => S) =>
         selector(injected.hooks.presenceConfig.getSnapshot()),
       ...injected,
-      modelDefaults: modelDefaultsStub(),
+      commonModelDefaults: modelDefaultsStub(),
+      complexModelDefaults: modelDefaultsStub(),
       presetDefaults: presetDefaultsStub(),
       controller: new PresenceController({ autoStart: false }),
     } as unknown as PresenceConfigPageProps;
@@ -469,9 +485,15 @@ describe('在场开关配置页', () => {
     expect(html).toContain('网页输入时切换为在电脑旁');
     expect(html).toContain('收到飞书消息时切换为离开');
     expect(html).toContain('data-dsh-lark-presence-config="guiInputSetsLocal"');
-    expect(html).toContain('data-dsh-lark-config-model="task"');
+    expect(html).toContain('data-dsh-lark-config-model="common"');
+    expect(html).toContain('data-dsh-lark-config-model="complex"');
+    expect(html).toContain('data-dsh-lark-default-task-type="common"');
+    expect(html).toContain('data-dsh-lark-default-task-type="complex"');
     expect(html).toContain('data-dsh-lark-model-select');
-    expect(html).toContain('任务会话模型');
+    expect(html).toContain('普通任务模型');
+    expect(html).toContain('复杂任务模型');
+    expect(html).toContain('>默认<');
+    expect(html).toContain('>设为默认<');
     expect(html).toContain('「用飞书和DSH对话」配置页的「模型」');
     expect(html).toContain('data-dsh-lark-presence-config="taskPreset"');
     expect(html).toContain('任务会话预设');
