@@ -20,13 +20,13 @@
 
 **Independent Test**: `tests/notify-node.test.ts`、`tests/notify-card.test.ts` 与 `tests/client.test.ts` 通过；实机成功调用只出正文卡片。
 
-- [ ] T001 [US1] 在 `tests/notify-node.test.ts` 编写成功结果与调用参数产出 `lark-notify` 节点、正文完整解析、轮次层级与节点复用的失败测试
-- [ ] T002 [P] [US1] 在 `tests/notify-card.test.ts` 编写卡片只含正文、保留换行、不渲染 Markdown 与额外字段的失败测试
-- [ ] T003 [US1] 在 `src/client/notify-node.ts` 实现 `text` 解析、现有成功结果识别、`lark-notify-result` Definition 注册与 `groupTree: 'turn'` 节点构造
-- [ ] T004 [P] [US1] 在 `src/client/notify-card.tsx` 实现只渲染 `text` 的纯文本卡片组件
-- [ ] T005 [P] [US1] 在 `src/client/notify-card.css` 实现上报风格外框、保留换行与 `--dsw-alias-label-primary` 正文色
-- [ ] T006 [US1] 在 `src/client/index.ts` 注册通知 Definition 与 `conversation.chat.node` 的 `lark-notify` 渲染器
-- [ ] T007 [US1] 更新 `tests/client.test.ts` 验证通知 Definition 与 Chat 节点注册，并运行本故事测试
+- [X] T001 [US1] 在 `tests/notify-node.test.ts` 编写成功结果与调用参数产出 `lark-notify` 节点、正文完整解析、轮次层级与节点复用的失败测试
+- [X] T002 [P] [US1] 在 `tests/notify-card.test.ts` 编写卡片只含正文、保留换行、不渲染 Markdown 与额外字段的失败测试
+- [X] T003 [US1] 在 `src/client/notify-node.ts` 实现 `text` 解析、现有成功结果识别、`lark-notify-result` Definition 注册与 `groupTree: 'turn'` 节点构造
+- [X] T004 [P] [US1] 在 `src/client/notify-card.tsx` 实现只渲染 `text` 的纯文本卡片组件
+- [X] T005 [P] [US1] 在 `src/client/notify-card.css` 实现上报风格外框、保留换行与 `--dsw-alias-label-primary` 正文色
+- [X] T006 [US1] 在 `src/client/index.ts` 注册通知 Definition 与 `conversation.chat.node` 的 `lark-notify` 渲染器
+- [X] T007 [US1] 更新 `tests/client.test.ts` 验证通知 Definition 与 Chat 节点注册，并运行本故事测试
 
 **Commit**: `feat(066): 成功通知以纯文本正文卡片展示`
 

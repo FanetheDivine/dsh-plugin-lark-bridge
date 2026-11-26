@@ -1,0 +1,18 @@
+/* lark_notify 成功通知正文卡片。只含正文，颜色与宿主对话正文一致。 */
+
+.dsh-lark-notify {
+  margin: 4px 0 8px;
+  padding: 10px 14px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-markdown-code-block);
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-13);
+  min-width: 0;
+}
+
+.dsh-lark-notify-body {
+  color: var(--dsw-alias-label-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
