@@ -199,9 +199,10 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 只有 `workspaces.json` 已登记的工作区可以接收任务。没有匹配或多个都匹配时，调度会话不猜测、不执行，告知「我不知道在哪个工作区」并询问目标。
 - 每条用户消息默认是新任务。只有引用了未结束任务的消息，或点名未结束任务的标题或 id，才归入该任务；无法判断时询问用户。
 - 用户要接管已有会话时调用 `session_manage`，要停止管理时调用 `session_unmanage`。用户归档会话时任务随之归档。
+- 派发与接管任务时，调度会话用 `session_pin` 置顶任务会话；再次置顶与取消置顶只在用户要求时进行。取消管理不归档，会话与其置顶保留。
 - 调度会话把用户消息追加到任务后，用 `session_send` 投递到任务会话。
 - 调度会话按上报的 `kind` 更新任务：`progress` 设为 `in_progress`，`question` 设为 `waiting_user`。上报不结束任务。
-- 调度会话自行判断任务是否完成：判断完成时先询问用户，用户确认后才用 `task_end(completed)` 结束；用户要求结束或取消时直接用 `task_end(cancelled)`。结束任务不归档会话。
+- 调度会话自行判断任务是否完成：判断完成时先询问用户，用户确认后才用 `task_end(completed)` 结束；用户要求结束或取消时直接用 `task_end(cancelled)`。结束任务后以 `session_archive` 的 `stop_activity: true` 归档该任务的会话，归档同时移除置顶。
 - 在场状态见[在场状态](#在场状态)。
 - `SA-调度会话` 的提示词按最近的在场提醒选择渠道：离开时经 `lark_notify` 回复与转达，在电脑旁时在正文回复与转达。
 - `SA-调度会话` 不含 `tool-jobs`，保留 `persona`、`agent-instructions`、`time-context`、`skill-filesystem` 与压缩组。压缩组的 `compaction-basic` 设 `thresholdRatio: 0.3`，上下文压力到模型窗口 30% 时触发压缩。

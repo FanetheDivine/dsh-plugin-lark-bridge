@@ -40,9 +40,9 @@
 
 **Independent Test**: `pnpm run full-check` 通过；`docs/how-it-works.md` 不再写「结束任务不归档会话」。
 
-- [ ] T009 [P] 在 `docs/how-it-works.md` 的调度提示词条目补充置顶要求，并把「结束任务不归档会话」改为任务结束后归档、取消管理不归档且保留置顶
-- [ ] T010 [P] 在 `CHANGELOG.md` 的 Unreleased 增加一条：调度提示词要求派发与接管任务后置顶会话，并在任务结束时归档会话
-- [ ] T011 运行 `pnpm format && pnpm check`，再运行 `pnpm run build` 完成产物测试
+- [x] T009 [P] 在 `docs/how-it-works.md` 的调度提示词条目补充置顶要求，并把「结束任务不归档会话」改为任务结束后归档、取消管理不归档且保留置顶
+- [x] T010 [P] 在 `CHANGELOG.md` 的 Unreleased 增加一条：调度提示词要求派发与接管任务后置顶会话，并在任务结束时归档会话
+- [x] T011 运行 `pnpm format && pnpm check`，再运行 `pnpm run build` 完成产物测试
 
 **Checkpoint**: commit `docs(060): 同步置顶与归档说明`
 
