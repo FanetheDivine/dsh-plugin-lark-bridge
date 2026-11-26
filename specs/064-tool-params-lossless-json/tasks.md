@@ -77,8 +77,8 @@
 
 **Independent Test**: `tests/support/lossless-json.test.ts` 全绿。
 
-- [ ] T009 [P] [US3] 新增 `tests/support/lossless-json.test.ts`：覆盖不可枚举键、symbol 键、`-0`、`NaN`、类实例、稀疏数组、循环引用与深拷贝独立性；每例断言抛出的消息含对应路径
-- [ ] T010 [US3] 运行 `pnpm test:code`，确认通过
+- [X] T009 [P] [US3] 新增 `tests/support/lossless-json.test.ts`：覆盖不可枚举键、symbol 键、`-0`、`NaN`、类实例、稀疏数组、循环引用与深拷贝独立性；每例断言抛出的消息含对应路径
+- [X] T010 [US3] 运行 `pnpm test:code`，确认通过
 
 **Checkpoint**: 校验函数可信，回归防线成立。
 
