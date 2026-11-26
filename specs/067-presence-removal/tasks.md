@@ -124,13 +124,13 @@
 
 **Commit**: `docs(067): 更新在场机制移除后的文档`
 
-- [ ] T028 [P] 更新 `README.md`：删除「在场状态」章节，写入「桥接会话的回复经飞书送达，正文最多一句」。
-- [ ] T029 [P] 更新 `docs/how-it-works.md`：删除在场状态、自动切换时间、节假日与时间控件小节；更新路由表（只剩 status 与 check）、被管理会话能力表（无条件拦截）、桥接提醒、依赖与组成表。
-- [ ] T030 [P] 更新 `docs/known-risks.md`：删除「用户在场状态」小节。
-- [ ] T031 [P] 更新 `docs/development.md`：文件地图、测试表、构建说明去掉 `css:build` 与在场文件。
-- [ ] T032 在 `CHANGELOG.md` 增加本次变更条目。
-- [ ] T033 按 `quickstart.md` 执行真实宿主验收（A1、B6 至 B8、C6 至 C8），记录报告与截图。
-- [ ] T034 运行 `pnpm format && pnpm check && pnpm build`，确认全部通过后提交。
+- [X] T028 [P] 更新 `README.md`：删除「在场状态」章节，写入「桥接会话的回复经飞书送达，正文最多一句」。
+- [X] T029 [P] 更新 `docs/how-it-works.md`：删除在场状态、自动切换时间、节假日与时间控件小节；更新路由表（只剩 status 与 check）、被管理会话能力表（无条件拦截）、桥接提醒、依赖与组成表。
+- [X] T030 [P] 更新 `docs/known-risks.md`：删除「用户在场状态」小节。
+- [X] T031 [P] 更新 `docs/development.md`：文件地图、测试表、构建说明去掉 `css:build` 与在场文件。
+- [X] T032 在 `CHANGELOG.md` 增加本次变更条目。
+- [X] T033 按 `quickstart.md` 执行真实宿主验收（A1、B6 至 B8、C6 至 C8），记录报告与截图。
+- [X] T034 运行 `pnpm format && pnpm check && pnpm build`，确认全部通过后提交。
 
 ---
 

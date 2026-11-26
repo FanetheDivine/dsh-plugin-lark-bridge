@@ -15,8 +15,8 @@
 | `src/sessions.ts` | 工作区会话的创建、恢复、新建标题与置顶 |
 | `src/routes.ts` | 安全状态与完整检测的同源 JSON 路由 |
 | `src/state.ts` | 会话标识、归一化路径与去重窗口的持久化 |
-| `src/lark-super-agent/` | `lark-super-agent` 行：调度服务、笔记、上报、归档、git、全局在场状态、自动切换调度、节假日数据与状态路由 |
-| `src/sa-dispatch/` | `SA-调度会话` 预设子行：调度工具、提示词与在场提醒插入 |
+| `src/lark-super-agent/` | `lark-super-agent` 行：调度服务、笔记、上报、归档与 git |
+| `src/sa-dispatch/` | `SA-调度会话` 预设子行：调度工具与提示词 |
 | `src/lark-super-agent/managed/` | 被管理会话能力：`send_report`、调度消息标记、提问拦截、S 注入、轮次自动上报、失败与归档通知 |
 
 宿主按 `cordis.patch.yml` 的 `name` 分别 import 各入口：
@@ -87,14 +87,12 @@ lark-cli auth status --json --verify
 | --- | --- | --- |
 | GET | `/lark-bridge/status` | 返回最近一次安全状态 |
 | POST | `/lark-bridge/check` | 执行完整检测并返回安全状态 |
-| GET | `/lark-bridge/presence` | 返回全局在场状态，由 `lark-super-agent` 行注册 |
-| POST | `/lark-bridge/presence` | 写入 `{ presence: 'local' \| 'remote' }` 并返回新状态 |
 
 安全状态只包含 `cli`、`bot`、`user`、`ready` 与 `checkedAt`。路由不发送鉴权 URL、原始错误、App ID、用户名、open_id、token、scope 或会话错误。
 
 路由只接受回环来源，`Origin` 必须与 `ctx.webServer.getOrigin()` 一致；存在 `ctx.connection` 时再调用 `requestRejection`。
 
-Client 只创建一个状态控制器和一个配置表单。弹窗与配置页共享它们，工作区列表通过 `useWorkspaces` 订阅。
+Client 只创建一个状态控制器和两个配置表单：主行与「调度会话」行。弹窗与配置页共享它们，工作区列表通过 `useWorkspaces` 订阅。
 
 ## 工作区
 
@@ -157,6 +155,7 @@ ACK 由 lark-cli 完成；插件持续读取消费者输出，注入不阻塞事
 - 已存在的会话保持原有模型与预设。
 - 注入使用 `createUserMessage`，`source.kind` 是 `lark-bridge`，再调用 `agent.followup`。
 - 桥接提醒是一条 `source.reminder` 为 true 的 `<system-reminder>` 用户消息。
+- 桥接提醒要求所有桥接会话一律经 `lark_notify` 回复：完整内容写在通知里，成功送达后正文最多一句概述；通知失败时正文保留完整内容。
 
 `agent/pre-step` 检查桥接会话的表层：缺少提醒时把它插到本批第一条 `<lark-message>` 之前，已有提醒时跳过。桥接会话由状态文件的 `sessionId` 识别，因此压缩覆盖提醒后，下一次模型请求前会补回。
 
@@ -207,8 +206,6 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 调度会话按上报的 `kind` 更新任务：`progress` 设为 `in_progress`，`question` 设为 `waiting_user`。上报不结束任务。
 - 调度会话转述上报时按上报原文送达用户，只补充任务、工作区与待决问题等自己掌握的信息。
 - 调度会话自行判断任务是否完成：判断完成时先询问用户，用户确认后才用 `task_end(completed)` 结束；用户要求结束或取消时直接用 `task_end(cancelled)`。结束任务后以 `session_archive` 的 `stop_activity: true` 归档该任务的会话，归档同时移除置顶。
-- 在场状态见[在场状态](#在场状态)。
-- `SA-调度会话` 的提示词按最近的在场提醒选择渠道：离开时经 `lark_notify` 回复与转达，在电脑旁时在正文回复与转达。
 - `SA-调度会话` 不含 `tool-jobs`，保留 `persona`、`agent-instructions`、`time-context`、`skill-filesystem` 与压缩组。压缩组的 `compaction-basic` 设 `thresholdRatio: 0.3`，上下文压力到模型窗口 30% 时触发压缩。
 - 全局行与预设子行的工具叠加。`lark_notify` 来自本插件主行，其他插件的全局工具也照常可见。
 
@@ -220,16 +217,15 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 | --- | --- |
 | `send_report` | 除调度会话外都能看到；未被管理的会话调用报错。描述要求只在被要求时调用，并规定上报送达后正文最多一句简短收尾 |
 | 调度消息标记 | `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>` |
-| 提问拦截 | 用户离开时拒绝被管理会话的 `ask_user_question`，并结束正在等待的调用 |
-| S 注入 | 提问因离开失败后，在下一次模型请求前插入一条临时指令 |
+| 提问拦截 | 被管理会话的 `ask_user_question` 一律拒绝，并结束正在等待的调用 |
+| S 注入 | 提问被拒绝后，在下一次模型请求前插入一条临时指令 |
 | 轮次自动上报 | 正常结束、本轮未上报、无运行中子代理时把最后一段文本作为 `progress` 上报 |
 | 失败通知 | 轮次以错误结束时投递 `<task_session_failure>` |
 | 归档通知 | 被管理会话被归档时归档任务并投递 `<task_session_archived>` |
 
-- 在场提醒只插入调度会话；被管理会话在提问失败前对调度机制无感知。
-- 离开期间被管理会话的提问在执行前即被拒绝；其他插件要求审批时同样改为离开错误，不进入审批等待。
-- 提问拦截有两种途径：插件加载后开始的提问由 `tools/execute` 换上可中止信号；插件加载前已在等待的提问由网关私有接口取消。网关不可用时只记日志。
-- S 是一条临时指令，说明本次无法提问、改用 `send_report` 的 `question`，并要求后续忽略它；正文收尾要求与 `send_report` 描述同口径。同一会话同一时刻只保留一条。
+- 被管理会话的提问在执行前即被拒绝；其他插件要求审批时同样改为拒绝理由，不进入审批等待。
+- 会话开始被管理时与插件加载后，已在等待的提问被结束：插件加载后开始的提问由 `tools/execute` 换上可中止信号；加载前已等待的提问由网关私有接口取消。网关不可用时只记日志。
+- S 是一条临时指令，说明本会话不能直接提问、改用 `send_report` 的 `question`，并要求后续忽略它；正文收尾要求与 `send_report` 描述同口径。同一会话同一时刻只保留一条。
 - 自动上报带 `origin="turn_end"`，手动上报带 `origin="send_report"`，调度会话据此区分。
 
 ## 任务会话模型
@@ -245,64 +241,6 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 配置的预设不在宿主名册时省略，由宿主选默认预设，并写一条警告。
 - 选择只写入新会话本身，不写任何默认模型设置。
 - 保存配置后无需重启，每次调用读取实时配置。
-
-## 在场状态
-
-`lark-super-agent` 行持有一份内存中的全局在场状态：`local` 表示在电脑旁，`remote` 表示离开。
-
-- 行启用时状态为 `local`，不写盘。
-- 浏览器经 `/lark-bridge/presence` 读取与切换。`webServer` 是该行的可选依赖，就绪后才注册路由。
-- 该行注册全局 `agent/pre-step`，在 `next()` 之后观察本批消息：
-  - `source.kind === 'user'` 且 `guiInputSetsLocal` 开启时设为 `local`。
-  - `source.kind === 'lark-bridge'`、非桥接提醒且 `larkInputSetsRemote` 开启时设为 `remote`。
-  - 同批以最后一条可判定消息为准。同一消息对象只观察一次，手动切换与自动更新以发生先后为准。
-- 两个开关在行配置中，均为 volatile，默认 `true`，前端为 `dsh-plugin-lark-bridge#lark-super-agent` 注册配置页。
-- 手动切换记录 `lastManualAt`；输入更新与自动切换不记录。
-
-### 自动切换时间
-
-行配置的 `presenceAlarms` 是一组闹钟条目，每条含 `id`、`time`、`action`、`enabled`、`skipWeekends`、`skipHolidays`。
-
-- `PresenceScheduler` 每 15 秒判定一次当前 `HH:mm`，命中的启用条目按「日期 + 条目 id」去重后执行一次；同一分钟两种动作并存时以 `remote` 为准。
-- 执行前比较 `lastManualAt` 与到点时刻：手动切换晚于到点则跳过本次，手动结果保持到下一个到点。
-- 行启用时先补执行当天最近一个已过且未跳过的到点，再开始周期判定；不逐条补执行。
-- 到点时刻按宿主本地时间计算，日期与时间都取自本地时钟。
-
-### 节假日数据
-
-`HolidayCalendar` 按年获取 `NateScarlet/holiday-cn` 的年度 JSON，主源 jsDelivr，备源 raw.githubusercontent。
-
-- 缓存文件为 `<DSH_HOME>/lark-bridge/holiday-cache.json`，结构是 `fetchedAt` 加每年「日期到是否放假」的映射。
-- 24 小时过期；缺年份或过期时刷新，失败后退避 1 小时；并发刷新合并为一次请求。
-- `isOffDay` 为 `true` 表示法定节假日或调休放假，`false` 表示调休上班日：前者在开启跳过节假日时跳过，后者不按周末跳过。
-- 没有某年数据时只按星期判断周末；获取失败保留旧缓存并记一条警告，配置页在有条目跳过节假日时显示提示。
-- `/lark-bridge/presence` 的回答带 `holidays: { state, fetchedAt }`，`state` 取 `fresh`、`stale` 或 `missing`。
-
-### 配置页的时间选择控件
-
-- 时间选择控件是 ReUI 的 `@reui/time-picker`（shadcn 注册表条目，MIT）移植件，放在 `src/client/ui/time-picker.tsx`，底座是 `@radix-ui/react-popover`。
-- 只保留 24 小时制的时、分两列，`value` 直接是 `HH:mm`，与 `PresenceAlarm.time` 同格式。
-- 同目录的 `button.tsx`、`input.tsx`、`input-group.tsx`、`popover.tsx` 是 shadcn 源码移植件，`cn.ts` 对应 shadcn 的 `lib/utils`。
-- 样式由 Tailwind v4 生成：`src/client/tailwind.css` 只引入 utilities，`@theme inline` 把 shadcn 的语义色映射到 `--dsw-*` 令牌，preflight 不进产物。
-- `scripts/build-client-css.mjs` 在 tsdown 之前把 `tailwind.css` 编译成 `src/client/tailwind.generated.css`；`build`、`dev`、`check` 都会先跑它。
-
-两个预设子行在 `agent/pre-step` 调用服务的 `presence.reminderFor(session, messages)`：
-
-1. 先观察本批消息，保证提醒使用更新后的状态。
-2. 从 `session.surface.nodes` 末尾向前找第一条 `user/message` 且 `source.kind === 'sa-presence'` 的事件，读 `source.presence`。
-3. 找不到或与当前状态不同时，在本批消息最前插入提醒，`source` 为 `{ kind: 'sa-presence', form: 'notice', presence }`。
-
-- 识别与比较只读来源属性，不解析正文。
-- 提醒正文两个预设共用，只陈述用户位置。
-- 压缩移除提醒后，下一次模型请求前补回。
-- 其他预设的会话不插入提醒。
-
-前端 `PresenceController` 每 3 秒读取一次路由，页面隐藏时跳过：
-
-- 回答为在场状态 JSON 时，在 `sidebar.footer.action` 注册按钮，`order: 52`。
-- 回答不是 JSON 时视为行已停用，注销按钮。路由随行注销后，该路径的回答不是 JSON，0.2.2-rc.5 实测为无正文类型的 404。
-- 网络失败时保持现状。
-- 单击先显示目标状态再写入；写入期间暂停轮询，失败时恢复原状态并显示 3 秒错误态。
 
 ## 调度工作区存储
 
