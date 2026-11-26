@@ -111,7 +111,7 @@ export function applyManagedSessions(
     });
   });
 
-  // 调度消息来源标记与 S 注入；在场提醒只属于调度会话。
+  // 调度消息来源标记与 S 注入。
   ctx.on('agent/pre-step', async ({ agent }, next) => {
     const decision = await next();
     if (decision.kind === 'reject') return decision;

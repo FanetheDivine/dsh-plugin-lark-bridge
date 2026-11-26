@@ -1,4 +1,4 @@
-// 全局行测试：共享服务归属当前 fiber，被管理会话能力与在场状态路由随行注册与注销。
+// 全局行测试：共享服务归属当前 fiber，被管理会话能力随行注册与注销。
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
