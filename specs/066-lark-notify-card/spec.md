@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-26
 
-**Status**: Draft
+**Status**: Approved
 
 **Change Category**: 插件变更
 
@@ -27,7 +27,7 @@ None.
 ## Review Record
 
 - 2026-11-26 | Decision: Approved | Scope: 此前包含统一通知渠道的完整版本 | Open items: none | Risks: 该批准已被后续范围调整取代。
-- 待审查当前纯 UI 版本。
+- 2026-11-26 | Decision: Approved | Scope: 当前纯 UI 完整版本 | Open items: none | Risks: 成功卡片识别依赖现有工具结果文案，文案变化时回退为默认工具行。
 
 ## User Scenarios & Testing *(mandatory)*
 

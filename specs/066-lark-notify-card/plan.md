@@ -4,7 +4,7 @@
 
 **Input**: Feature specification from `/specs/066-lark-notify-card/spec.md`
 
-**Status**: Draft
+**Status**: Approved
 
 ## Open Decisions
 
@@ -22,7 +22,7 @@ None.
 
 ## Review Record
 
-- 待审查当前纯 UI 计划。
+- 2026-11-26 | Decision: Approved | Scope: 当前纯 UI 完整计划 | Open items: none | Risks: 成功卡片识别依赖现有工具结果文案，文案变化时回退为默认工具行。
 
 ## Summary
 
