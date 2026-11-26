@@ -138,6 +138,22 @@ describe('lark-super-agent 全局行', () => {
     expect(service).toBeInstanceOf(SuperAgentService);
   });
 
+  it('旧在场配置键被忽略', () => {
+    const { service } = startRow({
+      config: {
+        guiInputSetsLocal: false,
+        larkInputSetsRemote: false,
+        presenceAlarms: [{ id: 'a', time: '09:00', action: 'remote' }],
+        commonTaskProvider: 'deepseek',
+        commonTaskModel: 'deepseek-chat',
+      },
+    });
+    expect(service.taskModel('common')).toEqual({
+      provider: 'deepseek',
+      model: 'deepseek-chat',
+    });
+  });
+
   it('pre-step 把调度会话转来的消息包进 dispatch_session_message', async () => {
     const { base } = startRow();
     const dispatched = sourcedMessage('dsh-plugin-meta-tools', 'run the tests');
