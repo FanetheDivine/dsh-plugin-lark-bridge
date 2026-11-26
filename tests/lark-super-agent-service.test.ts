@@ -211,12 +211,12 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     await service.sendReport({ kind: 'question', text: '选哪个？' }, 'worker', 'ask_intercept');
     const block = messageText(steer.mock.calls[0]?.[0]);
     expect(block).toContain(`taskid="${taskId}" kind="question" origin="ask_intercept">`);
-    expect(block).toContain('选哪个？');
     const archived = await readFile(
       join(root, 'reports', taskId, 'report-20260102030405-abc123.md'),
       'utf8',
     );
     expect(archived).toContain('origin: "ask_intercept"');
+    expect(archived).toContain('选哪个？');
   });
 
   it('在被管理会话中先进档再向调度会话投递上报', async () => {
