@@ -221,7 +221,7 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 被管理会话的能力全部注册在全局行，见[被管理会话能力](#被管理会话能力)。
 - meta-tools 是 `SA-调度会话` 的子行，预设补丁关闭它的 `session_create`，其余九项能力开启。`session_create` 由 `sa-dispatch` 子行提供，见「任务会话模型」。
 - `SA-调度会话` 用 `ctx.systemPrompt.section` 注册提示词，要求自己的话只给结论、保持简短；转达报告全文不受此限。
-- 提示词写明用户只能看到 `lark_notify` 的内容。用户每条消息都回复；`session_create`、`session_send`、`session_manage`、`session_unmanage`、`task_end` 成功后下一步用 `lark_notify` 回应，置顶与归档排在同一步或其后，失败另发一条通知。同一任务的内容合并为一条并带 `task_id`，不同任务分开发送。
+- 提示词写明用户只能看到 `lark_notify` 的内容。用户每条消息都回复；`session_create`、`session_send`、`session_manage`、`session_unmanage`、`task_end` 成功后下一步用 `lark_notify` 回应，置顶与归档排在同一步或其后，失败另发一条通知。同一任务的内容合并为一条并带 `task_id`，不同任务分开发送；`task_end` 与 `session_unmanage` 之后任务已不存在，通知不带 `task_id`，正文开头写「<title> (<task id>)」。
 - 对用户提及任务时写成「名称 (id)」：名称取台账当前标题，每次提及都用全形式；名称取不到时说明并给出 id。桥接提醒对提及任务的情况提出同样要求。
 - 提示词要求调度会话自行回答 DSH 元信息问题（工作区、会话、任务状态），不为这类问题建任务。
 - 提示词把用户指令默认理解为交给新建任务会话在工作区执行的独立任务。调度会话自身只在调度工作区读写笔记、任务归档与报告。

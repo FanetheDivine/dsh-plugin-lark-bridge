@@ -376,6 +376,8 @@ describe('SA-调度会话子行', () => {
     expect(respond).toContain('one lark_notify per task');
     expect(respond).toContain('pass its task_id');
     expect(respond).toContain('Leave that prefix out of your text');
+    expect(respond).toContain('After task_end or session_unmanage, the task no longer exists');
+    expect(respond).toContain('Omit task_id for that notification and start your text with');
     expect(respond).toContain('reply_to');
     expect(respond).toContain('mode "card"');
     expect(respond).toContain('Send only the rest');

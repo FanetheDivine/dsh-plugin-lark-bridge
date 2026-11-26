@@ -298,7 +298,7 @@ None.
 - **FR-029**: 插件 MUST NOT 自动发卡片；卡片只由调度会话主动调用。调度提示词 MUST 说明何时使用卡片，例如报告特别长时。
 - **FR-030**: `lark_notify` MUST 新增可选 `task_id` 参数，文本模式与卡片模式都可使用。任务不存在或已结束时 MUST 返回错误、不发送。
 - **FR-031**: 台账查找 MUST 由 `lark_notify` 自行读取调度工作区完成，MUST NOT 依赖 `lark-super-agent` 行是否启用。台账或调度工作区根不可读时，带 `task_id` 的调用 MUST 返回错误并不发送；不带 `task_id` 的调用 MUST 照常发送。
-- **FR-032**: 带 `task_id` 时，任务名 MUST 由插件补写：飞书卡片标题与文本模式首行写「<title> (<task id>)」，正文 MUST NOT 重复该前缀。调度提示词与桥接提醒 MUST 说明带 `task_id` 的调用由插件补写任务名。
+- **FR-032**: 带 `task_id` 时，任务名 MUST 由插件补写：飞书卡片标题与文本模式首行写「<title> (<task id>)」，正文 MUST NOT 重复该前缀。调度提示词与桥接提醒 MUST 说明带 `task_id` 的调用由插件补写任务名。任务已结束（`task_end`、`session_unmanage`）后 `task_id` 不再有效，调度提示词 MUST 要求该次通知不带 `task_id`，由调用方在正文开头写「<title> (<task id>)」。该规则由实机验证发现：模型在 `task_end` 之后带已结束的 `task_id` 发通知，得到 `task-not-found`。
 - **FR-033**: 按任务分开发送 MUST 同样适用于文本模式：同一任务的内容合并为一条，不同任务分开发送，与任务无关的内容单独一条。
 - **FR-034**: 模型看到的 `lark_notify` 成功结果 MUST 只含第一条消息的标识；分段数、回复目标与会话标识 MUST 移除。失败结果 MUST 保持现有的错误码与说明。
 - **FR-035**: 带 `task_id` 时，GUI 通知卡片的会话链接 MUST 指向该任务的会话。任务会话 id MUST 由执行体按 `task_id` 查出并放进结果值，只由 `presentationMeta` 投影给 GUI，模型可见的 `render` 文本 MUST NOT 含该 id。未带 `task_id` 时 MUST NOT 显示会话链接。任务会话已归档时沿用现有的「已归档」显示。

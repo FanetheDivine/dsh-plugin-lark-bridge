@@ -95,8 +95,8 @@
 
 ## Phase 8: 真实宿主验证与交付
 
-- [ ] T043 使用 skill `real-device-test` 按 quickstart.md 的 8 个场景在真实 DSH 宿主验证，保留证据（命令输出、会话事件摘录、飞书消息 id、GUI 截图）于 `specs/069-dispatch-response-policy/evidence/`；发现缺陷则回到对应阶段修复并重验
-- [ ] T044 将验证结果写入 `specs/069-dispatch-response-policy/evidence/summary.md`，提交 `docs(069): 实机验证记录`
+- [x] T043 使用 skill `real-device-test` 按 quickstart.md 的 8 个场景在真实 DSH 宿主验证，保留证据（命令输出、会话事件摘录、飞书消息 id、GUI 截图）于 `specs/069-dispatch-response-policy/evidence/`；发现缺陷则回到对应阶段修复并重验
+- [x] T044 将验证结果写入 `specs/069-dispatch-response-policy/evidence/summary.md`，提交 `docs(069): 实机验证记录`
 - [ ] T045 执行 `speckit-worktree-finish`：同步 `origin/main`、推送、创建 PR、等待 CI 与合并、清理本地与远程分支及 worktree，确认仓库只剩 `main`
 
 ## Dependencies & Execution Order

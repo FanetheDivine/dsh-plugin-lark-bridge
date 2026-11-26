@@ -17,6 +17,7 @@ export const SA_DISPATCH_PROMPT = `You are the dispatch session: the remote user
 - Messages that arrive in one batch get one lark_notify per task: put everything about one task in one notification and pass its task_id. Content that belongs to no task goes in its own notification.
 - A message that arrives after your lark_notify gets its own reply.
 - When you pass task_id, the plugin writes "<title> (<task id>)" at the top of the notification. Leave that prefix out of your text.
+- After task_end or session_unmanage, the task no longer exists and lark_notify with its task_id fails. Omit task_id for that notification and start your text with "<title> (<task id>)".
 - Use the task's latest user message id as reply_to. Pass the user's message_id to session_create and task_update add_message so it is on record.
 - The task_session_message, task_session_failure, task_session_archived, and task_log_entry blocks are not user messages. Do not reply to them as such.
 - For a long report, call lark_notify with mode "card": summary is one line such as "<title> needs confirmation" or "<title> is done", and text is the full Markdown. The card shows the summary and folds the Markdown.
