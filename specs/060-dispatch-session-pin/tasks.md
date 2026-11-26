@@ -25,12 +25,12 @@
 
 **Independent Test**: `pnpm test:code` 通过；`SA_DISPATCH_PROMPT` 各节包含置顶与归档要求，且不再出现「结束任务不归档会话」。
 
-- [ ] T003 [US1] 在 `src/sa-dispatch/prompt.ts` 的 `## Start a task` 追加一步：`session_create` 成功后用 `session_pin` 置顶新会话
-- [ ] T004 [US2] 在 `src/sa-dispatch/prompt.ts` 的 `## Manage existing sessions` 追加 `session_manage` 后置顶，并把 `session_unmanage` 一句改为任务结束、会话与其置顶保留
-- [ ] T005 [US3] 在 `src/sa-dispatch/prompt.ts` 的 `## Decide when a task is done` 把「结束任务不归档会话」改为：结束任务后以 `session_archive` 加 `stop_activity: true` 归档会话，`completed` 与 `cancelled` 都归档
-- [ ] T006 [P] [US3] 在 `src/sa-dispatch/prompt.ts` 新增 `## Keep the session list current` 小节：再次置顶的条件、归档移除置顶、用户取消置顶后不补置顶、置顶或归档失败时说明并继续
-- [ ] T007 [US3] 在 `src/sa-dispatch/tools.ts` 删除 `task_end` 描述中的 `archive it separately when the user wants that`，保留会话保持未归档的行为事实
-- [ ] T008 [US1] [US2] [US3] 更新 `tests/sa-dispatch.test.ts`：小节顺序断言加入新小节；新增派发后置顶、接管后置顶、任务结束归档与取消管理保留置顶、失败说明的断言；替换 `It leaves the session unarchived` 断言；补 `task_end` 描述删句断言
+- [x] T003 [US1] 在 `src/sa-dispatch/prompt.ts` 的 `## Start a task` 追加一步：`session_create` 成功后用 `session_pin` 置顶新会话
+- [x] T004 [US2] 在 `src/sa-dispatch/prompt.ts` 的 `## Manage existing sessions` 追加 `session_manage` 后置顶，并把 `session_unmanage` 一句改为任务结束、会话与其置顶保留
+- [x] T005 [US3] 在 `src/sa-dispatch/prompt.ts` 的 `## Decide when a task is done` 把「结束任务不归档会话」改为：结束任务后以 `session_archive` 加 `stop_activity: true` 归档会话，`completed` 与 `cancelled` 都归档
+- [x] T006 [P] [US3] 在 `src/sa-dispatch/prompt.ts` 新增 `## Keep the session list current` 小节：再次置顶的条件、归档移除置顶、用户取消置顶后不补置顶、置顶或归档失败时说明并继续
+- [x] T007 [US3] 在 `src/sa-dispatch/tools.ts` 删除 `task_end` 描述中的 `archive it separately when the user wants that`，保留会话保持未归档的行为事实
+- [x] T008 [US1] [US2] [US3] 更新 `tests/sa-dispatch.test.ts`：小节顺序断言加入新小节；新增派发后置顶、接管后置顶、任务结束归档与取消管理保留置顶、失败说明的断言；替换 `It leaves the session unarchived` 断言；补 `task_end` 描述删句断言
 
 **Checkpoint**: commit `fix(060): 调度提示词要求置顶任务会话并在任务结束时归档`
 

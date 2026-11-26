@@ -211,6 +211,12 @@ describe('SA-调度会话子行', () => {
     expect(completed).toEqual({ taskId: 'task-1' });
   });
 
+  it('task_end 描述只陈述行为，不给出与新规则冲突的归档建议', () => {
+    const definition = tool(mount().tools, 'task_end');
+    expect(definition.description).toContain('The session stays unarchived');
+    expect(definition.description).not.toContain('archive it separately');
+  });
+
   it('task_end 只接受 completed 与 cancelled，reason 必填', async () => {
     const host = mount();
 
@@ -320,6 +326,7 @@ describe('SA-调度会话子行', () => {
       'Add messages to a task',
       'Handle reports',
       'Decide when a task is done',
+      'Keep the session list current',
       'Other messages from the service',
       'Choose tasks',
       'Notes',
@@ -353,14 +360,16 @@ describe('SA-调度会话子行', () => {
       'Always pass an empty task_type and omit provider, model, and effort unless the user explicitly asks',
     );
     expect(start).toMatch(/task's only session/);
+    expect(start).toContain('Then pin the new session with session_pin');
     expect(SA_DISPATCH_PROMPT).not.toContain('task_create');
     expect(SA_DISPATCH_PROMPT).not.toContain('task_candidates');
   });
 
-  it('提示词说明 session_manage 与 session_unmanage', () => {
+  it('提示词说明 session_manage 与 session_unmanage，并在接管后置顶', () => {
     const manage = section('Manage existing sessions');
     expect(manage).toMatch(/session_manage with its session id/);
-    expect(manage).toMatch(/session_unmanage\. The task ends and the session stays/);
+    expect(manage).toContain('Then pin that session with session_pin');
+    expect(manage).toMatch(/session_unmanage\. The task ends; the session and its pin stay/);
     expect(manage).toMatch(/archives a session, its task ends on its own/);
   });
 
@@ -383,13 +392,26 @@ describe('SA-调度会话子行', () => {
     expect(reports).toMatch(/desc .*correct the task title with task_update/);
   });
 
-  it('提示词要求用户确认后才以 completed 结束，取消时立即以 cancelled 结束', () => {
+  it('提示词要求用户确认后才以 completed 结束，取消时立即以 cancelled 结束并归档会话', () => {
     const done = section('Decide when a task is done');
     expect(done).toContain('task_end(completed) only after the user confirms');
     expect(done).toMatch(/finish or cancel a task.*task_end\(cancelled\) right away/);
-    expect(done).toContain('It leaves the session unarchived');
+    expect(done).toContain('its session is archived the same way');
+    expect(done).toContain('session_archive and stop_activity: true');
+    expect(done).toContain('the archive drops its pin');
+    expect(done).not.toContain('It leaves the session unarchived');
     expect(done).toContain(
       'A partial result, a failed turn, a quiet session, and a question are not a finished task',
+    );
+  });
+
+  it('提示词把再次置顶、取消置顶与失败处理集中在新小节', () => {
+    const list = section('Keep the session list current');
+    expect(list).toContain('Pin a session again or unpin it only when the user asks');
+    expect(list).toContain('session_pin with remove: true');
+    expect(list).toContain('Archiving a session drops its pin');
+    expect(list).toContain(
+      'When session_pin or session_archive fails, say so in the same reply and continue',
     );
   });
 

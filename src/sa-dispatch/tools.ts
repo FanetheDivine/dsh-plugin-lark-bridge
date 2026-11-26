@@ -83,8 +83,7 @@ export function registerDispatchTools(ctx: DispatchContext): void {
   ctx.tools.register(
     defineTool({
       name: 'task_end',
-      description:
-        'End a task and archive it with its reports. The session stays unarchived; archive it separately when the user wants that.',
+      description: 'End a task and archive it with its reports. The session stays unarchived.',
       parameters: {
         task_id: { type: 'string', required: true, description: 'Existing task id.' },
         reason: {
