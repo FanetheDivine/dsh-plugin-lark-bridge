@@ -62,7 +62,7 @@
 
 ## R-06 前端与 Tailwind 的清理边界
 
-**Decision**: 删除 `src/client/ui/`、`tailwind.css`、`tailwind.generated.css`、`scripts/build-client-css.mjs` 与九项专属 devDependencies；`dev`、`check`、`build`、`test:code` 去掉 `css:build`。保留 `@tsdown/css`、tsdown 的 `css: { fileName: 'client.css' }` 与 `inlineClientCss`。
+**Decision**: 删除 `src/client/ui/`、`tailwind.css`、`tailwind.generated.css`、`scripts/build-client-css.mjs` 与八项专属 devDependencies；`dev`、`check`、`build`、`test:code` 去掉 `css:build`。保留 `clsx`（宿主 `ModelSelect` 源码直接 import）、`@tsdown/css`、tsdown 的 `css: { fileName: 'client.css' }` 与 `inlineClientCss`。
 
 **Rationale**: `src/client/ui/` 的两个使用方都是在场组件。上报卡片的 `report-card.css` 与官方模型选择器的 CSS module 仍需要 tsdown 打包并内联；这条管线与 Tailwind 无关。
 

@@ -104,14 +104,14 @@
 
 ## Phase 4: User Story 3 - 移除 Tailwind 构建与专属依赖 (Priority: P3)
 
-**Goal**: 删除只在场所用到的 UI 移植件、Tailwind 输入与构建脚本、九项专属依赖。
+**Goal**: 删除只在场所用到的 UI 移植件、Tailwind 输入与构建脚本、八项专属依赖。
 
 **Independent Test**: `pnpm build` 不再执行 Tailwind；`grep` 无 `tailwind` 与 `src/client/ui`；`pnpm check` 通过。
 
 **Commit**: `refactor(067): 移除 Tailwind 构建与专属依赖`
 
 - [X] T025 [US3] 删除 `src/client/ui/` 下 7 个文件、`src/client/tailwind.css`、`src/client/tailwind.generated.css`、`scripts/build-client-css.mjs`。
-- [X] T026 [US3] 更新 `package.json`：删除九项依赖与 `css:build` 脚本，`dev`、`check`、`build`、`test:code` 去掉 `css:build`；运行 `pnpm install` 更新 `pnpm-lock.yaml`。
+- [X] T026 [US3] 更新 `package.json`：删除八项依赖（保留 `clsx`）与 `css:build` 脚本，`dev`、`check`、`build`、`test:code` 去掉 `css:build`；运行 `pnpm install` 更新 `pnpm-lock.yaml`。
 - [X] T027 [US3] 运行 `pnpm check` 与 `pnpm build`，确认 `dist/client.js` 仍内联上报卡片与官方选择器样式后提交。
 
 **Checkpoint**: 构建链只保留 `@tsdown/css`。

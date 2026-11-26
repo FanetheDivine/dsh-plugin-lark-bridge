@@ -34,7 +34,7 @@ None.
 
 **Language/Version**: TypeScript 6.0（Node ESM，DSH 插件）
 
-**Primary Dependencies**: 宿主 `@deepseek-ai/dsh-*@0.2.2-rc.5`；`dsh-plugin-meta-tools@0.1.7`；无新增依赖。移除 `@radix-ui/react-popover`、`@radix-ui/react-slot`、`@radix-ui/react-tooltip`、`@tailwindcss/cli`、`class-variance-authority`、`clsx`、`tailwind-merge`、`tailwindcss`、`tw-animate-css` 九项 devDependencies；保留 `@tsdown/css`。
+**Primary Dependencies**: 宿主 `@deepseek-ai/dsh-*@0.2.2-rc.5`；`dsh-plugin-meta-tools@0.1.7`；无新增依赖。移除 `@radix-ui/react-popover`、`@radix-ui/react-slot`、`@radix-ui/react-tooltip`、`@tailwindcss/cli`、`class-variance-authority`、`tailwind-merge`、`tailwindcss`、`tw-animate-css` 八项 devDependencies；保留 `clsx`（宿主 `ModelSelect` 源码直接 import，类型检查与打包需要）与 `@tsdown/css`。
 
 **Storage**: 任务台账、上报与归档不变；不再读取或写入 `<DSH_HOME>/lark-bridge/holiday-cache.json`。
 
