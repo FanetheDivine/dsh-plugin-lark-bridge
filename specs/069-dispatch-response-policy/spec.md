@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-26
 
-**Status**: Draft
+**Status**: Approved
 
 **Change Category**: 插件变更
 
@@ -78,7 +78,7 @@ None.
 
 ## Review Record
 
-尚无记录。
+- 2026-11-26 | Decision: Approved | Scope: current full document | Open items: none | Risks: 任务日志归档后只作历史留存；部分发送失败依赖模型按错误说明补发；任务名由插件补写，提示词与桥接提醒需同步放松；报告归档后需按回退路径读取。
 
 ## 现状基线
 
