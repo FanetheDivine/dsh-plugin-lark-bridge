@@ -148,7 +148,14 @@ describe('前端产物（dist/client.js）', () => {
       }
       throw new Error(`产物请求了平台种子之外的模块：${id}`);
     });
-    expect(exported.inject).toEqual(['slots', 'locale', 'configForms', 'remote', 'remote.session']);
+    expect(exported.inject).toEqual([
+      'slots',
+      'locale',
+      'configForms',
+      'remote',
+      'remote.session',
+      'uiWorkspace',
+    ]);
 
     if (exported === undefined) throw new Error('产物工厂没有返回导出对象');
     const ctx = makeClientCtx();

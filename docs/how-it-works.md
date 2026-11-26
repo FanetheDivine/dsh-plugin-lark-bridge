@@ -183,12 +183,14 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 其余段仍用 `+messages-send`。`reply_to` 不做预先校验，无法回复时返回 `reply-failed` 错误，不回落为普通发送。
 
-成功的 `lark_notify` 在对话中显示为只含完整 `text` 的正文卡片：
+成功的 `lark_notify` 在对话中显示完整正文与来源会话：
 
-- 前端注册 Conversation Definition `lark-notify-result`，匹配 `lark_notify` 的 `tool/call` 与符合现有成功文案的 `tool/result`。结果只用于确认成功，卡片正文取自 `tool/call` 的 `arguments.text`。
+- 成功结果携带当前 `agent.session.id` 为 `sessionId`，`output.presentationMeta` 把标识持久化到 `tool/result.meta`。模型可见的回执文本不变。
+- 前端注册 Conversation Definition `lark-notify-result`，匹配 `lark_notify` 的 `tool/call` 与符合现有成功文案的 `tool/result`。卡片正文取自 `tool/call` 的 `arguments.text`，来源会话取自结果元数据。
 - Definition 产出 `lark-notify` Chat 节点，`groupTree` 为 `turn`，位于结果之后。节点不进入过程分组，轮次折叠后仍然可见。
-- 卡片注册在 `conversation.chat.node` 的 `lark-notify` 键，按纯文本保留换行，不显示标题、回执、分段数、`reply_to` 或 `messageId`。
-- 进行中、失败与中断沿用宿主默认工具行。历史窗口缺少调用参数或正文为空时不产生空卡片。
+- 卡片注册在 `conversation.chat.node` 的 `lark-notify` 键，按纯文本保留换行。会话区域显示完整标识，并通过 `useWorkspaces` 同时读取工作区成员关系与归档状态。
+- 目标属于工作区且未归档时显示按钮，点击调用 `ctx.uiWorkspace.openSession`。已归档目标显示「已归档」标签，未知目标只显示标识。
+- 进行中、失败与中断沿用宿主默认工具行。历史窗口缺少调用参数或正文为空时不产生空卡片；历史结果缺少元数据时只显示正文。
 
 ## 调度服务与预设叠加
 

@@ -159,7 +159,8 @@ export type ClientServiceName =
   | 'configForms'
   | 'remote'
   | 'remote.session'
-  | 'uiConversation';
+  | 'uiConversation'
+  | 'uiWorkspace';
 
 /** 全部客户端服务名。 */
 const CLIENT_SERVICES: ClientServiceName[] = [
@@ -169,6 +170,7 @@ const CLIENT_SERVICES: ClientServiceName[] = [
   'remote',
   'remote.session',
   'uiConversation',
+  'uiWorkspace',
 ];
 
 /** 客户端 ctx 模拟的观测字段。 */
@@ -192,6 +194,8 @@ export interface ClientMockState {
   _conversationDefinitions: Array<Record<string, unknown>>;
   /** 当前未被注销的 Definition。 */
   _activeConversationDefinitions: Set<Record<string, unknown>>;
+  /** `uiWorkspace.openSession` 收到的目标。 */
+  _openedSessions: string[];
 }
 
 /** 一个 `ctx.inject` 依赖组的运行态。 */
@@ -224,6 +228,7 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
     _injectGroups: [],
     _conversationDefinitions: [],
     _activeConversationDefinitions: new Set(),
+    _openedSessions: [],
   };
   const noop = () => true;
   /** 访问不可用服务时抛错。 */
@@ -279,6 +284,11 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
           state._activeConversationDefinitions.delete(definition);
         };
       },
+    },
+  };
+  const uiWorkspaceService = {
+    openSession(sessionId: string) {
+      state._openedSessions.push(sessionId);
     },
   };
   const slotsService = {
@@ -365,6 +375,9 @@ export function makeClientCtx(options: { services?: ClientServiceName[] } = {}) 
     },
     get uiConversation() {
       return require('uiConversation', uiConversationService);
+    },
+    get uiWorkspace() {
+      return require('uiWorkspace', uiWorkspaceService);
     },
     /** 让服务变为可用，并加载依赖已齐的组。 */
     _grant(...names: ClientServiceName[]) {

@@ -23,9 +23,10 @@ const NOTIFY_TOOL = 'lark_notify';
 /** 现有成功结果；分段数只用于完整匹配，不在卡片展示。 */
 const SUCCESS_RESULT = /^已(?:发送|回复)给用户（[1-9]\d* 条）$/;
 
-/** 卡片展示的数据，只有发送正文。 */
+/** 卡片展示的数据：发送正文与可选的来源会话。 */
 export interface NotifyCardData {
   readonly text: string;
+  readonly sessionId?: string;
 }
 
 declare module '@deepseek-ai/dsh-client-ui-chat/client' {
@@ -51,6 +52,13 @@ export function parseNotifyText(raw: string | undefined): string {
   if (typeof value !== 'object' || value === null) return '';
   const text = (value as Record<string, unknown>).text;
   return typeof text === 'string' ? text : '';
+}
+
+/** 从工具结果的展示元数据读取非空来源会话标识。 */
+function parseNotifySessionId(meta: unknown): string | undefined {
+  if (typeof meta !== 'object' || meta === null || Array.isArray(meta)) return undefined;
+  const sessionId = (meta as Record<string, unknown>).sessionId;
+  return typeof sessionId === 'string' && sessionId.trim() !== '' ? sessionId : undefined;
 }
 
 /** 结果是单条文本时返回它；其余形状不提供读数。 */
@@ -122,8 +130,12 @@ function cardSource(call: ConversationMatch | undefined, result: ConversationMat
   const event = result.event as SessionEvent<'tool/result'>;
   const cached = cardSources.get(event);
   if (cached !== undefined && cached.call === call?.event) return cached;
+  const sessionId = parseNotifySessionId(event.data.meta);
   const source: CardSource = {
-    data: { text: parseNotifyText(argsRawOf(call)) },
+    data: {
+      text: parseNotifyText(argsRawOf(call)),
+      ...(sessionId === undefined ? {} : { sessionId }),
+    },
     resultSeq: event.seq,
     call: call?.event,
   };

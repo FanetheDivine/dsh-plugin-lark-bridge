@@ -7,6 +7,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
+import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import { AuthOverlay } from './auth-overlay.tsx';
 import { PluginConfigForm, ROW_ID, ROW_KEY } from './config-form.ts';
 import { ConfigPage } from './config-page.tsx';
@@ -32,7 +34,7 @@ import {
 } from './task-model-field.tsx';
 
 /** 需要宿主注入的客户端服务。 */
-export const inject = ['slots', 'locale', 'configForms', 'remote', 'remote.session'];
+export const inject = ['slots', 'locale', 'configForms', 'remote', 'remote.session', 'uiWorkspace'];
 
 /** 注册共享状态、弹窗和配置页。 */
 export function apply(ctx: Context): void {
@@ -41,7 +43,7 @@ export function apply(ctx: Context): void {
   });
 
   // 上报与通知卡片：成功结果产出轮次层级节点，工具行保持宿主默认行。
-  ctx.inject(['slots', 'uiConversation'], (ctx) => {
+  ctx.inject(['slots', 'uiConversation', 'uiWorkspace'], (ctx) => {
     ctx.effect(() => {
       const unregisterReport = registerReportDefinition(ctx);
       const unregisterNotify = registerNotifyDefinition(ctx);
@@ -58,7 +60,14 @@ export function apply(ctx: Context): void {
     );
     ctx.slots.inject('conversation.chat.node', () =>
       ctx.slots.register(
-        { name: 'conversation.chat.node', key: NOTIFY_NODE_KIND, locale: NS },
+        {
+          name: 'conversation.chat.node',
+          key: NOTIFY_NODE_KIND,
+          locale: NS,
+          inject: () => ({
+            openSession: (sessionId: string) => ctx.uiWorkspace.openSession(sessionId as SessionId),
+          }),
+        },
         NotifyCard as never,
       ),
     );
