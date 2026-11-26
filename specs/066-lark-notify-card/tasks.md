@@ -63,7 +63,7 @@
 
 ## Phase 7: 实机验证
 
-- [ ] T016 按 `quickstart.md` 与 `real-device-test` 技能验证成功/失败通知、上报与通知正文色、历史加载和折叠可见性，在 `specs/066-lark-notify-card/real-device-report.md` 记录结果与仓库内截图路径
+- [X] T016 按 `quickstart.md` 与 `real-device-test` 技能验证成功/失败通知、上报与通知正文色、历史加载和折叠可见性，在 `specs/066-lark-notify-card/real-device-report.md` 记录结果与仓库内截图路径
 
 **Commit**: `test(066): 记录通知与上报卡片实机验证`
 
