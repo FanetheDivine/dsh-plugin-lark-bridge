@@ -77,8 +77,8 @@ export const REPORT_KINDS = ['progress', 'question'] as const;
 /** 上报类型。 */
 export type ReportKind = (typeof REPORT_KINDS)[number];
 
-/** 上报来源：会话主动上报或轮次结束自动上报。 */
-export type ReportOrigin = 'send_report' | 'turn_end';
+/** 上报来源：会话主动上报、轮次结束自动上报或提问拦截代为上报。 */
+export type ReportOrigin = 'send_report' | 'turn_end' | 'ask_intercept';
 
 /** 上报参数。 */
 export interface SendReportInput {

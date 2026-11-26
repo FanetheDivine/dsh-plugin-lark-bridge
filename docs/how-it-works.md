@@ -247,16 +247,16 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 | --- | --- |
 | `send_report` | 除调度会话外都能看到；未被管理的会话调用报错。描述要求只在被要求时调用，并规定上报送达后正文最多一句简短收尾 |
 | 调度消息标记 | `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>` |
-| 提问拦截 | 被管理会话的 `ask_user_question` 一律拒绝，并结束正在等待的调用 |
-| S 注入 | 提问被拒绝后，在下一次模型请求前插入一条临时指令 |
-| 轮次自动上报 | 正常结束、本轮未上报、无运行中子代理时把最后一段文本作为 `progress` 上报 |
+| 提问拦截 | 被管理会话的 `ask_user_question` 在工具体前被拦截：代为上报 `question`、任务置 `waiting_user` 并结束当前轮次；投递失败时退回拒绝反馈 |
+| S 注入 | 提问被拒绝（仅投递失败回退）后，在下一次模型请求前插入一条临时指令 |
+| 轮次自动上报 | 正常结束、本轮未上报、无运行中子代理时把最后一段文本作为 `progress` 上报；拦截代为上报的轮次同样视为已上报 |
 | 失败通知 | 轮次以错误结束时投递 `<task_session_failure>` |
 | 归档通知 | 被管理会话被归档时归档任务并投递 `<task_session_archived>` |
 
-- 被管理会话的提问在执行前即被拒绝；其他插件要求审批时同样改为拒绝理由，不进入审批等待。
+- 被管理会话的提问由 `tools/execute` 环绕钩子拦截，工具体不运行；上报正文按调用参数逐条列出题面、表头与选项，`origin` 为 `ask_intercept`。成功结果经宿主 `concludeTurn` 通道在当前步结束轮次；其他插件要求审批时该调用被放行到环绕钩子处理，不进入审批等待。
 - 会话开始被管理时与插件加载后，已在等待的提问被结束：插件加载后开始的提问由 `tools/execute` 换上可中止信号；加载前已等待的提问由网关私有接口取消。网关不可用时只记日志。
 - S 是一条临时指令，说明本会话不能直接提问、改用 `send_report` 的 `question`，并要求后续忽略它；正文收尾要求与 `send_report` 描述同口径。同一会话同一时刻只保留一条。
-- 自动上报带 `origin="turn_end"`，手动上报带 `origin="send_report"`，调度会话据此区分。
+- 自动上报带 `origin="turn_end"`，手动上报带 `origin="send_report"`，拦截上报带 `origin="ask_intercept"`，调度会话据此区分。
 
 ## 任务会话模型
 
