@@ -141,7 +141,8 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | `tests/task-model.test.ts` | 任务会话模型与预设的配置读取 |
 | `tests/managed-ask-guard.test.ts` | 离开时拒绝与中止提问、网关取消与 S 标记 |
 | `tests/managed-turn-report.test.ts` | 轮次结束自动上报的触发与抑制 |
-| `tests/report-card.test.ts` | `send_report` 卡片在三种阶段的显示 |
+| `tests/report-card.test.ts` | 上报卡片的内容、文件按钮与文案回退 |
+| `tests/report-node.test.ts` | 上报卡片 Definition 的事件匹配、参数解析与节点产出 |
 | `tests/presets-patch.test.ts` | 补丁行、调度预设子行与标准预设快照的差异 |
 | `tests/config-form.test.ts` | 配置页草稿与字段集、校验、保存、恢复默认、放弃与卸载 |
 | `tests/release-archive.test.mjs` | CHANGELOG 归档计划 |
@@ -261,7 +262,8 @@ src/
     ├── presence-controller.ts # 在场状态轮询、切换与行可用性
     ├── presence-button.tsx # 页脚在场按钮与折叠栏样式
     ├── presence-config.tsx # lark-super-agent 行的开关、时间与任务会话配置页
-    ├── report-card.tsx     # send_report 的专用卡片
+    ├── report-card.tsx     # 上报卡片的渲染
+    ├── report-node.ts      # 上报卡片的 Conversation Definition
     ├── preset-defaults.ts  # 预设名册与选择
     ├── preset-select.tsx   # 预设下拉
     ├── task-model-field.tsx # 任务会话模型选择项

@@ -339,7 +339,11 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 - 自动上报在轮次正常结束、本轮没有调用 `send_report`、会话没有运行中的子代理时触发，来源记为 `turn_end`；调度会话不可用时只写日志。
 - 全局行监听 `reason.kind === 'error'` 的 `turn/end`，每轮失败向调度会话投递一次 `<task_session_failure>`；取消不触发通知。
 - 失败通知包含会话、任务标识与截断后的错误原因，不进入上报存档，也不提交 git。
-- `SA-调度会话` 的 `send_report` 结果以专用卡片展示类型、`desc`、正文与附件。
+- 成功的 `send_report` 在对话中显示为上报卡片，内容为类型、`desc`、Markdown 正文、附件与 `reportId`：
+  - 前端注册 Conversation Definition `lark-report-result`，匹配 `send_report` 的 `tool/call` 与投递成功的 `tool/result`，参数取自 `tool/call` 的 `arguments`。
+  - Definition 产出 `lark-report` Chat 节点，`groupTree` 为 `turn`，位于结果之后。节点不进入过程分组，轮次折叠后仍然可见。
+  - 卡片注册在 `conversation.chat.node` 的 `lark-report` 键，附件按钮调用宿主 `openFile` 在右侧栏打开。
+  - `send_report` 的工具行由宿主默认工具行显示，进行中、失败与中断都沿用它。
 
 ## 生命周期
 
