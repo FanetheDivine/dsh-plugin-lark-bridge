@@ -159,6 +159,8 @@ export class SuperAgentService implements LarkSuperAgentService {
   readonly taskPreset: () => string;
   private readonly ctx: ContextLike;
   private readonly options: SuperAgentServiceOptions;
+  /** 任务建立后的监听；由被管理会话能力设置。 */
+  private managedListener: ((sessionId: string) => void) | undefined;
 
   constructor(ctx: ContextLike, options: SuperAgentServiceOptions = {}) {
     this.ctx = ctx;
@@ -271,7 +273,14 @@ export class SuperAgentService implements LarkSuperAgentService {
   }
 
   async createTask(input: CreateTaskInput): Promise<{ taskId: string }> {
-    return this.notes(await this.storageRoot()).createTask(input);
+    const result = await this.notes(await this.storageRoot()).createTask(input);
+    this.managedListener?.(input.sessionId);
+    return result;
+  }
+
+  /** 任务建立后通知监听者；由被管理会话能力在加载时设置。 */
+  setManagedSessionListener(listener: (sessionId: string) => void): void {
+    this.managedListener = listener;
   }
 
   async updateTask(input: UpdateTaskInput): Promise<{ taskId: string; status: Task['status'] }> {

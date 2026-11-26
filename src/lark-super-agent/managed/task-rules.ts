@@ -1,5 +1,5 @@
 /**
- * S：用户离开时提问失败后插入的临时指令，说明改用 send_report 提问。
+ * S：提问被拒后插入的临时指令，说明改用 send_report 提问。
  * 正文收尾要求与 send_report 描述同口径。
  * 导出 TASK_RULES_SOURCE_KIND、TASK_RULES_TEXT 与任务提醒的识别与构造。
  */
@@ -11,7 +11,7 @@ import type { PresenceSessionLike } from '../presence.ts';
 export const TASK_RULES_SOURCE_KIND = 'lark-task-rules';
 
 /** 提醒正文。 */
-export const TASK_RULES_TEXT = `This is a one-off instruction for this turn; ignore it afterwards. The user cannot answer your question right now. Call send_report with kind question to ask instead of ask_user_question.
+export const TASK_RULES_TEXT = `This is a one-off instruction for this turn; ignore it afterwards. This session is managed by the dispatch session and cannot ask the user directly. Call send_report with kind question to ask instead of ask_user_question.
 
 - Put everything for the user in the report: conclusions, lists, blockers, and the decision you need. After the report, your response body holds at most one short closing line, or stays empty.
 - desc: summarize this task, because the dispatch session knows only the task's first message.

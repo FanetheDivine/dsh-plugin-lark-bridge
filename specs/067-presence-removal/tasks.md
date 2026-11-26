@@ -34,16 +34,16 @@
 
 ### Tests for User Story 1
 
-- [ ] T001 [P] [US1] 重写 `tests/managed-ask-guard.test.ts`：覆盖被管理会话一律 `deny`、他方 `deny`/`cancel` 原样返回、未被管理与会话缺失时放行、`cancel(sessionId)` 中止控制器并取消网关请求、`sweep()` 只为被管理会话取消、网关缺失或抛错时只记日志、S 标记只生效一次。
-- [ ] T002 [P] [US1] 更新 `tests/lark-super-agent-index.test.ts`：用任务台账驱动被管理会话的提问拦截与下一次请求中的 S；删除依赖 `presence.set('remote')` 的用例。
+- [X] T001 [P] [US1] 重写 `tests/managed-ask-guard.test.ts`：覆盖被管理会话一律 `deny`、他方 `deny`/`cancel` 原样返回、未被管理与会话缺失时放行、`cancel(sessionId)` 中止控制器并取消网关请求、`sweep()` 只为被管理会话取消、网关缺失或抛错时只记日志、S 标记只生效一次。
+- [X] T002 [P] [US1] 更新 `tests/lark-super-agent-index.test.ts`：用任务台账驱动被管理会话的提问拦截与下一次请求中的 S；删除依赖 `presence.set('remote')` 的用例。
 
 ### Implementation for User Story 1
 
-- [ ] T003 [US1] 重写 `src/lark-super-agent/managed/ask-guard.ts`：删除 `PresenceStore` 依赖与订阅；`beforeExecute` 先 `await next()`，保留他方 `deny`/`cancel`，对其余被管理会话调用 `cancel(sessionId)` 后返回 `{ kind: 'deny', reason: ASK_BLOCKED_ERROR }`；`aroundExecute` 为所有提问登记中止控制器；`cancel` 中止控制器并取消网关里该会话的 `user-questions/request`，同时排队 S；`sweep` 在加载时遍历网关请求并按 `isManaged` 取消；错误文案改为「本会话不能直接向用户提问，改用 `send_report` 的 `kind: question`」；删除 `interruptAll` 与因在场提前返回的分支。
-- [ ] T004 [US1] 更新 `src/lark-super-agent/managed/index.ts`：`AskGuard` 构造去掉 `presence`；调用 `void askGuard.sweep()`；经 `service.setManagedSessionListener((id) => askGuard.cancel(id))` 接线。
-- [ ] T005 [US1] 更新 `src/lark-super-agent/api.ts` 与 `src/lark-super-agent/service.ts`：接口增加 `setManagedSessionListener(listener: (sessionId: string) => void): void`；实现在 `createTask` 成功后通知该会话；同步更新 `tests/tool-schema.test.ts`、`tests/session-create.test.ts`、`tests/list-models.test.ts` 的服务桩。
-- [ ] T006 [US1] 更新 `src/lark-super-agent/managed/task-rules.ts`：S 正文改为「本会话不能直接向用户提问，调用 `send_report` 的 `kind: question`」，保留 `lark-task-rules` 来源与 `form: 'notice'`，保留同一会话最多一条与 `hasTaskRules` 去重。
-- [ ] T007 [US1] 运行 `pnpm check`，确认本阶段通过后提交。
+- [X] T003 [US1] 重写 `src/lark-super-agent/managed/ask-guard.ts`：删除 `PresenceStore` 依赖与订阅；`beforeExecute` 先 `await next()`，保留他方 `deny`/`cancel`，对其余被管理会话调用 `cancel(sessionId)` 后返回 `{ kind: 'deny', reason: ASK_BLOCKED_ERROR }`；`aroundExecute` 为所有提问登记中止控制器；`cancel` 中止控制器并取消网关里该会话的 `user-questions/request`，同时排队 S；`sweep` 在加载时遍历网关请求并按 `isManaged` 取消；错误文案改为「本会话不能直接向用户提问，改用 `send_report` 的 `kind: question`」；删除 `interruptAll` 与因在场提前返回的分支。
+- [X] T004 [US1] 更新 `src/lark-super-agent/managed/index.ts`：`AskGuard` 构造去掉 `presence`；调用 `void askGuard.sweep()`；经 `service.setManagedSessionListener((id) => askGuard.cancel(id))` 接线。
+- [X] T005 [US1] 更新 `src/lark-super-agent/api.ts` 与 `src/lark-super-agent/service.ts`：接口增加 `setManagedSessionListener(listener: (sessionId: string) => void): void`；实现在 `createTask` 成功后通知该会话；同步更新 `tests/tool-schema.test.ts`、`tests/session-create.test.ts`、`tests/list-models.test.ts` 的服务桩。
+- [X] T006 [US1] 更新 `src/lark-super-agent/managed/task-rules.ts`：S 正文改为「本会话不能直接向用户提问，调用 `send_report` 的 `kind: question`」，保留 `lark-task-rules` 来源与 `form: 'notice'`，保留同一会话最多一条与 `hasTaskRules` 去重。
+- [X] T007 [US1] 运行 `pnpm check`，确认本阶段通过后提交。
 
 **Checkpoint**: 拦截行为可独立验证，在场状态仍保留供后续阶段使用。
 

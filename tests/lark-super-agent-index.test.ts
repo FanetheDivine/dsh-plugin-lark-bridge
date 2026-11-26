@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readPresenceAlarms, readPresenceSwitches } from '../src/lark-super-agent/config.ts';
 import { apply, Config, inject } from '../src/lark-super-agent/index.ts';
-import { ASK_TOOL, AWAY_ERROR } from '../src/lark-super-agent/managed/ask-guard.ts';
+import { ASK_BLOCKED_ERROR, ASK_TOOL } from '../src/lark-super-agent/managed/ask-guard.ts';
 import { SEND_REPORT_DESCRIPTION } from '../src/lark-super-agent/managed/report-tool.ts';
 import {
   TASK_RULES_SOURCE_KIND,
@@ -330,20 +330,19 @@ describe('lark-super-agent 全局行', () => {
     expect(notify).toHaveBeenCalledOnce();
   });
 
-  it('离开期间提问被拒后，下一次模型请求前注入一次 S', async () => {
+  it('被管理会话的提问被拒后，下一次模型请求前注入一次 S', async () => {
     const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
     mkdirSync(workspaceRoot, { recursive: true });
     writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
     writeManagedTask(workspaceRoot, 'worker', 'task-20260101000000-0001');
-    const { base, service } = startRow();
-    service.presence.set('remote');
+    const { base } = startRow();
 
     const beforeExecute = base._onCallbacks.get('tools/pre-execute')?.[0];
     if (beforeExecute === undefined) throw new Error('missing tools/pre-execute listener');
     const exec = { name: ASK_TOOL, callId: 'call-1', agent: { session: { id: 'worker' } } };
     await expect(beforeExecute(exec, async () => ({ kind: 'allow' }))).resolves.toEqual({
       kind: 'deny',
-      reason: AWAY_ERROR,
+      reason: ASK_BLOCKED_ERROR,
     });
 
     const messages = [sourcedMessage('user')];

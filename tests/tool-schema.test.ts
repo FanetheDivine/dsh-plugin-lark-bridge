@@ -28,6 +28,7 @@ function makeService(): LarkSuperAgentService {
     bridgeSessionId: vi.fn(),
     managedTask: vi.fn(),
     createTask: vi.fn(),
+    setManagedSessionListener: vi.fn(),
     assertDispatchable: vi.fn(),
     manageSession: vi.fn(),
     updateTask: vi.fn(),
