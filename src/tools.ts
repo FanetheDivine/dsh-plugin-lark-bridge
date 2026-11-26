@@ -16,6 +16,8 @@ export interface NotifyResult {
   readonly parts?: number;
   readonly messageId?: string;
   readonly replyTo?: string;
+  /** 产生通知的当前 DSH 会话。 */
+  readonly sessionId?: string;
   readonly error?: { readonly code: string; readonly message: string };
 }
 
@@ -86,7 +88,11 @@ function readReplyTo(args: Record<string, unknown>): { replyTo?: string; error?:
  * @param args - 工具参数。
  * @returns 发送结果；失败以结果返回，不抛异常。
  */
-export async function sendNotification(deps: NotifyDeps, args: unknown): Promise<NotifyResult> {
+export async function sendNotification(
+  deps: NotifyDeps,
+  args: unknown,
+  sessionId?: string,
+): Promise<NotifyResult> {
   if (typeof args !== 'object' || args === null || Array.isArray(args)) {
     return { ok: false, error: { code: 'invalid-args', message: '参数必须是对象' } };
   }
@@ -145,6 +151,7 @@ export async function sendNotification(deps: NotifyDeps, args: unknown): Promise
     parts: parts.length,
     ...(first === undefined ? {} : { messageId: first }),
     ...(reply.replyTo === undefined ? {} : { replyTo: reply.replyTo }),
+    ...(sessionId === undefined ? {} : { sessionId }),
   };
 }
 
@@ -163,6 +170,7 @@ export function buildNotifyTool(deps: NotifyToolDeps): ToolDefinition {
           parts: { type: 'integer' },
           messageId: { type: 'string' },
           replyTo: { type: 'string' },
+          sessionId: { type: 'string' },
           error: {
             type: 'object',
             properties: { code: { type: 'string' }, message: { type: 'string' } },
@@ -170,6 +178,12 @@ export function buildNotifyTool(deps: NotifyToolDeps): ToolDefinition {
           },
         },
         required: ['ok'],
+      },
+      presentationMeta: (_args, value) => {
+        const result = value as unknown as NotifyResult;
+        return result.ok && typeof result.sessionId === 'string' && result.sessionId.trim() !== ''
+          ? { sessionId: result.sessionId }
+          : {};
       },
       render: (_args, value) => {
         const result = value as unknown as NotifyResult;
@@ -185,7 +199,7 @@ export function buildNotifyTool(deps: NotifyToolDeps): ToolDefinition {
     async execute(args: unknown, exec: ToolRunContext) {
       if (!(await isAvailable(deps, exec.agent))) return notBridgeSession();
       try {
-        return await sendNotification(deps, args);
+        return await sendNotification(deps, args, exec.agent?.session.id);
       } catch (error) {
         if (error instanceof BridgeError) {
           return { ok: false, error: { code: error.code, message: error.message } };

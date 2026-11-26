@@ -24,19 +24,19 @@
 
 ### Tests for User Story 1
 
-- [ ] T002 [US1] 更新 `tests/tools.test.ts`，验证成功结果与 `presentationMeta` 包含当前 `sessionId` 且回执文本不变
-- [ ] T003 [P] [US1] 更新 `tests/notify-node.test.ts`，验证合法元数据进入 `NotifyCardData`，空白、非字符串、数组与缺失元数据被忽略
-- [ ] T004 [P] [US1] 更新 `tests/notify-card.test.ts`，验证有效未归档会话按钮、点击目标、未知会话只读和历史正文
-- [ ] T005 [US1] 更新 `tests/helpers.ts` 与 `tests/client.test.ts`，验证 `uiWorkspace` 依赖、`openSession` 注入和新增双语字典
+- [X] T002 [US1] 更新 `tests/tools.test.ts`，验证成功结果与 `presentationMeta` 包含当前 `sessionId` 且回执文本不变
+- [X] T003 [P] [US1] 更新 `tests/notify-node.test.ts`，验证合法元数据进入 `NotifyCardData`，空白、非字符串、数组与缺失元数据被忽略
+- [X] T004 [P] [US1] 更新 `tests/notify-card.test.ts`，验证有效未归档会话按钮、点击目标、未知会话只读和历史正文
+- [X] T005 [US1] 更新 `tests/helpers.ts` 与 `tests/client.test.ts`，验证 `uiWorkspace` 依赖、`openSession` 注入和新增双语字典
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] 修改 `src/tools.ts`，在成功结果与输出 schema 增加可选 `sessionId`，执行时读取当前 agent 并投影展示元数据
-- [ ] T007 [US1] 修改 `src/client/notify-node.ts`，从 `tool/result.meta` 解析非空字符串并写入可选 `sessionId`
-- [ ] T008 [US1] 修改 `src/client/notify-card.tsx`，订阅会话目录与归档快照，显示有效会话链接和只读回退
-- [ ] T009 [P] [US1] 修改 `src/client/notify-card.css`，实现会话 footer、宿主颜色令牌与长标识换行
-- [ ] T010 [US1] 修改 `src/client/index.ts` 与 `src/client/locales.ts`，注入 `openSession` 并添加会话相关中英文文案
-- [ ] T011 [US1] 运行 `tests/tools.test.ts`、`tests/notify-node.test.ts`、`tests/notify-card.test.ts`、`tests/client.test.ts` 与 `tests/card-styles.test.ts`
+- [X] T006 [US1] 修改 `src/tools.ts`，在成功结果与输出 schema 增加可选 `sessionId`，执行时读取当前 agent 并投影展示元数据
+- [X] T007 [US1] 修改 `src/client/notify-node.ts`，从 `tool/result.meta` 解析非空字符串并写入可选 `sessionId`
+- [X] T008 [US1] 修改 `src/client/notify-card.tsx`，订阅会话目录与归档快照，显示有效会话链接和只读回退
+- [X] T009 [P] [US1] 修改 `src/client/notify-card.css`，实现会话 footer、宿主颜色令牌与长标识换行
+- [X] T010 [US1] 修改 `src/client/index.ts` 与 `src/client/locales.ts`，注入 `openSession` 并添加会话相关中英文文案
+- [X] T011 [US1] 运行 `tests/tools.test.ts`、`tests/notify-node.test.ts`、`tests/notify-card.test.ts`、`tests/client.test.ts` 与 `tests/card-styles.test.ts`
 
 **Commit**: `feat(068): 通知关联并跳转到来源会话`
 

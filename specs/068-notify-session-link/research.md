@@ -22,9 +22,9 @@
 
 ## 会话与归档状态
 
-**Decision**: 使用 `useSessions` 的 `SessionListState.byId` 判定目标存在，使用 `useWorkspaces` 的 `WorkspaceSnapshot.archivedSessionIds` 判定归档。
+**Decision**: 使用 `useWorkspaces` 的 `WorkspaceSnapshot.items[].sessionIds` 判定目标存在，使用同一快照的 `archivedSessionIds` 判定归档。
 
-**Rationale**: 两个快照由宿主控制器维护并支持订阅。归档是会话目录之外的状态，需要同时读取。
+**Rationale**: 桥接会话始终挂载工作区，归档保留成员关系。单个快照即可提供两种状态，Chat 节点无需额外的会话 hook。
 
 **Alternatives Considered**: 读取当前会话或后端状态文件无法覆盖历史目标；点击后再处理错误会提供已知无效的入口。
 

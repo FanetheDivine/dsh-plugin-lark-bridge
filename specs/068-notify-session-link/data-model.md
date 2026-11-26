@@ -33,13 +33,9 @@
 
 解析只接受对象中的非空字符串。空白、非字符串、数组、空值和缺失字段均视为无关联。
 
-## SessionListState
-
-卡片读取目标 `sessionId` 在 `byId` 中是否存在。目录尚未包含目标时按只读状态展示。
-
 ## WorkspaceSnapshot
 
-卡片读取 `archivedSessionIds.includes(sessionId)`。归档状态优先于目录存在性，归档目标始终只读。
+卡片读取 `items[].sessionIds` 判定目标是否属于工作区，并读取 `archivedSessionIds.includes(sessionId)` 判定归档。桥接会话始终属于工作区，归档保留成员关系。归档状态优先于成员关系，未知目标按只读状态展示。
 
 ## 展示状态
 

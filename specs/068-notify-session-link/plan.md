@@ -16,7 +16,7 @@
 
 - [P-001] Q: 会话标识如何随历史通知保存？ -> A: 成功结果携带 `sessionId`，通过 `output.presentationMeta` 持久化到 `tool/result.meta`。
 - [P-002] Q: 前端如何恢复关联？ -> A: `notify-node.ts` 从结果元数据读取非空 `sessionId`，写入 `NotifyCardData`。
-- [P-003] Q: 如何判定归档和有效会话？ -> A: `useWorkspaces` 读取 `archivedSessionIds`，`useSessions` 读取会话目录。
+- [P-003] Q: 如何判定归档和有效会话？ -> A: `useWorkspaces` 同时读取 `items[].sessionIds` 与 `archivedSessionIds`；桥接会话始终属于工作区。
 - [P-004] Q: 如何执行跳转？ -> A: 槽位注入 `openSession`，调用 `ctx.uiWorkspace.openSession(sessionId)`。
 - [P-005] Q: 如何保持兼容？ -> A: 缺失或非法元数据时省略会话区域，正文和成功结果文本保持不变。
 
@@ -90,7 +90,7 @@
 - `src/client/notify-card.tsx`
   - 正文区域保持不变。
   - 有 `sessionId` 时显示“会话”标签和完整标识。
-  - 目标在会话目录中且未归档时显示按钮；点击调用注入的 `openSession`。
+  - 目标属于工作区且未归档时显示按钮；点击调用注入的 `openSession`。
   - 已归档时显示只读标识与“已归档”标签。
   - 目录未就绪或目标缺失时显示只读标识。
 - `src/client/index.ts`

@@ -34,7 +34,7 @@ function callEvent(seq: number, name = 'lark_notify', args: unknown = { text: '�
 function resultEvent(
   seq: number,
   text = '已发送给用户（2 条）',
-  options: { isError?: boolean; surfaceOp?: string } = {},
+  options: { isError?: boolean; surfaceOp?: string; meta?: unknown } = {},
 ) {
   return {
     type: 'tool/result',
@@ -44,6 +44,7 @@ function resultEvent(
     data: {
       turn: 1,
       step: 1,
+      ...(options.meta === undefined ? {} : { meta: options.meta }),
       message: {
         role: 'tool',
         source: { kind: 'tool', callId: 'call-1' },
@@ -131,6 +132,22 @@ describe('buildNotifyNode', () => {
       location: LOCATION,
       data: { text: '第一行\n第二行' },
     });
+  });
+
+  it('从结果展示元数据恢复来源会话标识', () => {
+    const node = buildNotifyNode(
+      contextOf([callEvent(1), resultEvent(5, undefined, { meta: { sessionId: 'session-1' } })]),
+    );
+    expect(node?.data).toEqual({ text: '第一行\n第二行', sessionId: 'session-1' });
+  });
+
+  it('缺失或非法元数据不会伪造会话关联', () => {
+    for (const meta of [undefined, null, {}, { sessionId: '' }, { sessionId: '  ' }, { sessionId: 3 }, [], 'session-1']) {
+      const node = buildNotifyNode(
+        contextOf([callEvent(1), resultEvent(5, undefined, { meta })]),
+      );
+      expect(node?.data).toEqual({ text: '第一行\n第二行' });
+    }
   });
 
   it('进行中、空正文与历史缺调用都不产生空卡片', () => {

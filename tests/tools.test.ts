@@ -207,6 +207,11 @@ describe('buildNotifyTool', () => {
     expect(parameters.properties?.['text']).toMatchObject({ type: 'string' });
     expect(parameters.properties?.['reply_to']).toMatchObject({ type: 'string' });
     expect(parameters.required).toEqual(['text']);
+    expect(tool.output.schema.properties).toMatchObject({ sessionId: { type: 'string' } });
+    expect(
+      tool.output.presentationMeta?.({}, { ok: true, parts: 1, sessionId: 'session-1' }),
+    ).toEqual({ sessionId: 'session-1' });
+    expect(tool.output.presentationMeta?.({}, { ok: false })).toEqual({});
     expect(parameters).not.toHaveProperty('$schema');
     expect(Object.keys(parameters)).toEqual([
       'type',
@@ -258,7 +263,7 @@ describe('buildNotifyTool', () => {
     const { tool, calls } = makeTool(true);
     await expect(
       tool.execute({ text: 'hello' }, { agent: { session: { id: 's1' } } } as never),
-    ).resolves.toEqual({ ok: true, parts: 1, messageId: 'om_sent' });
+    ).resolves.toEqual({ ok: true, parts: 1, messageId: 'om_sent', sessionId: 's1' });
     expect(calls[0]?.args.slice(0, 5)).toEqual([
       'im',
       '+messages-send',

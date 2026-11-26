@@ -69,6 +69,9 @@ export const zh = {
   'report.copy': '复制',
   'report.copied': '已复制',
   'report.footnotes': '脚注',
+  'notify.session': '会话',
+  'notify.openSession': '打开会话',
+  'notify.archived': '已归档',
 } as const;
 
 /** 英文字典，键集与中文一致。 */
@@ -138,6 +141,9 @@ export const en: Record<BridgeKey, string> = {
   'report.copy': 'Copy',
   'report.copied': 'Copied',
   'report.footnotes': 'Footnotes',
+  'notify.session': 'Session',
+  'notify.openSession': 'Open session',
+  'notify.archived': 'Archived',
 };
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

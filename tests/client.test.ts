@@ -275,12 +275,13 @@ describe('前端入口', () => {
       'configForms',
       'remote',
       'remote.session',
+      'uiWorkspace',
     ]);
     const ctx = makeClientCtx();
     apply(ctx);
     expect(ctx._injectGroups).toEqual([
       ['locale'],
-      ['slots', 'uiConversation'],
+      ['slots', 'uiConversation', 'uiWorkspace'],
       ['slots', 'locale', 'configForms', 'remote', 'remote.session'],
       ['remote.agentPresets'],
     ]);
@@ -311,6 +312,11 @@ describe('前端入口', () => {
       locale: NS,
     });
     expect(ctx._slotRegistrations[1]?.component).toBe(NotifyCard);
+    const notifyInject = ctx._slotRegistrations[1]?.options.inject as
+      | (() => { openSession(sessionId: string): void })
+      | undefined;
+    notifyInject?.().openSession('session-1');
+    expect(ctx._openedSessions).toEqual(['session-1']);
     expect(ctx._conversationDefinitions.map((entry) => entry.kind)).toEqual([
       REPORT_DEFINITION_KIND,
       NOTIFY_DEFINITION_KIND,
