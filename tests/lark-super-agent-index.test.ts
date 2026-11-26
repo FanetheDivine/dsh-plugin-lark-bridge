@@ -223,18 +223,32 @@ describe('lark-super-agent 全局行', () => {
     expect(service.presence.get().presence).toBe('local');
   });
 
-  it('taskModel 与 taskPreset 读取行配置的实时值', () => {
+  it('taskModel 与 taskPreset 读取行配置的实时值，支持按任务类型与默认任务类型读取', () => {
     const { service } = startRow({
       config: {
-        taskProvider: 'deepseek',
-        taskModel: 'deepseek-chat',
-        taskEffort: 'high',
+        commonTaskProvider: 'deepseek',
+        commonTaskModel: 'deepseek-chat',
+        commonTaskEffort: 'low',
+        complexTaskProvider: 'anthropic',
+        complexTaskModel: 'claude-opus',
+        complexTaskEffort: 'high',
+        defaultTaskType: 'complex',
         taskPreset: 'task-session',
       },
     });
     expect(service.taskModel()).toEqual({
+      provider: 'anthropic',
+      model: 'claude-opus',
+      reasoningEffort: 'high',
+    });
+    expect(service.taskModel('common')).toEqual({
       provider: 'deepseek',
       model: 'deepseek-chat',
+      reasoningEffort: 'low',
+    });
+    expect(service.taskModel('complex')).toEqual({
+      provider: 'anthropic',
+      model: 'claude-opus',
       reasoningEffort: 'high',
     });
     expect(service.taskPreset()).toBe('task-session');

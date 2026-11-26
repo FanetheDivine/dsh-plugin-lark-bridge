@@ -16,6 +16,7 @@ import type {
   SendReportInput,
   SendReportResult,
   Task,
+  TaskType,
   UpdateTaskInput,
   WorkspaceRegistryLike,
 } from './api.ts';
@@ -88,8 +89,8 @@ export interface ContextLike {
 export interface SuperAgentServiceOptions {
   /** 全局在场状态；缺省时新建一份，两个开关均开启。 */
   presence?: PresenceStore;
-  /** 读取任务会话模型的实时值；缺省时视为未配置。 */
-  taskModel?: () => ModelSelection | undefined;
+  /** 按任务类型（省略时取默认任务类型）读取任务会话模型的实时值；缺省时视为未配置。 */
+  taskModel?: (taskType?: TaskType) => ModelSelection | undefined;
   /** 读取任务会话预设的实时值；缺省时视为未配置。 */
   taskPreset?: () => string;
   home?: string;
@@ -152,8 +153,8 @@ export const NOT_MANAGED_ERROR =
 export class SuperAgentService implements LarkSuperAgentService {
   /** 全局在场状态；整个插件共用一份。 */
   readonly presence: PresenceStore;
-  /** 读取任务会话模型的实时值；未配置时返回 undefined。 */
-  readonly taskModel: () => ModelSelection | undefined;
+  /** 按任务类型（省略时取默认任务类型）读取任务会话模型的实时值；未配置时返回 undefined。 */
+  readonly taskModel: (taskType?: TaskType) => ModelSelection | undefined;
   /** 读取任务会话预设的实时值；未配置时返回空串。 */
   readonly taskPreset: () => string;
   private readonly ctx: ContextLike;

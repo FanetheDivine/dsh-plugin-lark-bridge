@@ -5,6 +5,12 @@
 import type { ModelSelection } from '@deepseek-ai/dsh-agent';
 import type { PresenceStore } from './presence.ts';
 
+/** 任务类型：普通任务与复杂任务。 */
+export const TASK_TYPES = ['common', 'complex'] as const;
+
+/** 任务类型。 */
+export type TaskType = (typeof TASK_TYPES)[number];
+
 /** 未结束任务的状态。 */
 export type TaskStatus = 'in_progress' | 'waiting_user' | 'failed';
 
@@ -101,8 +107,8 @@ export interface BridgeState {
 export interface LarkSuperAgentService {
   /** 全局在场状态。 */
   readonly presence: PresenceStore;
-  /** 读取新建任务会话时使用的模型；未配置时返回 undefined。 */
-  readonly taskModel: () => ModelSelection | undefined;
+  /** 按任务类型（省略时取默认任务类型）读取新建任务会话时使用的模型；未配置时返回 undefined。 */
+  readonly taskModel: (taskType?: TaskType) => ModelSelection | undefined;
   /** 读取新建任务会话时使用的预设；未配置时返回空串。 */
   readonly taskPreset: () => string;
   /** 读取调度会话 id；读取失败时返回 null。 */

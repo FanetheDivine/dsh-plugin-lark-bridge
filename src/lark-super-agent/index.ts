@@ -34,7 +34,7 @@ export function apply(ctx: Context, config?: unknown): void {
   });
   const service = new SuperAgentService(ctx, {
     presence,
-    taskModel: () => readTaskModel(config),
+    taskModel: (taskType) => readTaskModel(config, taskType),
     taskPreset: () => readTaskPreset(config),
   });
   ctx.effect(() => ctx.provide('larkSuperAgent', service), 'lark-super-agent: service');
