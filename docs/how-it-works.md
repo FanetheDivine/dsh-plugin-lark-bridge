@@ -229,13 +229,13 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 ## 任务会话模型
 
-`lark-super-agent` 行的 `taskProvider`、`taskModel`、`taskEffort` 与 `taskPreset` 保存新建任务会话时使用的模型与预设，均为 volatile 字符串，默认空。provider 与模型同时非空才成立，effort 只在成立时生效。
+`lark-super-agent` 行的 `commonTaskProvider`、`commonTaskModel`、`commonTaskEffort`、`complexTaskProvider`、`complexTaskModel`、`complexTaskEffort`、`defaultTaskType` 与 `taskPreset` 保存新建任务会话时使用的普通/复杂任务模型、默认任务类型与预设。模型与预设字段均为 volatile 字符串，默认空；`defaultTaskType` 取 `'common'` 或 `'complex'`，默认 `'common'`。provider 与模型同时非空才成立，effort 只在成立时生效。
 
-- 配置页复用官方 `ModelSelect` 与模型目录，字段名经 `ModelDefaults` 的第四个参数指定，effort 只能取所选模型支持的值。
+- 配置页复用官方 `ModelSelect` 与模型目录，普通任务与复杂任务分别使用一个 `ModelDefaults` 实例，并在标题旁提供「默认」/「设为默认」切换 `defaultTaskType`。
 - 「任务会话预设」复用主行「预设」的下拉组件，配置键为 `taskPreset`，空值表示跟随宿主默认。
-- `sa-dispatch` 子行注册自己的 `session_create`，参数不含 `agent_preset`，预设始终取配置值。
+- `sa-dispatch` 子行注册自己的 `session_create`，参数不含 `agent_preset`，支持可选 `task_type`（`'common'`、`'complex'` 或空值），预设始终取配置值。
 - 创建流程：`sessionController.create` 新建会话，随后 `agent.model.select` 写入模型，再改标题，接着建立任务，最后发送首条提示。首条提示在选择之后才送达，首轮请求即用该模型，首轮结束的自动上报也能找到任务。
-- 模型优先级：调用参数里的 `provider`、`model`、`effort`，其次是配置的「任务会话模型」，最后是宿主默认。
+- 模型优先级：调用参数里的 `provider`、`model`、`effort` 覆盖任务类型模型；其次是 `task_type`（为空时取配置的 `defaultTaskType`）对应的「普通任务模型」或「复杂任务模型」；最后是宿主默认（不在普通与复杂任务模型之间互相回退）。
 - 显式参数经 `llm.resolveCallConfig` 校验，失败时报错且不创建会话。配置的模型校验失败、`llm` 不可用或未配置时，新会话沿用宿主默认，校验失败写一条警告。
 - 配置的预设不在宿主名册时省略，由宿主选默认预设，并写一条警告。
 - 选择只写入新会话本身，不写任何默认模型设置。

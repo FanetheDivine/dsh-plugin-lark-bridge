@@ -12,6 +12,8 @@
 - 调度会话新增 `session_manage`、`session_unmanage` 与 `task_end`，删除 `task_create` 与 `task_candidates`；`task_update` 不再接受结束状态。
 - `session_create` 去掉 `agent_preset`，新增必填 `title` 与 `prompt`，创建后立即建立任务。
 - 任务由调度会话判断完成并经用户确认后结束；结束任务不归档会话。
-- `lark-super-agent` 行配置键 `workerProvider`、`workerModel`、`workerEffort` 改为 `taskProvider`、`taskModel`、`taskEffort`，新增 `taskPreset`。
+- 「飞书任务与调度会话」行更名为「调度会话」，描述改为「用调度会话统一管理其他任务会话」。
+- `lark-super-agent` 行配置拆分为普通任务模型（`commonTaskProvider`、`commonTaskModel`、`commonTaskEffort`）、复杂任务模型（`complexTaskProvider`、`complexTaskModel`、`complexTaskEffort`）、默认任务类型（`defaultTaskType`，默认 `'common'`）与 `taskPreset`。
+- `session_create` 新增可选 `task_type` 参数（`common`/`complex`/空值），在用户未明确要求时总是按默认任务类型创建会话。
 - 文案与文档中的「工作会话」改为「任务会话」。
 - `send_report` 的调用结果以专用卡片展示类型、`desc`、正文与附件。

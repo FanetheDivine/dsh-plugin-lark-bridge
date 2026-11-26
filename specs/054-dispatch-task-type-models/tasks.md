@@ -62,8 +62,8 @@
 
 **Purpose**: 同步用户文档、开发者文档、预设补丁注释与变更日志，并通过全量质量门禁。
 
-- [ ] T014 [P] 更新 `cordis.patch.yml`、`README.md`、`docs/how-it-works.md`、`docs/known-risks.md` 与 `CHANGELOG.md`：将「飞书任务与调度会话」更新为「调度会话」，同步普通/复杂任务模型、默认任务类型与 `session_create` 的 `task_type` 说明
-- [ ] T015 运行 `pnpm format && pnpm full-check` 完成代码格式化、类型检查、lint、源码测试、构建与产物测试
+- [x] T014 [P] 更新 `cordis.patch.yml`、`README.md`、`docs/how-it-works.md`、`docs/known-risks.md` 与 `CHANGELOG.md`：将「飞书任务与调度会话」更新为「调度会话」，同步普通/复杂任务模型、默认任务类型与 `session_create` 的 `task_type` 说明
+- [x] T015 运行 `pnpm format && pnpm full-check` 完成代码格式化、类型检查、lint、源码测试、构建与产物测试
 
 ---
 
