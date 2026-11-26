@@ -188,7 +188,7 @@ lark-cli im +messages-reply --as bot --message-id <message_id> --text - --idempo
 
 | 预设 | 组成 |
 | --- | --- |
-| `SA-调度会话` | 标准预设中的 11 个基础工具、meta-tools 十项能力与本插件覆写的 `session_create`、`task_update`、`task_end`、`session_manage`、`session_unmanage`、`workspace_note_set`、`workspace_note_remove` 与调度提示词段 |
+| `SA-调度会话` | 标准预设中的 11 个基础工具、meta-tools 十项能力与本插件覆写的 `session_create`、`list_models`、`task_update`、`task_end`、`session_manage`、`session_unmanage`、`workspace_note_set`、`workspace_note_remove` 与调度提示词段 |
 
 - 「被管理」是会话状态，与预设无关：`message-task-status.json` 中某个未结束任务记录的 `sessionId` 即为被管理会话，一个会话最多对应一个任务。
 - 被管理会话的能力全部注册在全局行，见[被管理会话能力](#被管理会话能力)。
