@@ -400,7 +400,6 @@ describe('SA-调度会话子行注册 session_create', () => {
       larkSuperAgent: {
         taskModel: () => TASK_MODEL,
         taskPreset: () => TASK_PRESET,
-        presence: { reminderFor: () => undefined },
       },
       systemPrompt: { section: () => () => true },
       logger: { ...base.logger, warn },

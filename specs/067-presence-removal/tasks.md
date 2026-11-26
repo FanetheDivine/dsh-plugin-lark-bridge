@@ -82,21 +82,21 @@
 
 ### Tests for User Story 3
 
-- [ ] T013 [P] [US3] 删除 `tests/presence.test.ts`、`tests/presence-routes.test.ts`、`tests/presence-schedule.test.ts`、`tests/presence-client.test.ts`、`tests/presence-alarms.test.ts`、`tests/presence-alarms-client.test.ts`。
-- [ ] T014 [P] [US3] 更新 `tests/client.test.ts`：改用 `TaskConfigPage`，断言槽位注册、摘要文案与渲染结果不含两个开关、时间编辑与节假日提示。
-- [ ] T015 [P] [US3] 更新 `tests/model-defaults.test.ts` 与 `tests/preset-defaults.test.ts`：改用 `TaskConfigForm` 与 `hooks.taskConfig`。
+- [X] T013 [P] [US3] 删除 `tests/presence.test.ts`、`tests/presence-routes.test.ts`、`tests/presence-schedule.test.ts`、`tests/presence-client.test.ts`、`tests/presence-alarms.test.ts`、`tests/presence-alarms-client.test.ts`。
+- [X] T014 [P] [US3] 更新 `tests/client.test.ts`：改用 `TaskConfigPage`，断言槽位注册、摘要文案与渲染结果不含两个开关、时间编辑与节假日提示。
+- [X] T015 [P] [US3] 更新 `tests/model-defaults.test.ts` 与 `tests/preset-defaults.test.ts`：改用 `TaskConfigForm` 与 `hooks.taskConfig`。
 
 ### Implementation for User Story 3
 
-- [ ] T016 [P] [US3] 删除 `src/lark-super-agent/presence.ts`、`routes.ts`、`schedule.ts`、`alarms.ts`、`holidays.ts`。
-- [ ] T017 [US3] 更新 `src/lark-super-agent/index.ts`：删除 `PresenceStore`、`HolidayCalendar`、`PresenceScheduler`、路由注册、`agent/pre-step` 观察与 `webServer` 注入；`inject` 保持 `['tools']`。
-- [ ] T018 [US3] 更新 `src/lark-super-agent/config.ts`（删除 `guiInputSetsLocal`、`larkInputSetsRemote`、`presenceAlarms` 与两个读取函数，保留任务模型与 `taskPreset`）、`src/lark-super-agent/api.ts`（删除 `presence`）、`src/lark-super-agent/service.ts`（删除 `presence` 与 `DEFAULT_SWITCHES`）、`src/constants.ts`（删除 `HOLIDAY_*`、`PRESENCE_TICK_MS`）、`src/config.ts`（删除 `holidayCachePath` 与 `HOLIDAY_CACHE_FILE` 引用）、`src/lark-super-agent/managed/task-rules.ts`（用本地会话结构替换 `PresenceSessionLike`）。
-- [ ] T019 [US3] 删除 `src/client/presence-controller.ts`、`presence-button.tsx`、`presence-alarms-editor.tsx`、`presence-alarms.css`。
-- [ ] T020 [US3] 将 `src/client/presence-config.tsx` 改名为 `src/client/task-config.tsx`：删除两个开关字段、闹钟字段、两个分区、节假日提示、`PresenceController` 依赖与相关 CSS；导出改为 `TASK_ROW_ID`、`TASK_ROW_KEY`、`TaskConfigForm`、`TaskConfigFields`、`TaskConfigState`、`TaskConfigInjected`、`TaskConfigPage`；hook 键改为 `taskConfig`；保留普通/复杂任务模型、默认任务类型与任务预设。
-- [ ] T021 [US3] 更新 `src/client/index.ts`：删除页脚按钮挂载、`PresenceController`、在场表单与 `RAIL_CSS`；挂载 `TaskConfigPage`；摘要文案与注入改用 `taskConfig`。
-- [ ] T022 [US3] 更新 `src/client/api.ts`（删除 `Presence`、`PresenceStatus`、`fetchPresence`、`writePresence` 与节假日类型）与 `src/client/locales.ts`（删除 `presence.*`、闹钟与节假日文案，`presenceConfig.*` 改为 `taskConfig.*`，zh/en 键集保持一致）。
-- [ ] T023 [US3] 更新 `cordis.patch.yml`：删除 `guiInputSetsLocal`、`larkInputSetsRemote` 与注释。
-- [ ] T024 [US3] 运行 `pnpm check`，确认本阶段通过后提交。
+- [X] T016 [P] [US3] 删除 `src/lark-super-agent/presence.ts`、`routes.ts`、`schedule.ts`、`alarms.ts`、`holidays.ts`。
+- [X] T017 [US3] 更新 `src/lark-super-agent/index.ts`：删除 `PresenceStore`、`HolidayCalendar`、`PresenceScheduler`、路由注册、`agent/pre-step` 观察与 `webServer` 注入；`inject` 保持 `['tools']`。
+- [X] T018 [US3] 更新 `src/lark-super-agent/config.ts`（删除 `guiInputSetsLocal`、`larkInputSetsRemote`、`presenceAlarms` 与两个读取函数，保留任务模型与 `taskPreset`）、`src/lark-super-agent/api.ts`（删除 `presence`）、`src/lark-super-agent/service.ts`（删除 `presence` 与 `DEFAULT_SWITCHES`）、`src/constants.ts`（删除 `HOLIDAY_*`、`PRESENCE_TICK_MS`）、`src/config.ts`（删除 `holidayCachePath` 与 `HOLIDAY_CACHE_FILE` 引用）、`src/lark-super-agent/managed/task-rules.ts`（用本地会话结构替换 `PresenceSessionLike`）。
+- [X] T019 [US3] 删除 `src/client/presence-controller.ts`、`presence-button.tsx`、`presence-alarms-editor.tsx`、`presence-alarms.css`。
+- [X] T020 [US3] 将 `src/client/presence-config.tsx` 改名为 `src/client/task-config.tsx`：删除两个开关字段、闹钟字段、两个分区、节假日提示、`PresenceController` 依赖与相关 CSS；导出改为 `TASK_ROW_ID`、`TASK_ROW_KEY`、`TaskConfigForm`、`TaskConfigFields`、`TaskConfigState`、`TaskConfigInjected`、`TaskConfigPage`；hook 键改为 `taskConfig`；保留普通/复杂任务模型、默认任务类型与任务预设。
+- [X] T021 [US3] 更新 `src/client/index.ts`：删除页脚按钮挂载、`PresenceController`、在场表单与 `RAIL_CSS`；挂载 `TaskConfigPage`；摘要文案与注入改用 `taskConfig`。
+- [X] T022 [US3] 更新 `src/client/api.ts`（删除 `Presence`、`PresenceStatus`、`fetchPresence`、`writePresence` 与节假日类型）与 `src/client/locales.ts`（删除 `presence.*`、闹钟与节假日文案，`presenceConfig.*` 改为 `taskConfig.*`，zh/en 键集保持一致）。
+- [X] T023 [US3] 更新 `cordis.patch.yml`：删除 `guiInputSetsLocal`、`larkInputSetsRemote` 与注释。
+- [X] T024 [US3] 运行 `pnpm check`，确认本阶段通过后提交。
 
 **Checkpoint**: 后端与前端不再有在场实现；Tailwind 与专属 UI 仍在，构建照常。
 

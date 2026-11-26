@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { apply as applyMain } from '../src/index.ts';
 import type { LarkSuperAgentService } from '../src/lark-super-agent/api.ts';
 import { applyManagedSessions } from '../src/lark-super-agent/managed/index.ts';
-import { PresenceStore } from '../src/lark-super-agent/presence.ts';
 import { registerDispatchTools } from '../src/sa-dispatch/tools.ts';
 import type { Context } from '../src/types.ts';
 import { makeCtx } from './helpers.ts';
@@ -20,9 +19,6 @@ interface Row {
 /** 共享服务桩：只填写注册路径会读取的字段。 */
 function makeService(): LarkSuperAgentService {
   return {
-    presence: new PresenceStore({
-      switches: () => ({ guiInputSetsLocal: true, larkInputSetsRemote: true }),
-    }),
     taskModel: () => undefined,
     taskPreset: () => '',
     bridgeSessionId: vi.fn(),

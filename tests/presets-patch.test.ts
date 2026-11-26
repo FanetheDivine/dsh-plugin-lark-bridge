@@ -80,9 +80,9 @@ describe('SA 预设补丁', () => {
     expect(dispatch.description.trim()).not.toBe('');
   });
 
-  it('调度服务行默认开启两个在场开关', () => {
+  it('调度服务行不带默认配置', () => {
     const row = rows.find((entry) => entry.id === 'lark-super-agent');
-    expect(row?.config).toEqual({ guiInputSetsLocal: true, larkInputSetsRemote: true });
+    expect(row?.config).toBeUndefined();
   });
 
   it('主行配置只有 workspaceRoot', () => {

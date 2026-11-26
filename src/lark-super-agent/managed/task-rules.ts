@@ -5,8 +5,6 @@
  */
 import { createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm';
 
-import type { PresenceSessionLike } from '../presence.ts';
-
 /** 提醒消息的来源标识。 */
 export const TASK_RULES_SOURCE_KIND = 'lark-task-rules';
 
@@ -38,21 +36,4 @@ export function taskRulesMessage(): UserMessage {
 /** 本批消息中是否已包含 S。 */
 export function hasTaskRules(messages: readonly UserMessage[]): boolean {
   return messages.some((message) => message.source.kind === TASK_RULES_SOURCE_KIND);
-}
-
-/**
- * 表层最近一条用户消息是否为 S；只读 `source.kind`。
- * 已有 S 时不重复插入。
- */
-export function latestTaskRules(session: PresenceSessionLike): boolean {
-  const nodes = [...session.surface.nodes];
-  for (let index = nodes.length - 1; index >= 0; index -= 1) {
-    const seq = nodes[index];
-    if (seq === undefined) continue;
-    const event = session.eventAt(seq);
-    if (event?.type !== 'user/message') continue;
-    const source = (event.data as { source?: { kind?: unknown } } | undefined)?.source;
-    return source?.kind === TASK_RULES_SOURCE_KIND;
-  }
-  return false;
 }
