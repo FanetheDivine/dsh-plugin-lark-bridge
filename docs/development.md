@@ -162,6 +162,12 @@ vitest 拆成 `code` 与 `dist` 两个 project。产物测试读取 `dist`，由
 
 纯文档流程变更不新增测试文件时，仍须运行质量门禁。专项验收步骤记录在对应 spec 的 `quickstart.md`。
 
+`tests/managed-task-log.test.ts` 用固定 80ms 等待异步写任务日志，而写入链路含 git 提交，全量 `pnpm test:code` 在本机可能因这条等待超时而失败。主工作区未修改的 `main` 同样会失败。单独运行该文件可通过：
+
+```sh
+pnpm exec vitest run --project code tests/managed-task-log.test.ts
+```
+
 浏览器用例由仓库内的 `playwright` 驱动无头 Chrome。`vitest.config.ts` 把 `@deepseek-ai/dsh-client-ui-primitives` 指向包的源码：已发布的 `lib` 内联了 shiki、katex 等未声明的依赖，源码只依赖 react、clsx 与 `dsh-client-store`。
 
 ## Spec Kit 流程

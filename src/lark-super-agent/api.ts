@@ -87,6 +87,11 @@ export type ReportKind = (typeof REPORT_KINDS)[number];
 /** 上报来源；保留 `ask_intercept` 以兼容历史报告。 */
 export type ReportOrigin = 'send_report' | 'turn_end' | 'ask_intercept';
 
+/** 调用会话的最小句柄；`header.cwd` 是会话创建目录，当前目录由宿主工作目录投影记录。 */
+export interface CallerSessionLike {
+  header?: { cwd?: string };
+}
+
 /** 上报参数。 */
 export interface SendReportInput {
   kind: ReportKind;
@@ -166,11 +171,12 @@ export interface LarkSuperAgentService {
     notes?: string;
   }): Promise<{ workspaceId: string; created: boolean }>;
   removeWorkspaceNote(workspaceId: string): Promise<{ workspaceId: string; removed: boolean }>;
-  /** 存档并投递一份上报；调用方必须已被管理。 */
+  /** 存档并投递一份上报；调用方必须已被管理。`callerSession` 由工具层提供，用于解析相对附件路径。 */
   sendReport(
     input: SendReportInput,
     callerSessionId: string,
     origin?: ReportOrigin,
+    callerSession?: CallerSessionLike,
   ): Promise<SendReportResult>;
   /** 为被管理会话追加一条任务日志；会话未被管理或任务已结束时丢弃。 */
   appendTaskLog(
