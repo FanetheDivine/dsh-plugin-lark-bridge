@@ -34,8 +34,8 @@ function makeService() {
   } satisfies LarkSuperAgentService;
 }
 
-function mount() {
-  const base = makeCtx();
+function mount(options: { services?: Record<string, unknown> } = {}) {
+  const base = makeCtx(options);
   const service = makeService();
   const sections: PromptSectionLike[] = [];
   const groups: string[][] = [];
@@ -100,6 +100,28 @@ describe('SA-调度会话子行', () => {
       expect(definition.description).toMatch(/^[A-Za-z]/);
       expect(definition.parameters.type).toBe('object');
     }
+  });
+
+  it('宿主提供会话控制与模型服务时注册 session_create、list_models 与 session_model', () => {
+    const host = mount({
+      services: {
+        sessionController: { create: vi.fn(), rename: vi.fn(), resolveAgent: vi.fn() },
+        llm: {},
+        workspaceRegistry: { archivedSessionIds: [] },
+      },
+    });
+
+    expect(host.tools.map((entry) => entry.name)).toEqual([
+      'task_update',
+      'task_end',
+      'session_manage',
+      'session_unmanage',
+      'workspace_note_set',
+      'workspace_note_remove',
+      'session_create',
+      'list_models',
+      'session_model',
+    ]);
   });
 
   it('task_update 转换全部字段并返回任务标识与状态', async () => {
