@@ -21,11 +21,11 @@ description: "Task list for 073-report-card-collapse"
 
 ## Phase 2: 上报卡片折叠开关与无障碍样式（US1 & US2）
 
-- [ ] T003 [US1] 在 `src/client/locales.ts` 的 `zh` 与 `en` 字典中增加 `report.collapse`（`收起` / `Collapse`）与 `report.expand`（`展开` / `Expand`）
-- [ ] T004 [US1] 更新 `src/client/report-card.tsx`：默认展开（`expanded = true`），在头部增加 `<button type="button" className="dsh-lark-report-toggle" aria-expanded={expanded}>` 与折叠态单行任务摘要 `.dsh-lark-report-head-desc`，折叠时隐藏简介、正文与附件列表，展开时恢复，并在 `FALLBACK` 补齐英文默认文案
-- [ ] T005 [US2] 更新 `src/client/report-card.css`：增加 `.dsh-lark-report-head-desc`、`.dsh-lark-report-toggle`、`.dsh-lark-report-toggle-icon` 样式与 `:focus-visible` 焦点环，保留 `.dsh-lark-report-body > [data-markdown-variant="compact"]` 的 `color: var(--dsw-alias-label-primary)` 规则
-- [ ] T006 [US1] 更新 `tests/report-card.test.ts`：覆盖默认展开、点击折叠隐藏主体并显示头部单行摘要、点击展开恢复完整内容、各 `kind`（`progress` / `question` / 自定义 / 空）一致、键盘可访问属性与中英文回退文案
-- [ ] T007 [US2] 更新 `tests/card-styles.test.ts`：校验折叠开关与头部摘要样式规则，并确认 `.dsh-lark-report-body > [data-markdown-variant="compact"]` 主前景色规则未回退
+- [x] T003 [US1] 在 `src/client/locales.ts` 的 `zh` 与 `en` 字典中增加 `report.collapse`（`收起` / `Collapse`）与 `report.expand`（`展开` / `Expand`）
+- [x] T004 [US1] 更新 `src/client/report-card.tsx`：默认展开（`expanded = true`），在头部增加 `<button type="button" className="dsh-lark-report-toggle" aria-expanded={expanded}>` 与折叠态单行任务摘要 `.dsh-lark-report-head-desc`，折叠时隐藏简介、正文与附件列表，展开时恢复，并在 `FALLBACK` 补齐英文默认文案
+- [x] T005 [US2] 更新 `src/client/report-card.css`：增加 `.dsh-lark-report-head-desc`、`.dsh-lark-report-toggle`、`.dsh-lark-report-toggle-icon` 样式与 `:focus-visible` 焦点环，保留 `.dsh-lark-report-body > [data-markdown-variant="compact"]` 的 `color: var(--dsw-alias-label-primary)` 规则
+- [x] T006 [US1] 更新 `tests/report-card.test.ts`：覆盖默认展开、点击折叠隐藏主体并显示头部单行摘要、点击展开恢复完整内容、各 `kind`（`progress` / `question` / 自定义 / 空）一致、键盘可访问属性与中英文回退文案
+- [x] T007 [US2] 更新 `tests/card-styles.test.ts`：校验折叠开关与头部摘要样式规则，并确认 `.dsh-lark-report-body > [data-markdown-variant="compact"]` 主前景色规则未回退
 
 ## Phase 3: 文档同步与质量门禁
 

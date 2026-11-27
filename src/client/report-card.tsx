@@ -1,15 +1,16 @@
 /**
- * `send_report` 成功上报的卡片：类型、任务简介、Markdown 正文、可打开的文件与报告编号。
+ * `send_report` 成功上报的卡片：类型、任务简介、Markdown 正文、可打开的文件、报告编号与折叠开关。
  * 注册到 `conversation.chat.node` 的 `lark-report` 键，节点由 `report-node.ts` 产出。
  */
 import {
   FileTypeIcon,
+  IconChevronDownOutlineRegular,
   IconPaperPlaneOutlineRegular,
   MarkdownText,
   Tag,
   type TagTone,
 } from '@deepseek-ai/dsh-client-ui-primitives';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import './report-card.css';
 import type { BridgeKey } from './locales.ts';
@@ -37,6 +38,8 @@ const FALLBACK: Partial<Record<BridgeKey, string>> = {
   'report.desc': 'Task',
   'report.files': 'Files',
   'report.delivered': 'Delivered',
+  'report.collapse': 'Collapse',
+  'report.expand': 'Expand',
   'report.copy': 'Copy',
   'report.copied': 'Copied',
   'report.footnotes': 'Footnotes',
@@ -56,10 +59,12 @@ function baseName(path: string): string {
   return parts.at(-1) ?? path;
 }
 
-/** 渲染上报卡片。 */
+/** 渲染上报卡片，默认展开，头部提供折叠/展开开关。 */
 export function ReportCard({ node, openFile, t }: ReportCardProps) {
   const { kind, desc, text, files, reportId } = node.data;
+  const [expanded, setExpanded] = useState(true);
   const known = KINDS[kind];
+  const toggleLabel = translate(t, expanded ? 'report.collapse' : 'report.expand');
   const labels = useMemo(
     () => ({
       code: { copyLabel: translate(t, 'report.copy'), copiedLabel: translate(t, 'report.copied') },
@@ -68,7 +73,11 @@ export function ReportCard({ node, openFile, t }: ReportCardProps) {
     [t],
   );
   return (
-    <section className="dsh-lark-report" data-dsh-lark-report-card={kind || 'report'}>
+    <section
+      className="dsh-lark-report"
+      data-dsh-lark-report-card={kind || 'report'}
+      data-expanded={expanded ? 'true' : 'false'}
+    >
       <header className="dsh-lark-report-head">
         <span className="dsh-lark-report-icon" aria-hidden>
           <IconPaperPlaneOutlineRegular size={14} />
@@ -79,23 +88,40 @@ export function ReportCard({ node, openFile, t }: ReportCardProps) {
             {known === undefined ? kind : translate(t, known.key)}
           </Tag>
         )}
+        {!expanded && desc !== '' ? (
+          <span className="dsh-lark-report-head-desc" title={desc}>
+            {desc}
+          </span>
+        ) : null}
         <span className="dsh-lark-report-receipt">
           {translate(t, 'report.delivered')}
           {reportId === '' ? null : <span className="dsh-lark-report-id">{reportId}</span>}
         </span>
+        <button
+          type="button"
+          className="dsh-lark-report-toggle"
+          data-dsh-lark-report-toggle=""
+          aria-expanded={expanded}
+          aria-label={toggleLabel}
+          title={toggleLabel}
+          onClick={() => setExpanded((previous) => !previous)}
+        >
+          <span className="dsh-lark-report-toggle-text">{toggleLabel}</span>
+          <IconChevronDownOutlineRegular size={12} className="dsh-lark-report-toggle-icon" />
+        </button>
       </header>
-      {desc === '' ? null : (
+      {!expanded || desc === '' ? null : (
         <div className="dsh-lark-report-desc">
           <span className="dsh-lark-report-label">{translate(t, 'report.desc')}</span>
           <span className="dsh-lark-report-desc-text">{desc}</span>
         </div>
       )}
-      {text === '' ? null : (
+      {!expanded || text === '' ? null : (
         <div className="dsh-lark-report-body">
           <MarkdownText text={text} labels={labels} variant="compact" />
         </div>
       )}
-      {files.length === 0 ? null : (
+      {!expanded || files.length === 0 ? null : (
         <div className="dsh-lark-report-files">
           <div className="dsh-lark-report-label">{translate(t, 'report.files')}</div>
           <ul>
