@@ -337,6 +337,50 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     expect(await readFile(copied, 'utf8')).toBe('# Spec\n');
   });
 
+  it('会话切换工作目录后相对附件按新目录解析', async () => {
+    const root = await temporaryDirectory();
+    const created = await temporaryDirectory();
+    const worktree = await temporaryDirectory();
+    const checkouts = [worktree, created];
+    let current = worktree;
+    for (const directory of checkouts) {
+      await writeFile(join(directory, 'notes.md'), directory + '\n', 'utf8');
+    }
+    const home = await bridgeHome(root);
+    let sequence = 0;
+    const caller: AgentLike = { session: { id: 'worker', header: { cwd: created } } };
+    const service = new SuperAgentService(
+      makeContext({
+        agents: { get: (id: string) => (id === 'worker' ? caller : undefined) },
+        workingDirectory: { get: () => current },
+        sessionController: { resolveAgent: async () => ({ agent: { steer: vi.fn() } }) },
+      }),
+      {
+        home,
+        reportId: () => {
+          sequence += 1;
+          return 'report-20260102030405-abc12' + sequence;
+        },
+      },
+    );
+    const { taskId } = await seedTask(service, 'worker', created);
+
+    await service.sendReport(
+      { kind: 'progress', text: 'in worktree', files: ['notes.md'] },
+      'worker',
+    );
+    current = created;
+    await service.sendReport({ kind: 'progress', text: 'back', files: ['notes.md'] }, 'worker');
+
+    const directory = join(root, 'reports', taskId);
+    expect(await readFile(join(directory, 'report-20260102030405-abc121-1-notes.md'), 'utf8')).toBe(
+      worktree + '\n',
+    );
+    expect(await readFile(join(directory, 'report-20260102030405-abc122-1-notes.md'), 'utf8')).toBe(
+      created + '\n',
+    );
+  });
+
   it('没有工作目录投影时按会话创建目录解析附件', async () => {
     const root = await temporaryDirectory();
     const created = await temporaryDirectory();
