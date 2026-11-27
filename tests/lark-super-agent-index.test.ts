@@ -273,6 +273,45 @@ describe('lark-super-agent 全局行', () => {
     expect(notify).toHaveBeenCalledOnce();
   });
 
+  it('接管未管理会话时以最后轮次文本补发上报', async () => {
+    const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
+    mkdirSync(workspaceRoot, { recursive: true });
+    writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
+    process.env.GIT_CONFIG_COUNT = '2';
+    process.env.GIT_CONFIG_KEY_0 = 'user.name';
+    process.env.GIT_CONFIG_VALUE_0 = 'Lark Super Agent Test';
+    process.env.GIT_CONFIG_KEY_1 = 'user.email';
+    process.env.GIT_CONFIG_VALUE_1 = 'lark-super-agent@example.invalid';
+    const { base, service } = startRow({
+      services: {
+        sessionController: {
+          resolveAgent: async () => ({
+            agent: { session: { id: 'worker', title: 'Worker', header: { cwd: '/project' } } },
+          }),
+        },
+      },
+    });
+    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({ delivered: true });
+    const session = { id: 'worker' };
+    base._emit('session/event', session, { type: 'turn/start', data: { turn: 1 } });
+    base._emit('session/event', session, {
+      type: 'assistant/message',
+      data: { turn: 1, message: { content: [{ type: 'text', text: 'finished' }] } },
+    });
+    base._emit('session/event', session, {
+      type: 'turn/end',
+      data: { turn: 1, reason: { kind: 'completed' } },
+    });
+
+    await service.manageSession('worker');
+
+    expect(sendReport).toHaveBeenCalledExactlyOnceWith(
+      { kind: 'progress', text: 'finished' },
+      'worker',
+      'turn_end',
+    );
+  });
+
   /** 建立调度工作区与 worker 的被管理任务，并返回已启动的行。 */
   function startManagedRow() {
     const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');

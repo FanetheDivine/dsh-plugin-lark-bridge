@@ -137,6 +137,12 @@ export interface RestoreSessionResult {
   warning?: string;
 }
 
+/** 接管会话后的补发入口；由被管理会话能力实现。 */
+export interface TakeoverReporter {
+  /** 补发会话最后轮次的文本；是否上报由实现按轮次条件判定。 */
+  catchUp(sessionId: string, taskId: string): Promise<void>;
+}
+
 /** 笔记与上报服务。 */
 export interface LarkSuperAgentService {
   /** 按任务类型（省略时取默认任务类型）读取新建任务会话时使用的模型；未配置时返回 undefined。 */
@@ -150,6 +156,8 @@ export interface LarkSuperAgentService {
   createTask(input: CreateTaskInput): Promise<{ taskId: string }>;
   /** 任务建立后通知监听者；用于结束该会话等待中的提问。 */
   setManagedSessionListener(listener: (sessionId: string) => void): void;
+  /** 设置接管后的补发入口；由被管理会话能力在加载时设置。 */
+  setTakeoverReporter(reporter: TakeoverReporter): void;
   /** 校验工作区可派发：已在宿主注册且已有工作区笔记。 */
   assertDispatchable(workspaceId: string): Promise<void>;
   /** 为一个已有会话建立任务，使其成为被管理会话。 */

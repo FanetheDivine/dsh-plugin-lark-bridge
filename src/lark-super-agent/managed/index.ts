@@ -100,6 +100,9 @@ export function applyManagedSessions(
     logger: ctx.logger,
   });
 
+  // 接管会话后用同一判定补发最后轮次文本。
+  service.setTakeoverReporter(reporter);
+
   const taskLogObserver = new TaskLogObserver({
     service,
     archivedSessionIds: () =>

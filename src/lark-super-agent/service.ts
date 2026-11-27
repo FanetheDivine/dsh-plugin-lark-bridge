@@ -21,6 +21,7 @@ import type {
   RestoreSessionResult,
   SendReportInput,
   SendReportResult,
+  TakeoverReporter,
   Task,
   TaskType,
   UpdateTaskInput,
@@ -226,6 +227,8 @@ export class SuperAgentService implements LarkSuperAgentService {
   private readonly options: SuperAgentServiceOptions;
   /** 任务建立后的监听；由被管理会话能力设置。 */
   private managedListener: ((sessionId: string) => void) | undefined;
+  /** 接管后的补发入口；由被管理会话能力设置。 */
+  private takeoverReporter: TakeoverReporter | undefined;
   /** 按工作区串行的投递链。 */
   private readonly deliveryChains = new Map<string, Promise<unknown>>();
 
@@ -322,6 +325,7 @@ export class SuperAgentService implements LarkSuperAgentService {
       cwd,
       message: { text: first ?? title },
     });
+    await this.reportTakeover(id, taskId);
     return { sessionId: id, taskId, title };
   }
 
@@ -348,6 +352,20 @@ export class SuperAgentService implements LarkSuperAgentService {
   /** 任务建立后通知监听者；由被管理会话能力在加载时设置。 */
   setManagedSessionListener(listener: (sessionId: string) => void): void {
     this.managedListener = listener;
+  }
+
+  /** 设置接管后的补发入口；由被管理会话能力在加载时设置。 */
+  setTakeoverReporter(reporter: TakeoverReporter): void {
+    this.takeoverReporter = reporter;
+  }
+
+  /** 接管后补发最后轮次文本；失败只写日志，接管结果不变。 */
+  private async reportTakeover(sessionId: string, taskId: string): Promise<void> {
+    try {
+      await this.takeoverReporter?.catchUp(sessionId, taskId);
+    } catch (error) {
+      this.ctx.logger?.warn?.('lark-super-agent: takeover report failed', error);
+    }
   }
 
   async updateTask(input: UpdateTaskInput): Promise<{ taskId: string; status: Task['status'] }> {
