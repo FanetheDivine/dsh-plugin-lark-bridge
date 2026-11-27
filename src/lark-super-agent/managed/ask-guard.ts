@@ -1,6 +1,7 @@
 /**
- * 被管理会话的提问拦截：代为上报 `question` 并结束轮次，投递失败退回拒绝；仍负责结束已在等待的提问并排队 S。
- * 导出 ASK_TOOL、ASK_BLOCKED_ERROR、ASK_REPORTED_NOTICE、questionReportText、GatewayLike 与 AskGuard。
+ * 被管理会话的提问拦截：拒绝调用、记下问题并排队 S，让会话自行用 send_report 上报；
+ * 轮次结束仍未上报时交出问题供补投。也负责结束已在等待的提问。
+ * 导出 ASK_TOOL、ASK_BLOCKED_ERROR、questionReportText、GatewayLike 与 AskGuard。
  */
 import type {
   PostToolDecision,
@@ -13,7 +14,7 @@ export const ASK_TOOL = 'ask_user_question';
 
 /** 被管理会话提问时返回的错误。 */
 export const ASK_BLOCKED_ERROR =
-  'This session is managed by the dispatch session and cannot ask the user directly. Call send_report with kind question instead.';
+  'The user did not see these questions: this session is managed by the dispatch session and cannot ask the user directly. Call send_report with kind question now, with the task goal, the current state, and each question with its options.';
 
 /** 宿主网关中等待中的远端事件。 */
 interface PendingRemoteEvent {
@@ -25,10 +26,6 @@ export interface GatewayLike {
   pendingRemoteEvents?: unknown;
   cancelRemoteEvent?(pending: PendingRemoteEvent, reason: unknown): unknown;
 }
-
-/** 被拦截调用对模型的说明文本。 */
-export const ASK_REPORTED_NOTICE =
-  'These questions were delivered to the user as a question report through the dispatch session; this session waits for the answer. Do not ask again.';
 
 /** 判断值是否为纯对象。 */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -67,37 +64,75 @@ export interface AskGuardOptions {
   readonly isManaged: (sessionId: string) => Promise<boolean>;
   /** 读取宿主网关；不可用时返回 undefined。 */
   readonly gateway: () => GatewayLike | undefined;
-  /** 代为上报一次提问并置任务状态；抛错时拦截退回拒绝反馈。 */
-  readonly intercept?: (sessionId: string, questions: unknown) => Promise<void>;
   readonly logger: {
     warn?(...args: unknown[]): void;
   };
 }
 
-/** 被管理会话提问的拦截：代为上报、置任务状态、结束轮次；投递失败退回拒绝。 */
+/** 会话级待处理提问：是否待注入 S，以及被拦截而尚未上报的问题。 */
+interface PendingAsk {
+  rules: boolean;
+  /** 是否有被拦截的调用；参数缺失时问题列表为空但仍需补投。 */
+  blocked: boolean;
+  readonly questions: unknown[];
+  readonly keys: Set<string>;
+}
+
+/** 被管理会话提问的拦截：拒绝调用、记下问题、排队 S，轮次结束时交出未上报的问题。 */
 export class AskGuard {
   private readonly options: AskGuardOptions;
   /** 会话到正在等待的提问中止控制器。 */
   private readonly waiting = new Map<string, Map<string, AbortController>>();
   /** 由插件中止的调用，用于把结果改写为统一反馈。 */
   private readonly aborted = new Set<string>();
-  /** 由插件代为上报成功的调用，用于改写结果文案。 */
-  private readonly intercepted = new Set<string>();
-  /** 需要在下一次模型请求前收到 S 的会话。 */
-  private readonly pendingRules = new Set<string>();
+  /** 会话到待处理提问。 */
+  private readonly pending = new Map<string, PendingAsk>();
 
   constructor(options: AskGuardOptions) {
     this.options = options;
   }
 
-  /** 取走一次「需要 S」的标记。 */
-  takeRules(sessionId: string): boolean {
-    return this.pendingRules.delete(sessionId);
+  /** 取走一次「需要 S」的标记；需要时返回被拦截的问题，否则返回 undefined。 */
+  takeRules(sessionId: string): readonly unknown[] | undefined {
+    const entry = this.pending.get(sessionId);
+    if (entry === undefined || !entry.rules) return undefined;
+    entry.rules = false;
+    if (!entry.blocked) this.pending.delete(sessionId);
+    return [...entry.questions];
   }
 
-  /** 在拒绝或中止一次提问后记下需要 S。 */
-  private requireRules(sessionId: string): void {
-    this.pendingRules.add(sessionId);
+  /** 取走轮次结束时仍未上报的问题并清空该会话；没有被拦截的调用时返回 undefined。 */
+  takeFallback(sessionId: string): readonly unknown[] | undefined {
+    const entry = this.pending.get(sessionId);
+    this.pending.delete(sessionId);
+    if (entry === undefined || !entry.blocked) return undefined;
+    return [...entry.questions];
+  }
+
+  /** 会话已自行上报提问：清空待注入的 S 与待补投的问题。 */
+  noteReported(sessionId: string): void {
+    this.pending.delete(sessionId);
+  }
+
+  /** 记下需要 S；带问题时同时记为待补投，相同问题只保留一份。 */
+  private requireRules(sessionId: string, questions?: unknown): void {
+    const entry = this.pending.get(sessionId) ?? {
+      rules: false,
+      blocked: false,
+      questions: [],
+      keys: new Set<string>(),
+    };
+    entry.rules = true;
+    if (questions !== undefined) {
+      entry.blocked = true;
+      for (const question of Array.isArray(questions) ? questions : []) {
+        const key = JSON.stringify(question) ?? '';
+        if (entry.keys.has(key)) continue;
+        entry.keys.add(key);
+        entry.questions.push(question);
+      }
+    }
+    this.pending.set(sessionId, entry);
   }
 
   /** 结束该会话等待中的提问；确实结束过时排队 S。 */
@@ -128,7 +163,7 @@ export class AskGuard {
     for (const sessionId of sessions) this.cancel(sessionId);
   }
 
-  /** 被管理会话的新提问交由环绕钩子拦截；他方已拒绝或取消时保持原决定。 */
+  /** 拒绝被管理会话的提问并记下问题；他方已拒绝或取消时保持原决定。 */
   async beforeExecute(
     exec: ExecuteLike,
     next: () => Promise<PreToolDecision>,
@@ -139,15 +174,12 @@ export class AskGuard {
     const sessionId = exec.agent?.session?.id;
     if (sessionId === undefined || sessionId === '') return decision;
     if (!(await this.options.isManaged(sessionId))) return decision;
-    if (this.options.intercept === undefined) {
-      this.cancel(sessionId);
-      this.requireRules(sessionId);
-      return { kind: 'deny', reason: ASK_BLOCKED_ERROR };
-    }
-    return { kind: 'allow' };
+    this.cancel(sessionId);
+    this.requireRules(sessionId, exec.arguments?.questions ?? null);
+    return { kind: 'deny', reason: ASK_BLOCKED_ERROR };
   }
 
-  /** 拦截被管理会话的提问：代为上报成功即结束轮次，失败退回拒绝反馈。 */
+  /** 未被管理会话的提问换上可中止信号，会话开始被管理时可以结束等待。 */
   async aroundExecute(
     exec: DispatchExecutionLike,
     next: () => Promise<ToolExecutionResult>,
@@ -155,9 +187,6 @@ export class AskGuard {
     if (exec.name !== ASK_TOOL) return next();
     const sessionId = exec.agent?.session?.id;
     if (sessionId === undefined || sessionId === '') return next();
-    if (this.options.intercept !== undefined && (await this.options.isManaged(sessionId))) {
-      return this.interceptCall(exec, sessionId);
-    }
 
     const controller = new AbortController();
     const calls = this.waiting.get(sessionId) ?? new Map<string, AbortController>();
@@ -174,50 +203,18 @@ export class AskGuard {
     }
   }
 
-  /** 拦截成功时把结果文案改为上报说明；插件中止的调用改写为统一反馈。 */
+  /** 插件中止的调用改写为统一反馈。 */
   afterExecute(
     exec: ExecuteLike,
     _result: Readonly<ToolExecutionResult>,
     next: () => Promise<PostToolDecision>,
   ): Promise<PostToolDecision> {
     if (exec.name !== ASK_TOOL) return next();
-    const callId = String(exec.callId);
-    if (this.intercepted.delete(callId)) {
-      return Promise.resolve({
-        kind: 'accept',
-        content: [{ type: 'text', text: ASK_REPORTED_NOTICE }],
-      });
-    }
-    if (!this.aborted.delete(callId)) return next();
+    if (!this.aborted.delete(String(exec.callId))) return next();
     return Promise.resolve({
       kind: 'block',
       feedback: [{ type: 'text', text: ASK_BLOCKED_ERROR }],
     });
-  }
-
-  /** 执行一次拦截上报；工具体不运行。 */
-  private async interceptCall(
-    exec: DispatchExecutionLike,
-    sessionId: string,
-  ): Promise<ToolExecutionResult> {
-    const questions = exec.arguments?.questions;
-    try {
-      await this.options.intercept?.(sessionId, questions);
-    } catch {
-      this.requireRules(sessionId);
-      return {
-        isError: true,
-        error: { message: ASK_BLOCKED_ERROR },
-        content: [{ type: 'text', text: `Error: ${ASK_BLOCKED_ERROR}` }],
-      };
-    }
-    this.intercepted.add(String(exec.callId));
-    exec.concludeTurn?.();
-    return {
-      isError: false,
-      value: { answers: [] },
-      content: [{ type: 'text', text: ASK_REPORTED_NOTICE }],
-    };
   }
 
   /** 中止该会话正在等待的提问；返回是否中止了调用。 */
@@ -262,11 +259,9 @@ interface ExecuteLike {
   readonly name: string;
   readonly callId: unknown;
   readonly agent?: { session?: { id?: string } };
+  readonly arguments?: { readonly questions?: unknown };
 }
 
 interface DispatchExecutionLike extends ExecuteLike {
   signal: AbortSignal;
-  readonly arguments?: { readonly questions?: unknown };
-  /** 宿主数据通道：成功结果携带后在当步结束轮次。 */
-  concludeTurn?(): void;
 }
