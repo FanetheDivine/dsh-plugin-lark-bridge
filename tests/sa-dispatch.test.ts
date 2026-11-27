@@ -450,6 +450,7 @@ describe('SA-调度会话子行', () => {
     expect(add).toContain('working directory');
     expect(add).toContain('session id');
     expect(add).toContain('[model changed: ...]');
+    expect(add).toContain("the previous turn's failure and its cause");
   });
 
   it('提示词要求下发后立刻用 lark_notify 回应，并按任务分开通知', () => {

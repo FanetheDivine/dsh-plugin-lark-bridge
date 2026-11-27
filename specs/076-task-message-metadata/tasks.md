@@ -58,7 +58,7 @@ description: "任务列表：任务会话消息不含会话元信息"
 
 **Independent Test**: 用例断言失败原因项。
 
-- [ ] T004 [US3] 扩展用例：断言 `section('Add messages to a task')` 含 `the previous turn's failure and its cause` tests/sa-dispatch.test.ts
+- [X] T004 [US3] 扩展用例：断言 `section('Add messages to a task')` 含 `the previous turn's failure and its cause` tests/sa-dispatch.test.ts
 
 ---
 
