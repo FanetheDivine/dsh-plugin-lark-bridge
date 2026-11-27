@@ -31,10 +31,11 @@ None. 决策已由用户授权自行拍板，逐条记录在 Clarifications。
 - [D-011] Q: 对未归档会话调用恢复工具？ -> A: 报错，说明该会话未归档。不做静默成功。
 - [D-012] Q: 恢复任务时报告与任务日志如何处理？ -> A: 归档任务里的目录整体迁回原位：`archive/<taskId>/reports` 回到 `reports/<taskId>`，`archive/<taskId>/task-log.jsonl` 回到 `task-logs/<taskId>.jsonl`。任务记录回到 `message-task-status.json`，保留原 id、标题、消息、状态、报告列表与投递记录。归档目录删除。
 - [D-013] Q: 恢复是否需要通知调度会话？ -> A: 不需要。工具只由调度会话自己调用，调用方已经知道结果。被归档时发出的 `task_session_archived` 通知不受影响。
+- [D-014] Q: 新路由的上下文容量不足时如何表现？ -> A: 工具按路由校验通过即记录选择。宿主在下一步按新路由的上下文容量做压缩检查，容量不足或适配器未声明 `contextWindow` 时该步报错并保留原模型；会话日志中已记录的选择保留。工具不预检容量。
 
 ## Review Record
 
-- 2026-11-27 | Decision: Approved | Scope: current full document | Open items: none | Risks: 切换模型不改变全局默认模型，与其他会话的模型继承无关；恢复任务依赖归档目录里的 `task.json`，目录被手工删除时任务无法恢复；恢复后旧报告按未读重新参与投递列表，可能再次列出。
+- 2026-11-27 | Decision: Approved | Scope: current full document | Open items: none | Risks: 切换模型不改变全局默认模型，与其他会话的模型继承无关；新路由容量不足时下一步报错并保留原模型；恢复任务依赖归档目录里的 `task.json`，目录被手工删除时任务无法恢复；恢复后旧报告按未读重新参与投递列表，可能再次列出。
 
 ## 现状基线
 

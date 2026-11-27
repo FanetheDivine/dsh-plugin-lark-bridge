@@ -43,9 +43,11 @@
 | provider 未注册、model 不存在、effort 不支持 | 返回 `Invalid model selection: <宿主错误>` |
 | `llm` 服务不可用 | 返回 `Model selection is unavailable: the llm service is not mounted.` |
 | 目标会话已归档 | 成功记录选择，结果为 `archived: true` |
+| 新路由上下文容量不足 | 工具成功；宿主在下一步报错并保留原模型，选择事件保留 |
 
 ## 生效时机
 
 - 当前已发出的模型请求不变。
 - 下一步起使用新路由，宿主在下一步插入模型变更提示。
 - 已归档会话要等 `session_restore` 之后才能进入模型步。
+- 宿主在下一步按新路由的 `contextWindow` 做压缩检查；适配器未声明容量或容量不足时该步报错，原模型继续生效。

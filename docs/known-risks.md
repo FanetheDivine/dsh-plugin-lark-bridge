@@ -162,6 +162,15 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 - meta-tools 行配置的默认模型与默认预设对 `session_create` 不再生效；`session_create` 没有 `agent_preset` 参数。
 - 依赖宿主 `sessionController` 的 `create`、`rename`、`resolveAgent` 与 `Agent.model.select`、`Agent.steer`。
 
+### 会话模型切换与恢复
+
+- `session_model` 只写目标会话的选择事件，不改变宿主默认模型；当前请求保持原模型，下一步起使用新路由。
+- 宿主在下一步按新路由的 `contextWindow` 做压缩检查。适配器未声明容量或容量不足时该步报错 `no context capacity`，原模型保持；工具不预检容量。
+- `session_model` 依赖宿主的 `Agent.model.select` 与 `llm.resolveCallConfig`，已归档会话的选择要等恢复后才执行模型步。
+- `session_restore` 只恢复最近一份结束原因为 `session_archived` 的归档任务；归档目录被手工删除或 `task.json` 损坏时任务不恢复，会话仍解除归档。
+- 恢复置顶要求会话存在且未归档；置顶失败不回滚已完成的解除归档与任务恢复。
+- 恢复把报告目录与任务日志迁回原位；目标路径已存在时拒绝覆盖并保留归档目录。
+
 ### 任务归类与结束
 
 - 任务归类、首条要求范围与按 `kind` 更新状态都由 `SA-调度会话` 按提示词执行，程序不校验。
