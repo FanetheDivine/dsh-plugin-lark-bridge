@@ -110,6 +110,7 @@ describe('lark-super-agent notes', { timeout: 30000 }, () => {
       workspaceId: null,
       cwd: '/work/a',
       reportIds: [],
+      deliveredReportIds: [],
       messages: [{ messageId: 'message-1', text: ' 开始 ', time: expect.any(String) }],
       createdAt: expect.any(String),
     });
@@ -356,6 +357,77 @@ describe('lark-super-agent notes', { timeout: 30000 }, () => {
     const commits = (await runGit(['rev-list', '--count', 'HEAD'], root)).stdout.trim();
     await expect(store.pruneTasks(new Set(['alive']), new Set())).resolves.toEqual({ ended: 0 });
     expect((await runGit(['rev-list', '--count', 'HEAD'], root)).stdout.trim()).toBe(commits);
+  });
+
+  it('新任务没有已投递报告，旧台账按已投递读取', async () => {
+    const root = await temporaryDirectory();
+    const store = new NotesStore(root);
+    await newTask(store, 'worker');
+    expect((await readTaskState(root)).tasks[0]?.deliveredReportIds).toEqual([]);
+
+    const legacyRoot = await temporaryDirectory();
+    const at = new Date().toISOString();
+    await writeFile(
+      join(legacyRoot, TASKS_FILE),
+      JSON.stringify({
+        version: 2,
+        tasks: [
+          {
+            id: 'task-20260101000000-0001',
+            title: '旧任务',
+            status: 'in_progress',
+            sessionId: 'worker',
+            workspaceId: null,
+            cwd: '/work/worker',
+            reportIds: ['report-20260101000000-aaaaaa'],
+            messages: [{ text: '开始', time: at }],
+            createdAt: at,
+            updatedAt: at,
+          },
+        ],
+      }),
+      'utf8',
+    );
+    const [legacy] = (await readTaskState(legacyRoot)).tasks;
+    expect(legacy?.deliveredReportIds).toEqual(['report-20260101000000-aaaaaa']);
+  });
+
+  it('markReportsDelivered 只记录已存档报告，无变化时不提交', async () => {
+    const root = await temporaryDirectory();
+    const store = new NotesStore(root);
+    const taskId = await newTask(store, 'worker');
+    const reports = new ReportStore(root);
+    const first = await reports.archiveReport(
+      { kind: 'progress', text: '第一份' },
+      'worker',
+      taskId,
+      'send_report',
+    );
+    const second = await reports.archiveReport(
+      { kind: 'progress', text: '第二份' },
+      'worker',
+      taskId,
+      'send_report',
+    );
+    expect(second.reportId).not.toBe(first.reportId);
+
+    await expect(
+      store.markReportsDelivered([
+        { taskId, reportIds: [first.reportId, 'report-20260101000000-unknown'] },
+      ]),
+    ).resolves.toEqual({ changed: true });
+    expect((await readTaskState(root)).tasks[0]?.deliveredReportIds).toEqual([first.reportId]);
+    expect((await runGit(['log', '-1', '--pretty=%s'], root)).stdout.trim()).toBe(
+      'lark-super-agent: mark reports delivered',
+    );
+    expect((await runGit(['status', '--porcelain'], root)).stdout.trim()).toBe('');
+
+    const commits = (await runGit(['rev-list', '--count', 'HEAD'], root)).stdout.trim();
+    await expect(
+      store.markReportsDelivered([{ taskId, reportIds: [first.reportId] }]),
+    ).resolves.toEqual({ changed: false });
+    expect((await runGit(['rev-list', '--count', 'HEAD'], root)).stdout.trim()).toBe(commits);
+    expect((await readTaskState(root)).tasks[0]?.deliveredReportIds).toEqual([first.reportId]);
   });
 
   it('工作区笔记按标识替换、删除，校验失败按空白名单处理', async () => {
