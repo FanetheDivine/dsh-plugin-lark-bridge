@@ -61,8 +61,8 @@ description: "上报卡片头部折叠热区的任务清单"
 
 ## Phase 5: Polish
 
-- [ ] T012 [P] 更新 `docs/how-it-works.md` 的上报卡片段落：整行箭头开关，无文字按钮
-- [ ] T013 在根目录执行 `pnpm format && pnpm check`，确认格式、类型、lint 与代码测试全部通过
+- [x] T012 [P] 更新 `docs/how-it-works.md` 的上报卡片段落：整行箭头开关，无文字按钮
+- [x] T013 在根目录执行 `pnpm format && pnpm check`，确认格式、类型、lint 与代码测试全部通过
 
 ---
 

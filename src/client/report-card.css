@@ -20,8 +20,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  margin: -4px 0;
-  padding: 4px 0;
+  padding: 2px 0;
   border: none;
   border-radius: var(--dsw-radius-sm);
   background: none;

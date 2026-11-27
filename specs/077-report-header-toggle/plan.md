@@ -88,13 +88,13 @@ docs/
 ## Design Notes
 
 - 头部元素：`<button type="button" className="dsh-lark-report-head" data-dsh-lark-report-toggle="" aria-expanded={expanded} aria-label={toggleLabel}>`，内部保留图标、标题、类型标签、折叠态摘要、回执与箭头。
-- 卡片 `padding: 10px 14px 12px` 与 `gap: 8px` 保持不变，头部不新增内外边距，布局零位移。
+- 卡片 `padding: 10px 14px 12px` 与 `gap: 8px` 保持不变。头部 `padding: 2px 0`，与旧按钮撑起的高度一致，实测内容坐标与改前相同。
 - 按钮复位：`border: none; background: none; font: inherit; color: inherit; text-align: start; width: 100%; cursor: pointer;`，保留现有 `display: flex` 与 `gap: 8px`。
 - 悬停：`@media (hover: hover)` 下头部整行背景 `--dsw-alias-interactive-bg-hover`，`border-radius: var(--dsw-radius-sm)`。
 - 箭头：`.dsh-lark-report-toggle-icon` 保留，选中器改为 `.dsh-lark-report-head[aria-expanded="true"] .dsh-lark-report-toggle-icon`，展开时旋转 180deg；尺寸与当前一致（12px）。
 - 焦点环：整行 `:focus-visible`，`outline-offset: 1px`，与附件按钮一致。
 - 移除 `.dsh-lark-report-toggle` 相关样式与文字节点；其余区块的 DOM、文案、颜色、间距不变。
-- 视觉回归：`tests/card-styles.test.ts` 断言卡片内边距仍为 `10px 14px 12px`、头部不写内外边距、正文主前景色规则保留。
+- 视觉回归：`tests/card-styles.test.ts` 断言卡片内边距仍为 `10px 14px 12px`、头部 `padding: 2px 0`、正文主前景色规则保留。
 
 ## Complexity Tracking
 

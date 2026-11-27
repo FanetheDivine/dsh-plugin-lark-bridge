@@ -23,7 +23,7 @@ pnpm format
 3. **整行点击**：分别点击 `.dsh-lark-report-title`、`Tag`、`.dsh-lark-report-receipt`，每次都切换 `data-expanded`。
 4. **折叠内容**：折叠后 `.dsh-lark-report-desc`、`.dsh-lark-report-body`、`.dsh-lark-report-files` 消失，头部保留标题、标签、摘要与回执；再次点击恢复。
 5. **附件不受影响**：点击 `.dsh-lark-report-file` 只调用 `openFile`，不改变 `data-expanded`。
-6. **样式**：`report-card.css` 中断言头部按钮的整行悬停、`:focus-visible` 焦点环与 `[aria-expanded="true"]` 箭头旋转规则；卡片内边距仍为 `10px 14px 12px`，正文主前景色规则保留。
+6. **样式**：`report-card.css` 中断言头部按钮的整行悬停、`:focus-visible` 焦点环与 `[aria-expanded="true"]` 箭头旋转规则；卡片内边距仍为 `10px 14px 12px`，头部 `padding: 2px 0`，正文主前景色规则保留。
 7. **文档**：`docs/how-it-works.md` 的上报卡片段落描述整行箭头开关。
 
 ## 实机
