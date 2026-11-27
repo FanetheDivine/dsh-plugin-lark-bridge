@@ -419,10 +419,16 @@ describe('SA-调度会话子行', () => {
     expect(SA_DISPATCH_PROMPT).not.toContain('task_candidates');
   });
 
-  it('提示词说明 session_manage 与 session_unmanage，并在接管后置顶', () => {
+  it('提示词说明 session_manage 与 session_unmanage，任务名基于会话标题生成并置顶', () => {
     const manage = section('Manage existing sessions');
     expect(manage).toMatch(/session_manage with its session id/);
-    expect(manage).toContain('Then pin that session with session_pin');
+    expect(manage).toContain("returns the session's title");
+    expect(manage).toContain('Name the task from it');
+    expect(manage).toContain('generate a short name for the task');
+    expect(manage).toContain('set it with task_update');
+    expect(manage).toContain('Never use the session id as the task name');
+    expect(manage).toContain('pin the session with session_pin in the same step');
+    expect(manage).toContain('the session has no title');
     expect(manage).toMatch(/session_unmanage\. The task ends; the session and its pin stay/);
     expect(manage).toMatch(/archives a session, its task ends on its own/);
   });

@@ -39,8 +39,9 @@ export const SA_DISPATCH_PROMPT = `You are the dispatch session: the remote user
 
 ## Manage existing sessions
 
-- When the user wants an existing session controlled from here, call session_manage with its session id. The tool creates the task for that session.
-- Then pin that session with session_pin.
+- When the user wants an existing session controlled from here, call session_manage with its session id. The tool creates the task for that session and returns the session's title.
+- Name the task from it: generate a short name for the task's subject and set it with task_update, then pin the session with session_pin in the same step. Never use the session id as the task name.
+- When the returned title is the session id, the session has no title: name the task from what the user tells you about the session, or ask.
 - When the user wants that to stop, call session_unmanage. The task ends; the session and its pin stay.
 - When the user archives a session, its task ends on its own. Bring it back with session_restore; session_archive with remove: true alone leaves the session without a task.
 
