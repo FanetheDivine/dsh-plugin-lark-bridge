@@ -213,6 +213,7 @@ pnpm 的 minimum release age 策略会拒绝发布时间过短的包。
 - 上报卡片依赖宿主 Chat 的 `conversation.chat.node` 槽位、`ChatNodeDataMap` 声明合并与 `uiConversation.events` Definition 注册。宿主改动这些接口后卡片不显示，工具行照常显示。
 - 成功上报在过程分组里保留一行宿主默认工具行，卡片在轮次层级另外显示一次。
 - 结果对应的 `tool/call` 不在已加载窗口内时，卡片只显示回执，参数字段为空。
+- 正文颜色在卡片内覆盖宿主 compact Markdown 变体的三级色。覆盖规则依赖 Markdown 根节点的 `data-markdown-variant="compact"`；宿主改掉该属性后正文回到三级色，卡片其余样式不受影响。
 
 ### 通知正文卡片
 
