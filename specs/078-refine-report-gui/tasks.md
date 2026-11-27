@@ -54,9 +54,9 @@ description: "上报与通知卡片悬停变色与点击热区的任务清单"
 
 ## Phase 4: Polish
 
-- [ ] T014 [P] 更新 `docs/how-it-works.md` 的 `lark_notify` 卡片段落与上报卡片段落：热区范围、整卡悬停变色、通知卡片折叠模式与常显信息行
-- [ ] T015 [P] 在 `CHANGELOG.md` 写 `## Unreleased` 条目：两卡片悬停整体变色与热区折叠、通知卡片两种模式
-- [ ] T016 在根目录执行 `pnpm format && pnpm check` 与 `pnpm build`，确认格式、类型、lint、源码测试与产物测试全部通过
+- [x] T014 [P] 更新 `docs/how-it-works.md` 的 `lark_notify` 卡片段落与上报卡片段落：热区范围、整卡悬停变色、通知卡片折叠模式与常显信息行
+- [x] T015 [P] 在 `CHANGELOG.md` 写 `## Unreleased` 条目：两卡片悬停整体变色与热区折叠、通知卡片两种模式
+- [x] T016 在根目录执行 `pnpm format && pnpm check` 与 `pnpm build`，确认格式、类型、lint、源码测试与产物测试全部通过
 
 ---
 
