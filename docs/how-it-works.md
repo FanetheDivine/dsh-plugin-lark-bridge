@@ -249,16 +249,16 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 | --- | --- |
 | `send_report` | 除调度会话外都能看到；未被管理的会话调用报错。描述要求只在被要求时调用，并规定上报送达后正文最多一句简短收尾 |
 | 调度消息标记 | `source.kind` 为 `dsh-plugin-meta-tools` 的消息包进 `<dispatch_session_message>` |
-| 提问拦截 | 被管理会话的 `ask_user_question` 在工具体前被拦截：代为上报 `question`、任务置 `waiting_user` 并结束当前轮次；投递失败时退回拒绝反馈 |
-| S 注入 | 提问被拒绝（仅投递失败回退）后，在下一次模型请求前插入一条临时指令 |
-| 轮次自动上报 | 正常结束、本轮未上报、无运行中子代理时把最后一段文本作为 `progress` 上报；拦截代为上报的轮次同样视为已上报 |
+| 提问拦截 | 被管理会话的 `ask_user_question` 跳过工具体，每次调用直接返回固定指令 S，当前轮次继续 |
+| 等待取消提醒 | 插件结束已在等待的提问时，在下一次模型请求前插入一次 S |
+| 轮次自动上报 | 正常结束、本轮未上报、无运行中子代理时把最后一段文本作为 `progress` 上报 |
 | 失败通知 | 轮次以错误结束时投递 `<task_session_failure>` |
 | 归档通知 | 被管理会话被归档时归档任务并写待注入记录；调度会话下次 pre-step 与任务日志一起注入 `<task_session_archived>` |
 
-- 被管理会话的提问由 `tools/execute` 环绕钩子拦截，工具体不运行；上报正文按调用参数逐条列出题面、表头与选项，`origin` 为 `ask_intercept`。成功结果经宿主 `concludeTurn` 通道在当前步结束轮次；其他插件要求审批时该调用被放行到环绕钩子处理，不进入审批等待。
-- 会话开始被管理时与插件加载后，已在等待的提问被结束：插件加载后开始的提问由 `tools/execute` 换上可中止信号；加载前已等待的提问由网关私有接口取消。网关不可用时只记日志。
-- S 是一条临时指令，说明本会话不能直接提问、改用 `send_report` 的 `question`，并要求后续忽略它；正文收尾要求与 `send_report` 描述同口径。同一会话同一时刻只保留一条。
-- 自动上报带 `origin="turn_end"`，手动上报带 `origin="send_report"`，拦截上报带 `origin="ask_intercept"`，调度会话据此区分。
+- `tools/pre-execute` 保留其他钩子的拒绝或取消；其余被管理提问直接交给环绕钩子，跳过交互审批。`tools/execute` 返回成功值 `{ answers: [] }`，表示没有实际用户答案；`tools/post-execute` 将模型可见的正文设为 S。
+- S 的固定正文为 `src/lark-super-agent/managed/task-rules.ts` 的 `TASK_RULES_TEXT`。它要求模型从原上下文组织任务目的、当前进展、问题与选项，调用 `send_report(kind=question)`。插件不复制或记录调用的题面或选项，也不补发提问。
+- 调度会话按普通 `question` 报告流程更新 `waiting_user`。自动上报来源为 `turn_end`，模型调用 `send_report` 的来源为 `send_report`。`ask_intercept` 仅为历史上报保留。
+- 会话开始被管理时及插件加载后，插件会结束已在等待的提问。等待中的调用可通过信号中止；加载前已等待的请求由网关私有接口取消。只有这类等待被插件结束时才排队 `source.kind="lark-task-rules"` 的提醒；新拦截只返回工具结果。
 
 ## 任务会话模型
 
@@ -321,7 +321,6 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 自动上报在轮次正常结束、本轮没有调用 `send_report`、会话没有运行中的子代理时触发，来源记为 `turn_end`；未送达只写日志。
 - 全局行监听 `reason.kind === 'error'` 的 `turn/end`，每轮失败向调度会话投递一次 `<task_session_failure>`；取消不触发通知。
 - 失败通知包含会话、任务标识与截断后的错误原因，不进入上报存档，也不提交 git。
-- 提问拦截代为上报未送达时退回拒绝反馈，任务保持 `in_progress`，轮次不因该上报结束。
 - 成功的 `send_report` 在对话中显示为上报卡片，内容为类型、`desc`、Markdown 正文、附件与 `reportId`：
   - 前端注册 Conversation Definition `lark-report-result`，匹配 `send_report` 的 `tool/call` 与投递成功的 `tool/result`，参数取自 `tool/call` 的 `arguments`。
   - Definition 产出 `lark-report` Chat 节点，`groupTree` 为 `turn`，位于结果之后。节点不进入过程分组，轮次折叠后仍然可见。

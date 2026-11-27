@@ -189,7 +189,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
       home: await bridgeHome(null, null),
     });
     await expect(unconfigured.bridgeSessionId()).resolves.toBeNull();
-    await expect(unconfigured.managedTask('worker')).rejects.toThrow(/has no workspaceRoot/);
+    await expect(unconfigured.managedTask('worker')).resolves.toBeUndefined();
   });
 
   it('更新任务状态并追加消息', async () => {

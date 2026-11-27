@@ -84,7 +84,7 @@ export const REPORT_KINDS = ['progress', 'question'] as const;
 /** 上报类型。 */
 export type ReportKind = (typeof REPORT_KINDS)[number];
 
-/** 上报来源：会话主动上报、轮次结束自动上报或提问拦截代为上报。 */
+/** 上报来源；保留 `ask_intercept` 以兼容历史报告。 */
 export type ReportOrigin = 'send_report' | 'turn_end' | 'ask_intercept';
 
 /** 上报参数。 */
@@ -140,7 +140,7 @@ export interface LarkSuperAgentService {
   readonly taskPreset: () => string;
   /** 读取调度会话 id；读取失败时返回 null。 */
   bridgeSessionId(): Promise<string | null>;
-  /** 读取会话对应的未结束任务；会话未被管理时返回 undefined。 */
+  /** 读取会话的未结束任务；未配置调度工作区或会话未被管理时返回 undefined。 */
   managedTask(sessionId: string): Promise<Task | undefined>;
   createTask(input: CreateTaskInput): Promise<{ taskId: string }>;
   /** 任务建立后通知监听者；用于结束该会话等待中的提问。 */

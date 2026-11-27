@@ -105,12 +105,6 @@ export class TurnReporter {
     return created;
   }
 
-  /** 把会话当前轮标记为已上报；拦截代为上报后轮次结束不再补进度上报。 */
-  markIntercepted(sessionId: string): void {
-    const state = this.turns.get(sessionId);
-    if (state !== undefined) state.reported = true;
-  }
-
   /** 正常结束、本轮未上报、无运行中子代理时投递 progress 上报。 */
   private async finish(info: TurnEndInfo): Promise<void> {
     if (info.reason !== 'completed') return;

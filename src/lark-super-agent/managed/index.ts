@@ -6,7 +6,7 @@ import type {} from '@deepseek-ai/dsh-session';
 
 import type { Context } from '../../types.ts';
 import type { LarkSuperAgentService } from '../api.ts';
-import { AskGuard, questionReportText } from './ask-guard.ts';
+import { AskGuard } from './ask-guard.ts';
 import { wrapDispatchMessages } from './dispatch-message.ts';
 import { buildSendReportTool } from './report-tool.ts';
 import { insertionIndex, type SessionLike, TaskLogInjector } from './task-log-injector.ts';
@@ -82,23 +82,8 @@ export function applyManagedSessions(
     isManaged,
     gateway: () => ctx.get('typertGateway') as never,
     logger: ctx.logger,
-    // 拦截即上报：投递成功把 in_progress 任务置 waiting_user，并标记本轮已上报。
-    intercept: async (sessionId: string, questions: unknown) => {
-      const report = await service.sendReport(
-        { kind: 'question', text: questionReportText(questions) },
-        sessionId,
-        'ask_intercept',
-      );
-      if (!report.delivered) {
-        throw new Error(report.reason ?? 'question report was not delivered');
-      }
-      const task = await service.managedTask(sessionId);
-      if (task !== undefined && task.id === report.taskId && task.status === 'in_progress') {
-        await service.updateTask({ taskId: task.id, status: 'waiting_user' });
-      }
-      reporter.markIntercepted(sessionId);
-    },
   });
+
   // 会话开始被管理时结束它等待中的提问；加载时再清一次网关里残留的请求。
   service.setManagedSessionListener((sessionId) => askGuard.cancel(sessionId));
   void askGuard.sweep();
@@ -138,15 +123,14 @@ export function applyManagedSessions(
     });
   });
 
-  // 调度消息来源标记与 S 注入。
+  // 包装调度消息；仅为已在等待且被取消的提问补充 S。
   ctx.on('agent/pre-step', async ({ agent }, next) => {
     const decision = await next();
     if (decision.kind === 'reject') return decision;
     const sessionId = agent.session?.id;
     if (sessionId === undefined || sessionId === '') return decision;
     const wrapped = wrapDispatchMessages(decision.messages);
-    const rules = askGuard.takeRules(sessionId);
-    if (!rules)
+    if (!askGuard.takeRules(sessionId))
       return wrapped === decision.messages ? decision : { ...decision, messages: wrapped };
     if (hasTaskRules(wrapped)) return { ...decision, messages: wrapped };
     return { ...decision, messages: [taskRulesMessage(), ...wrapped] };
