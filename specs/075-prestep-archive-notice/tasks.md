@@ -12,12 +12,12 @@
 
 **Independent Test**: 归档被管理会话后调度 agent 未被调用，`archive-notices.json` 出现记录；`session_restore` 后记录消失。
 
-- [ ] T001 [P] [US1] 新增 `src/lark-super-agent/archive-notices.ts`：`ArchiveNotice`（`id`、`taskId`、`sessionId`、`time`）、`ARCHIVE_NOTICES_FILE`、`readArchiveNotices`、`appendArchiveNotice`、`removeArchiveNotices`；全部在 `runSerial(root)` 内读写，文件缺失或损坏按空列表
-- [ ] T002 [P] [US1] 修改 `src/lark-super-agent/blocks.ts` 的 `taskSessionArchived`：增加 `id` 属性，输出 `<task_session_archived id="…" sessionid="…" taskid="…"/>`
-- [ ] T003 [US1] 修改 `src/lark-super-agent/service.ts`：`notifyArchived` 结束任务后追加记录，去掉 `deliver`；无工作区或写记录失败只记日志；`restoreSession` 恢复任务成功后删除该任务的记录，失败写 warning
-- [ ] T004 [P] [US1] 更新 `tests/lark-super-agent-blocks.test.ts`：归档块带 `id` 属性并转义
-- [ ] T005 [P] [US1] 更新 `tests/lark-super-agent-service.test.ts`：归档用例断言无 `steer`、记录已写入、任务已归档；无任务不写记录；`session_restore` 删除记录
-- [ ] T006 [US1] 新增 `tests/archive-notices.test.ts`：追加、读取、删除、重复追加、损坏文件按空
+- [x] T001 [P] [US1] 新增 `src/lark-super-agent/archive-notices.ts`：`ArchiveNotice`（`id`、`taskId`、`sessionId`、`time`）、`ARCHIVE_NOTICES_FILE`、`readArchiveNotices`、`appendArchiveNotice`、`removeArchiveNotices`；全部在 `runSerial(root)` 内读写，文件缺失或损坏按空列表
+- [x] T002 [P] [US1] 修改 `src/lark-super-agent/blocks.ts` 的 `taskSessionArchived`：增加 `id` 属性，输出 `<task_session_archived id="…" sessionid="…" taskid="…"/>`
+- [x] T003 [US1] 修改 `src/lark-super-agent/service.ts`：`notifyArchived` 结束任务后追加记录，去掉 `deliver`；无工作区或写记录失败只记日志；`restoreSession` 恢复任务成功后删除该任务的记录，失败写 warning
+- [x] T004 [P] [US1] 更新 `tests/lark-super-agent-blocks.test.ts`：归档块带 `id` 属性并转义
+- [x] T005 [P] [US1] 更新 `tests/lark-super-agent-service.test.ts`：归档用例断言无 `steer`、记录已写入、任务已归档；无任务不写记录；`session_restore` 删除记录
+- [x] T006 [US1] 新增 `tests/archive-notices.test.ts`：追加、读取、删除、重复追加、损坏文件按空
 
 ## Phase 2: pre-step 注入与去重 (US2、US3)
 

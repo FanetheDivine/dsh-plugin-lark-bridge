@@ -126,7 +126,11 @@ export function taskSessionFailure(input: TaskSessionFailureInput): string {
   ].join('\n');
 }
 
-/** 生成会话归档通知。 */
-export function taskSessionArchived(input: { sessionId: string; taskId: string }): string {
-  return `<task_session_archived sessionid="${escapeXmlAttribute(input.sessionId)}" taskid="${escapeXmlAttribute(input.taskId)}"/>`;
+/** 生成会话归档通知；`id` 用于判定是否已注入。 */
+export function taskSessionArchived(input: {
+  id: string;
+  sessionId: string;
+  taskId: string;
+}): string {
+  return `<task_session_archived id="${escapeXmlAttribute(input.id)}" sessionid="${escapeXmlAttribute(input.sessionId)}" taskid="${escapeXmlAttribute(input.taskId)}"/>`;
 }
