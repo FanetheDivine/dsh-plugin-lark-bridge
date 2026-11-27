@@ -94,7 +94,8 @@ export interface SendReportInput {
 /** 上报结果；未存档时没有报告标识与路径。 */
 export interface SendReportResult {
   reportId?: string;
-  taskId: string;
+  /** 被管理任务；没有工作区时省略。 */
+  taskId?: string;
   reportPath?: string;
   delivered: boolean;
   /** 未送达原因：`no_workspace`、`create_failed`、`delivery_failed`。 */

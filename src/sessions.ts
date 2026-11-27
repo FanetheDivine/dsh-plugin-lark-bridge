@@ -25,6 +25,14 @@ import {
   toHostWorkspacePath,
 } from './workspace-path.ts';
 
+/** 一次 ensure 的结果。 */
+export interface EnsureResult {
+  readonly sessionId: string;
+  readonly agent: Agent;
+  readonly created: boolean;
+  readonly cwd: string;
+}
+
 /** 一次注入的结果。 */
 export interface InjectionResult {
   readonly sessionId: string;
@@ -109,6 +117,7 @@ function appendTitle(session: { append: (...args: never[]) => unknown }, title: 
 /** 桥接会话的创建、恢复与注入。 */
 export class SessionManager {
   private readonly deps: SessionDeps;
+  private readonly ensuring = new Map<string, Promise<EnsureResult>>();
   private failure: string | undefined;
 
   constructor(deps: SessionDeps) {
@@ -304,13 +313,30 @@ export class SessionManager {
   }
 
   /**
-   * 取得当前工作区对应的会话；没有记录或不可用时新建。
+   * 取得当前工作区对应的会话；没有记录、不可用或已归档时新建。
+   * 同一工作区的并发调用共享同一次创建。
    * @param workspaceRoot - 配置的工作区路径。
    * @returns 会话标识、会话实例与是否新建。
    */
-  async ensure(
-    workspaceRoot: string,
-  ): Promise<{ sessionId: string; agent: Agent; created: boolean; cwd: string }> {
+  async ensure(workspaceRoot: string): Promise<EnsureResult> {
+    const cwd = toHostWorkspacePath(workspaceRoot);
+    const pending = this.ensuring.get(cwd);
+    if (pending !== undefined) return pending;
+    const created = this.ensureOnce(workspaceRoot).finally(() => {
+      if (this.ensuring.get(cwd) === created) this.ensuring.delete(cwd);
+    });
+    this.ensuring.set(cwd, created);
+    return created;
+  }
+
+  /** 确保调度会话存在，供上报路径在会话缺失或归档时调用。 */
+  async ensureDispatchSession(workspaceRoot: string): Promise<{ sessionId: string }> {
+    const { sessionId } = await this.ensure(workspaceRoot);
+    return { sessionId };
+  }
+
+  /** 实际执行一次 ensure。 */
+  private async ensureOnce(workspaceRoot: string): Promise<EnsureResult> {
     const cwd = toHostWorkspacePath(workspaceRoot);
     await assertWorkspace(cwd);
     const workspace = await this.registry().resolveByPath(cwd);

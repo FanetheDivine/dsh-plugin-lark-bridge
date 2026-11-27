@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
-
+import { replaceFile } from '../atomic.ts';
 import type {
   CreateTaskInput,
   EndReason,
@@ -120,7 +120,7 @@ export async function atomicWriteJson(path: string, value: unknown): Promise<voi
       encoding: 'utf8',
       flag: 'wx',
     });
-    await rename(temporary, path);
+    await replaceFile(temporary, path);
   } catch (error) {
     await rm(temporary, { force: true }).catch(() => undefined);
     throw error;

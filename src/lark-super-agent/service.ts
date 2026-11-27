@@ -621,15 +621,13 @@ export class SuperAgentService implements LarkSuperAgentService {
     callerSessionId: string,
     origin: ReportOrigin = 'send_report',
   ): Promise<SendReportResult> {
-    const task = await this.managedTask(callerSessionId);
-    if (task === undefined) throw new Error(NOT_MANAGED_ERROR);
     const caller = this.agent(callerSessionId);
     const cwd = caller?.session?.cwd ?? process.cwd();
     await validateReportInput(input, cwd);
     const state = await this.bridgeState();
-    if (state.workspaceRoot === null) {
-      return { taskId: task.id, delivered: false, reason: 'no_workspace' };
-    }
+    if (state.workspaceRoot === null) return { delivered: false, reason: 'no_workspace' };
+    const task = await this.managedTask(callerSessionId);
+    if (task === undefined) throw new Error(NOT_MANAGED_ERROR);
     const root = state.workspaceRoot;
     const reports = new ReportStore(root, {
       cwd,

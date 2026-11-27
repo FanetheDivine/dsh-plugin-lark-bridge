@@ -243,6 +243,25 @@ describe('SessionManager', () => {
     await expect(sessions.inject('hi')).rejects.toMatchObject({ code: 'workspace-invalid' });
   });
 
+  it('ensureDispatchSession 在没有飞书消息时创建调度会话', async () => {
+    const { sessions, created, store, workspaceRoot } = await setup();
+    const result = await sessions.ensureDispatchSession(workspaceRoot);
+    expect(created).toHaveLength(1);
+    expect(result.sessionId).toBe(created[0]?.sessionId);
+    expect((await store.load()).sessionId).toBe(result.sessionId);
+  });
+
+  it('并发 ensure 只创建一次会话', async () => {
+    const { sessions, created, workspaceRoot } = await setup();
+    const [first, second] = await Promise.all([
+      sessions.ensure(workspaceRoot),
+      sessions.ensure(workspaceRoot),
+    ]);
+    expect(created).toHaveLength(1);
+    expect(first.sessionId).toBe(second.sessionId);
+    expect(first.created).toBe(true);
+  });
+
   it('ensure 返回 Host 原生 cwd', async () => {
     const { sessions, workspaceRoot, cwd } = await setup();
     const result = await sessions.ensure(workspaceRoot);

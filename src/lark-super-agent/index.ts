@@ -22,6 +22,15 @@ export function apply(ctx: Context, config?: unknown): void {
   const service = new SuperAgentService(ctx, {
     taskModel: (taskType) => readTaskModel(config, taskType),
     taskPreset: () => readTaskPreset(config),
+    ensureDispatchSession: async (workspaceRoot) => {
+      const sessions = ctx.get('larkBridgeSessions') as
+        | { ensureDispatchSession?: (root: string) => Promise<{ sessionId: string }> }
+        | undefined;
+      if (typeof sessions?.ensureDispatchSession !== 'function') {
+        throw new Error('lark-bridge sessions are unavailable; cannot create the dispatch session');
+      }
+      return sessions.ensureDispatchSession(workspaceRoot);
+    },
   });
   ctx.effect(() => ctx.provide('larkSuperAgent', service), 'lark-super-agent: service');
   // 被管理会话的能力与预设无关，注册在全局作用域。

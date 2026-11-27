@@ -91,6 +91,12 @@ export function makeCtx(options: { services?: Record<string, unknown> } = {}) {
     get(name: string) {
       return services.get(name);
     },
+    provide(name: string, value: unknown) {
+      services.set(name, value);
+      return () => {
+        if (services.get(name) === value) services.delete(name);
+      };
+    },
     _onCallbacks: onCallbacks,
     _registeredTools: registeredTools,
     /** 按 agent 求值注册条件；没有条件时返回 true。 */

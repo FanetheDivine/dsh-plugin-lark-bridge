@@ -64,7 +64,7 @@ export function buildSendReportTool(service: LarkSuperAgentService) {
             type: 'string',
             description: 'Report id; absent when the report was not archived.',
           },
-          taskId: { type: 'string', required: true },
+          taskId: { type: 'string', description: 'Managed task id; absent without a workspace.' },
           reportPath: {
             type: 'string',
             description:

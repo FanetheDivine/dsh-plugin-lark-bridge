@@ -2,8 +2,9 @@
  * 插件私有状态：桥接会话标识、工作区与消息去重窗口。
  * 导出 BridgeState、emptyState 与 StateStore。
  */
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { replaceFile } from './atomic.ts';
 
 import { SEEN_LIMIT } from './constants.ts';
 import { normalizeWorkspacePath } from './workspace-path.ts';
@@ -168,6 +169,6 @@ export class StateStore {
     const tmp = `${this.file}.${process.pid}.tmp`;
     await writeFile(tmp, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
     await rm(this.file, { force: true });
-    await rename(tmp, this.file);
+    await replaceFile(tmp, this.file);
   }
 }
