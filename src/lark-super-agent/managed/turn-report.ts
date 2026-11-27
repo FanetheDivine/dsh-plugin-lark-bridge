@@ -105,7 +105,7 @@ export class TurnReporter {
     return created;
   }
 
-  /** 把会话当前轮标记为已上报；拦截代为上报后轮次结束不再补进度上报。 */
+  /** 把会话当前轮标记为已上报；提问补投的轮次结束不再补进度上报。 */
   markIntercepted(sessionId: string): void {
     const state = this.turns.get(sessionId);
     if (state !== undefined) state.reported = true;

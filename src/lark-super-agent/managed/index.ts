@@ -68,37 +68,47 @@ export function applyManagedSessions(
     (await service.managedTask(sessionId)) !== undefined;
 
   // send_report 对除调度会话外的所有会话可见；是否已管理由执行体判定。
-  const unregister = ctx.tools.register(buildSendReportTool(service), {
-    when: async ({ agent }) => {
-      const sessionId = agent?.session?.id;
-      if (sessionId === undefined || sessionId === '') return false;
-      const dispatchId = await bridgeSessionId();
-      return dispatchId === null || sessionId !== dispatchId;
+  const unregister = ctx.tools.register(
+    buildSendReportTool(service, {
+      // 会话自行上报提问后，轮次结束不再补投同一批问题。
+      onReport: (kind, sessionId) => {
+        if (kind === 'question') askGuard.noteReported(sessionId);
+      },
+    }),
+    {
+      when: async ({ agent }) => {
+        const sessionId = agent?.session?.id;
+        if (sessionId === undefined || sessionId === '') return false;
+        const dispatchId = await bridgeSessionId();
+        return dispatchId === null || sessionId !== dispatchId;
+      },
     },
-  });
+  );
   ctx.effect(() => () => unregister(), 'lark-super-agent: send_report tool');
 
   const askGuard = new AskGuard({
     isManaged,
     gateway: () => ctx.get('typertGateway') as never,
     logger: ctx.logger,
-    // 拦截即上报：投递成功把 in_progress 任务置 waiting_user，并标记本轮已上报。
-    intercept: async (sessionId: string, questions: unknown) => {
-      const report = await service.sendReport(
-        { kind: 'question', text: questionReportText(questions) },
-        sessionId,
-        'ask_intercept',
-      );
-      if (!report.delivered) {
-        throw new Error(report.reason ?? 'question report was not delivered');
-      }
-      const task = await service.managedTask(sessionId);
-      if (task !== undefined && task.id === report.taskId && task.status === 'in_progress') {
-        await service.updateTask({ taskId: task.id, status: 'waiting_user' });
-      }
-      reporter.markIntercepted(sessionId);
-    },
   });
+
+  // 轮次结束时仍未上报的提问由插件补投，任务可在调度会话缺席时进入等待。
+  const fallback = async (sessionId: string, questions: readonly unknown[]): Promise<void> => {
+    const task = await service.managedTask(sessionId);
+    if (task === undefined) return;
+    const report = await service.sendReport(
+      { kind: 'question', text: questionReportText(questions) },
+      sessionId,
+      'ask_intercept',
+    );
+    if (!report.delivered) {
+      ctx.logger.warn('lark-super-agent: the blocked question was not delivered', report.reason);
+      return;
+    }
+    if (report.taskId === undefined || task.status !== 'in_progress') return;
+    await service.updateTask({ taskId: task.id, status: 'waiting_user' });
+  };
+
   // 会话开始被管理时结束它等待中的提问；加载时再清一次网关里残留的请求。
   service.setManagedSessionListener((sessionId) => askGuard.cancel(sessionId));
   void askGuard.sweep();
@@ -128,6 +138,15 @@ export function applyManagedSessions(
     const sessionId = session.id;
     if (sessionId === undefined || sessionId === '') return;
     const { type, data } = eventData(event);
+    if (type === 'turn/end') {
+      const blocked = askGuard.takeFallback(sessionId);
+      if (blocked !== undefined) {
+        reporter.markIntercepted(sessionId);
+        void fallback(sessionId, blocked).catch((error: unknown) => {
+          ctx.logger.warn('lark-super-agent: the blocked question was not delivered', error);
+        });
+      }
+    }
     reporter.observe(sessionId, event);
     taskLogObserver.observe(sessionId, event);
     if (type !== 'turn/end') return;
@@ -145,11 +164,11 @@ export function applyManagedSessions(
     const sessionId = agent.session?.id;
     if (sessionId === undefined || sessionId === '') return decision;
     const wrapped = wrapDispatchMessages(decision.messages);
-    const rules = askGuard.takeRules(sessionId);
-    if (!rules)
+    const blocked = askGuard.takeRules(sessionId);
+    if (blocked === undefined)
       return wrapped === decision.messages ? decision : { ...decision, messages: wrapped };
     if (hasTaskRules(wrapped)) return { ...decision, messages: wrapped };
-    return { ...decision, messages: [taskRulesMessage(), ...wrapped] };
+    return { ...decision, messages: [taskRulesMessage(blocked), ...wrapped] };
   });
 
   // 调度会话每次 pre-step 前注入还没有的任务日志条目；全新会话先收到未结束任务快照。

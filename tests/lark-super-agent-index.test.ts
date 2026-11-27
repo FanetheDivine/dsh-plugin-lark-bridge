@@ -271,12 +271,119 @@ describe('lark-super-agent 全局行', () => {
     expect(notify).toHaveBeenCalledOnce();
   });
 
-  it('被管理会话的提问被拦截：代为上报、置状态并结束轮次', async () => {
+  /** 建立调度工作区与 worker 的被管理任务，并返回已启动的行。 */
+  function startManagedRow() {
     const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
     mkdirSync(workspaceRoot, { recursive: true });
     writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
     writeManagedTask(workspaceRoot, 'worker', 'task-20260101000000-0001');
-    const { base, service } = startRow();
+    return startRow();
+  }
+
+  /** 构造 worker 的一次提问调用。 */
+  function askExec(questions: unknown, callId = 'call-1') {
+    return {
+      name: ASK_TOOL,
+      callId,
+      agent: { session: { id: 'worker' } },
+      signal: new AbortController().signal,
+      arguments: { questions },
+    };
+  }
+
+  /** 发出一条 worker 的轮次事件。 */
+  function emitTurn(base: RowCtx, type: string, reason = 'completed') {
+    const data = type === 'turn/end' ? { turn: 1, reason: { kind: reason } } : { turn: 1 };
+    base._emit('session/event', { id: 'worker' }, { type, data });
+  }
+
+  /** 取 pre-execute 监听。 */
+  function preExecute(base: RowCtx) {
+    const listener = base._onCallbacks.get('tools/pre-execute')?.[0];
+    if (listener === undefined) throw new Error('missing tools/pre-execute');
+    return (exec: unknown) => listener(exec, async () => ({ kind: 'allow' }));
+  }
+
+  /** 以 worker 身份调用 send_report。 */
+  function callReport(base: RowCtx, args: unknown) {
+    const tool = base._registeredTools.find((item) => item.name === 'send_report') as
+      | { execute: (args: unknown, exec: unknown) => Promise<unknown> }
+      | undefined;
+    if (tool === undefined) throw new Error('missing send_report');
+    return tool.execute(args, { agent: { session: { id: 'worker' } } });
+  }
+
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+  const questions = [{ id: 'q1', question: '选哪个？', options: [{ label: 'A' }, { label: 'B' }] }];
+
+  it('被管理会话的提问被拒绝，下一步注入含问题的 S，插件不代为上报', async () => {
+    const { base, service } = startManagedRow();
+    const sendReport = vi.spyOn(service, 'sendReport');
+    await expect(preExecute(base)(askExec(questions))).resolves.toEqual({
+      kind: 'deny',
+      reason: ASK_BLOCKED_ERROR,
+    });
+    expect(sendReport).not.toHaveBeenCalled();
+
+    const injected = await runPreStep(
+      base,
+      { agent: { session: { id: 'worker' } } },
+      enterWith([sourcedMessage('user')]),
+    );
+    expect(injected.messages).toHaveLength(2);
+    const rules = injected.messages?.[0] as
+      | { source: { kind: string }; content: Array<{ text: string }> }
+      | undefined;
+    expect(rules?.source.kind).toBe(TASK_RULES_SOURCE_KIND);
+    expect(rules?.content[0]?.text).toContain('- Q1: 选哪个？');
+    expect(rules?.content[0]?.text).toContain('  - B');
+
+    const again = await runPreStep(
+      base,
+      { agent: { session: { id: 'worker' } } },
+      enterWith([sourcedMessage('user')]),
+    );
+    expect(again.messages).toHaveLength(1);
+  });
+
+  it('会话自行上报提问后，轮次结束不再补投', async () => {
+    const { base, service } = startManagedRow();
+    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
+      reportId: 'report-20260101000000-abcdef',
+      taskId: 'task-20260101000000-0001',
+      delivered: true,
+    });
+    emitTurn(base, 'turn/start');
+    await preExecute(base)(askExec(questions));
+    await callReport(base, { kind: 'question', text: '背景与提问' });
+    emitTurn(base, 'turn/end');
+    await settle();
+    expect(sendReport).toHaveBeenCalledExactlyOnceWith(
+      { kind: 'question', text: '背景与提问' },
+      'worker',
+    );
+  });
+
+  it('progress 上报不清空待补投的提问', async () => {
+    const { base, service } = startManagedRow();
+    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
+      taskId: 'task-20260101000000-0001',
+      delivered: true,
+    });
+    vi.spyOn(service, 'updateTask').mockResolvedValue({
+      taskId: 'task-20260101000000-0001',
+      status: 'waiting_user',
+    });
+    emitTurn(base, 'turn/start');
+    await preExecute(base)(askExec(questions));
+    await callReport(base, { kind: 'progress', text: '进度' });
+    emitTurn(base, 'turn/end');
+    await vi.waitFor(() => expect(sendReport).toHaveBeenCalledTimes(2));
+    expect(sendReport.mock.calls[1]?.[2]).toBe('ask_intercept');
+  });
+
+  it('轮次结束仍未上报时补投 ask_intercept 提问并置等待用户，不补进度上报', async () => {
+    const { base, service } = startManagedRow();
     const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
       reportId: 'report-20260101000000-abcdef',
       taskId: 'task-20260101000000-0001',
@@ -286,111 +393,93 @@ describe('lark-super-agent 全局行', () => {
       .spyOn(service, 'updateTask')
       .mockResolvedValue({ taskId: 'task-20260101000000-0001', status: 'waiting_user' });
 
-    const beforeExecute = base._onCallbacks.get('tools/pre-execute')?.[0];
-    const aroundExecute = base._onCallbacks.get('tools/execute')?.[0];
-    if (beforeExecute === undefined || aroundExecute === undefined)
-      throw new Error('missing tool hooks');
-    const exec = {
-      name: ASK_TOOL,
-      callId: 'call-1',
-      agent: { session: { id: 'worker' } },
-      signal: new AbortController().signal,
-      concludeTurn: vi.fn(),
-      arguments: { questions: [{ id: 'q1', question: '选哪个？' }] },
-    };
-    await expect(beforeExecute(exec, async () => ({ kind: 'allow' }))).resolves.toEqual({
-      kind: 'allow',
-    });
-    const result = await aroundExecute(exec, async () => {
-      throw new Error('tool body must not run');
-    });
-    expect(sendReport).toHaveBeenCalledWith(
+    emitTurn(base, 'turn/start');
+    await preExecute(base)(askExec(questions));
+    await preExecute(base)(askExec(questions, 'call-2'));
+    base._emit(
+      'session/event',
+      { id: 'worker' },
+      {
+        type: 'assistant/message',
+        data: { turn: 1, message: { content: [{ type: 'text', text: '我先停在这里' }] } },
+      },
+    );
+    emitTurn(base, 'turn/end');
+
+    await vi.waitFor(() => expect(updateTask).toHaveBeenCalledOnce());
+    expect(sendReport).toHaveBeenCalledExactlyOnceWith(
       { kind: 'question', text: expect.stringContaining('选哪个？') },
       'worker',
       'ask_intercept',
     );
+    const text = sendReport.mock.calls[0]?.[0].text ?? '';
+    expect(text.match(/选哪个？/g)).toHaveLength(1);
     expect(updateTask).toHaveBeenCalledWith({
       taskId: 'task-20260101000000-0001',
       status: 'waiting_user',
     });
-    expect(exec.concludeTurn).toHaveBeenCalledOnce();
-    expect(result).toMatchObject({ isError: false, value: { answers: [] } });
 
-    const messages = [sourcedMessage('user')];
-    const injected = await runPreStep(
-      base,
-      { agent: { session: { id: 'worker' } } },
-      enterWith(messages),
-    );
-    expect(injected.messages).toHaveLength(1);
-  });
-
-  it('拦截上报失败时退回拒绝反馈并注入一次 S', async () => {
-    const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
-    mkdirSync(workspaceRoot, { recursive: true });
-    writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
-    writeManagedTask(workspaceRoot, 'worker', 'task-20260101000000-0001');
-    const { base, service } = startRow();
-    const sendReport = vi.spyOn(service, 'sendReport').mockRejectedValue(new Error('no dispatch'));
-    const updateTask = vi.spyOn(service, 'updateTask');
-    const aroundExecute = base._onCallbacks.get('tools/execute')?.[0];
-    if (aroundExecute === undefined) throw new Error('missing tools/execute listener');
-
-    const exec = {
-      name: ASK_TOOL,
-      callId: 'call-1',
-      agent: { session: { id: 'worker' } },
-      signal: new AbortController().signal,
-      concludeTurn: vi.fn(),
-      arguments: { questions: [{ id: 'q1', question: 'x' }] },
-    };
-    const result = await aroundExecute(exec, async () => {
-      throw new Error('tool body must not run');
-    });
+    emitTurn(base, 'turn/end');
+    await settle();
     expect(sendReport).toHaveBeenCalledOnce();
-    expect(updateTask).not.toHaveBeenCalled();
-    expect(result.isError).toBe(true);
-    expect(exec.concludeTurn).not.toHaveBeenCalled();
-
-    const messages = [sourcedMessage('user')];
-    const injected = await runPreStep(
-      base,
-      { agent: { session: { id: 'worker' } } },
-      enterWith(messages),
-    );
-    expect(injected.messages).toHaveLength(2);
-    const rules = injected.messages?.[0] as { source: { kind: string } } | undefined;
-    expect(rules?.source.kind).toBe(TASK_RULES_SOURCE_KIND);
   });
 
-  it('拦截上报未送达时退回拒绝反馈且不置等待状态', async () => {
-    const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
-    mkdirSync(workspaceRoot, { recursive: true });
-    writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
-    writeManagedTask(workspaceRoot, 'worker', 'task-20260101000000-0001');
-    const { base, service } = startRow();
-    vi.spyOn(service, 'sendReport').mockResolvedValue({
-      reportId: 'report-20260101000000-abcdef',
+  it('轮次被停止时同样补投', async () => {
+    const { base, service } = startManagedRow();
+    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
+      taskId: 'task-20260101000000-0001',
+      delivered: true,
+    });
+    vi.spyOn(service, 'updateTask').mockResolvedValue({
+      taskId: 'task-20260101000000-0001',
+      status: 'waiting_user',
+    });
+    emitTurn(base, 'turn/start');
+    await preExecute(base)(askExec(questions));
+    emitTurn(base, 'turn/end', 'aborted');
+    await vi.waitFor(() => expect(sendReport).toHaveBeenCalledOnce());
+    expect(sendReport.mock.calls[0]?.[2]).toBe('ask_intercept');
+  });
+
+  it('补投未送达时不置等待用户', async () => {
+    const { base, service } = startManagedRow();
+    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
       taskId: 'task-20260101000000-0001',
       delivered: false,
       reason: 'delivery_failed: dispatch offline',
     });
     const updateTask = vi.spyOn(service, 'updateTask');
-    const aroundExecute = base._onCallbacks.get('tools/execute')?.[0];
-    if (aroundExecute === undefined) throw new Error('missing tools/execute listener');
-    const exec = {
-      name: ASK_TOOL,
-      callId: 'call-1',
-      agent: { session: { id: 'worker' } },
-      signal: new AbortController().signal,
-      concludeTurn: vi.fn(),
-      arguments: { questions: [{ id: 'q1', question: 'x' }] },
-    };
-    const result = await aroundExecute(exec, async () => {
-      throw new Error('tool body must not run');
-    });
+    emitTurn(base, 'turn/start');
+    await preExecute(base)(askExec(questions));
+    emitTurn(base, 'turn/end');
+    await vi.waitFor(() => expect(sendReport).toHaveBeenCalledOnce());
+    await settle();
     expect(updateTask).not.toHaveBeenCalled();
-    expect(result.isError).toBe(true);
-    expect(exec.concludeTurn).not.toHaveBeenCalled();
+  });
+
+  it('任务已结束时不补投', async () => {
+    const { base, service } = startManagedRow();
+    emitTurn(base, 'turn/start');
+    await preExecute(base)(askExec(questions));
+    const managedTask = vi.spyOn(service, 'managedTask').mockResolvedValue(undefined);
+    const sendReport = vi.spyOn(service, 'sendReport');
+    emitTurn(base, 'turn/end');
+    await vi.waitFor(() => expect(managedTask).toHaveBeenCalled());
+    await settle();
+    expect(sendReport).not.toHaveBeenCalled();
+  });
+
+  it('未被管理会话的提问保持原决策，不注入 S', async () => {
+    const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
+    mkdirSync(workspaceRoot, { recursive: true });
+    writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
+    const { base } = startRow();
+    await expect(preExecute(base)(askExec(questions))).resolves.toEqual({ kind: 'allow' });
+    const decision = await runPreStep(
+      base,
+      { agent: { session: { id: 'worker' } } },
+      enterWith([sourcedMessage('user')]),
+    );
+    expect(decision.messages).toHaveLength(1);
   });
 });
