@@ -70,28 +70,6 @@ async function play(reporter: TurnReporter, sessionId: string, events: unknown[]
   await settle();
 }
 
-describe('TurnReporter.markIntercepted', () => {
-  it('拦截标记后轮次结束不再补进度上报', async () => {
-    const { reporter, service } = makeReporter();
-    reporter.observe('worker', start(1));
-    reporter.observe('worker', say(1, '干活中'));
-    reporter.markIntercepted('worker');
-    reporter.observe('worker', end(1));
-    await settle();
-    expect(service.sendReport).not.toHaveBeenCalled();
-  });
-
-  it('无当前轮状态时为空操作', async () => {
-    const { reporter, service } = makeReporter();
-    expect(() => reporter.markIntercepted('worker')).not.toThrow();
-    reporter.observe('worker', start(2));
-    reporter.observe('worker', say(2, '文本'));
-    reporter.observe('worker', end(2));
-    await settle();
-    expect(service.sendReport).toHaveBeenCalledOnce();
-  });
-});
-
 describe('TurnReporter 自动上报', () => {
   it('正常结束且未上报时把最后一段文本作为 turn_end 上报', async () => {
     const { reporter, service } = makeReporter();
