@@ -26,6 +26,7 @@ function makeService() {
     updateTask: vi.fn(),
     endTask: vi.fn(),
     pruneTasks: vi.fn(),
+    restoreSession: vi.fn(),
     setWorkspaceNote: vi.fn(),
     removeWorkspaceNote: vi.fn(),
     sendReport: vi.fn(),
@@ -93,6 +94,7 @@ describe('SA-调度会话子行', () => {
       'task_end',
       'session_manage',
       'session_unmanage',
+      'session_restore',
       'workspace_note_set',
       'workspace_note_remove',
     ]);
@@ -116,12 +118,59 @@ describe('SA-调度会话子行', () => {
       'task_end',
       'session_manage',
       'session_unmanage',
+      'session_restore',
       'workspace_note_set',
       'workspace_note_remove',
       'session_create',
       'list_models',
       'session_model',
     ]);
+  });
+
+  it('session_restore 默认重新置顶并透出恢复结果', async () => {
+    const host = mount();
+    host.service.restoreSession.mockResolvedValue({
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      taskRestored: true,
+      pinned: true,
+    });
+
+    const result = await tool(host.tools, 'session_restore').execute(
+      { session_id: 'session-1' },
+      {} as never,
+    );
+
+    expect(host.service.restoreSession).toHaveBeenCalledWith('session-1', { pin: true });
+    expect(result).toEqual({
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      taskRestored: true,
+      pinned: true,
+    });
+  });
+
+  it('session_restore 传 pin: false 时跳过置顶，并保留警告', async () => {
+    const host = mount();
+    host.service.restoreSession.mockResolvedValue({
+      sessionId: 'session-1',
+      taskRestored: false,
+      pinned: false,
+      warning: 'no archived task was found for the session',
+    });
+
+    const result = await tool(host.tools, 'session_restore').execute(
+      { session_id: 'session-1', pin: false },
+      {} as never,
+    );
+
+    expect(host.service.restoreSession).toHaveBeenCalledWith('session-1', { pin: false });
+    expect(result).toEqual({
+      sessionId: 'session-1',
+      taskRestored: false,
+      pinned: false,
+      warning: 'no archived task was found for the session',
+    });
   });
 
   it('task_update 转换全部字段并返回任务标识与状态', async () => {

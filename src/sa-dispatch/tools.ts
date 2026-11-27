@@ -164,6 +164,37 @@ export function registerDispatchTools(ctx: DispatchContext): void {
 
   ctx.tools.register(
     defineTool({
+      name: 'session_restore',
+      description:
+        'Restore an archived session: unarchive it, restore the task that its archive ended with its reports and task log, and pin it again. Use this instead of session_archive remove: true when the session should return as a managed task.',
+      parameters: {
+        session_id: { type: 'string', required: true, description: 'Archived session id.' },
+        pin: {
+          type: 'boolean',
+          description: 'Pin the restored session again. Defaults to true.',
+        },
+      },
+      output: {
+        schema: { type: 'json' as const },
+        render: (_args, value) => renderJson(value),
+      },
+      execute: async (args) => {
+        const restored = await service.restoreSession(args.session_id, {
+          pin: args.pin !== false,
+        });
+        return {
+          sessionId: restored.sessionId,
+          ...(restored.taskId === undefined ? {} : { taskId: restored.taskId }),
+          taskRestored: restored.taskRestored,
+          pinned: restored.pinned,
+          ...(restored.warning === undefined ? {} : { warning: restored.warning }),
+        };
+      },
+    }),
+  );
+
+  ctx.tools.register(
+    defineTool({
       name: 'workspace_note_set',
       description:
         'Create or replace a workspace note. Registered notes also authorize dispatching into that workspace.',

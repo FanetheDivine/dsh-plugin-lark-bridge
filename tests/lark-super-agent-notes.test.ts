@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { TaskStatus } from '../src/lark-super-agent/api.ts';
 import { runGit } from '../src/lark-super-agent/git.ts';
 import {
+  ARCHIVED_TASK_LOG,
   NotesStore,
   readTaskState,
   readWorkspaceState,
@@ -330,6 +331,83 @@ describe('lark-super-agent notes', { timeout: 30000 }, () => {
     await store.endTask(plain, 'cancelled');
     expect((await archivedSnapshot(root, plain)).endReason).toBe('cancelled');
     expect(await exists(join(root, 'archive', plain, 'reports'))).toBe(false);
+  });
+
+  it('latestArchivedTask 取该会话最近归档的一条', async () => {
+    const root = await temporaryDirectory();
+    const store = new NotesStore(root);
+    const older = await newTask(store, 'worker');
+    await store.endTask(older, 'completed');
+    const newer = await newTask(store, 'worker');
+    await store.endTask(newer, 'session_archived');
+    const other = await newTask(store, 'other');
+    await store.endTask(other, 'session_archived');
+
+    const latest = await store.latestArchivedTask('worker');
+    expect(latest?.id).toBe(newer);
+    expect(latest?.endReason).toBe('session_archived');
+    await expect(store.latestArchivedTask('missing')).resolves.toBeUndefined();
+  });
+
+  it('restoreTask 迁回报告与任务日志、写回台账并删除归档目录', async () => {
+    const root = await temporaryDirectory();
+    const store = new NotesStore(root);
+    const taskId = await newTask(store, 'worker');
+    const report = await new ReportStore(root, { cwd: root }).archiveReport(
+      { kind: 'progress', text: '进展' },
+      'worker',
+      taskId,
+      'send_report',
+    );
+    await mkdir(join(root, 'task-logs'), { recursive: true });
+    await writeFile(join(root, 'task-logs', `${taskId}.jsonl`), '{"seq":1}\n', 'utf8');
+    await store.endTask(taskId, 'session_archived');
+    expect(await exists(join(root, 'archive', taskId, 'reports'))).toBe(true);
+    expect(await exists(join(root, 'archive', taskId, ARCHIVED_TASK_LOG))).toBe(true);
+
+    const archived = await store.latestArchivedTask('worker');
+    if (archived === undefined) throw new Error('expected an archived task');
+    await expect(store.restoreTask(archived)).resolves.toEqual({ taskId });
+
+    const tasks = (await readTaskState(root)).tasks;
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({
+      id: taskId,
+      sessionId: 'worker',
+      status: 'in_progress',
+      reportIds: [report.reportId],
+      deliveredReportIds: [],
+    });
+    expect(tasks[0]?.messages).toHaveLength(1);
+    expect(await exists(join(root, 'reports', taskId, `${report.reportId}.md`))).toBe(true);
+    expect(await exists(join(root, 'task-logs', `${taskId}.jsonl`))).toBe(true);
+    expect(await exists(join(root, 'archive', taskId))).toBe(false);
+    expect((await runGit(['log', '-1', '--pretty=%s'], root)).stdout.trim()).toBe(
+      `lark-super-agent: restore ${taskId}`,
+    );
+    expect((await runGit(['status', '--porcelain'], root)).stdout.trim()).toBe('');
+  });
+
+  it('restoreTask 拒绝覆盖已有报告目录或该会话的未结束任务', async () => {
+    const root = await temporaryDirectory();
+    const store = new NotesStore(root);
+    const taskId = await newTask(store, 'worker');
+    await new ReportStore(root, { cwd: root }).archiveReport(
+      { kind: 'progress', text: '进展' },
+      'worker',
+      taskId,
+      'send_report',
+    );
+    await store.endTask(taskId, 'session_archived');
+    const archived = await store.latestArchivedTask('worker');
+    if (archived === undefined) throw new Error('expected an archived task');
+
+    await mkdir(join(root, 'reports', taskId), { recursive: true });
+    await expect(store.restoreTask(archived)).rejects.toThrow(/refusing to overwrite/);
+    await rm(join(root, 'reports', taskId), { recursive: true, force: true });
+
+    await newTask(store, 'worker');
+    await expect(store.restoreTask(archived)).rejects.toThrow(/already managed/);
   });
 
   it('pruneTasks 按会话归档与会话缺失两种原因结束任务', async () => {

@@ -742,6 +742,131 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     expect(tasks.reduce((total, task) => total + task.deliveredReportIds.length, 0)).toBe(2);
   });
 
+  it('恢复归档会话时解除归档、恢复任务并重新置顶', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(normalizeWorkspacePath(root));
+    const unarchive = vi.fn(async () => undefined);
+    const pin = vi.fn(async () => undefined);
+    const ctx = makeContext({
+      workspaceRegistry: {
+        archivedSessionIds: ['worker'],
+        unarchiveSession: unarchive,
+        pinSession: pin,
+      },
+    });
+    const service = new SuperAgentService(ctx, { home });
+    const seeded = await seedTask(service, 'worker');
+    await service.endTask(seeded.taskId, 'session_archived');
+
+    await expect(service.restoreSession(' worker ', { pin: true })).resolves.toEqual({
+      sessionId: 'worker',
+      taskId: seeded.taskId,
+      taskRestored: true,
+      pinned: true,
+    });
+    expect(unarchive).toHaveBeenCalledWith('worker');
+    expect(pin).toHaveBeenCalledWith('worker');
+    await expect(service.managedTask('worker')).resolves.toMatchObject({
+      id: seeded.taskId,
+      status: 'in_progress',
+    });
+  });
+
+  it('恢复已完成任务的会话时不恢复任务并给出原因', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(normalizeWorkspacePath(root));
+    const ctx = makeContext({
+      workspaceRegistry: {
+        archivedSessionIds: ['worker'],
+        unarchiveSession: vi.fn(async () => undefined),
+        pinSession: vi.fn(async () => undefined),
+      },
+    });
+    const service = new SuperAgentService(ctx, { home });
+    const seeded = await seedTask(service, 'worker');
+    await service.endTask(seeded.taskId, 'completed');
+
+    const result = await service.restoreSession('worker', { pin: true });
+    expect(result.taskRestored).toBe(false);
+    expect(result).not.toHaveProperty('taskId');
+    expect(result.warning).toContain('completed');
+    await expect(service.managedTask('worker')).resolves.toBeUndefined();
+  });
+
+  it('拒绝恢复未归档会话，pin: false 时保持未置顶', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(normalizeWorkspacePath(root));
+    const unarchive = vi.fn(async () => undefined);
+    const pin = vi.fn(async () => undefined);
+    const archived = new Set<string>();
+    const ctx = makeContext({
+      workspaceRegistry: {
+        get archivedSessionIds() {
+          return [...archived];
+        },
+        unarchiveSession: unarchive,
+        pinSession: pin,
+      },
+    });
+    const service = new SuperAgentService(ctx, { home });
+
+    await expect(service.restoreSession('worker', { pin: true })).rejects.toThrow(
+      /is not archived/,
+    );
+    expect(unarchive).not.toHaveBeenCalled();
+
+    archived.add('worker');
+    const result = await service.restoreSession('worker', { pin: false });
+    expect(result).toMatchObject({ sessionId: 'worker', taskRestored: false, pinned: false });
+    expect(pin).not.toHaveBeenCalled();
+  });
+
+  it('置顶失败时保留已完成的恢复并给出警告', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(normalizeWorkspacePath(root));
+    const ctx = makeContext({
+      workspaceRegistry: {
+        archivedSessionIds: ['worker'],
+        unarchiveSession: vi.fn(async () => undefined),
+        pinSession: vi.fn(async () => {
+          throw new Error('pin refused');
+        }),
+      },
+    });
+    const service = new SuperAgentService(ctx, { home });
+    const seeded = await seedTask(service, 'worker');
+    await service.endTask(seeded.taskId, 'session_archived');
+
+    const result = await service.restoreSession('worker', { pin: true });
+    expect(result).toMatchObject({ taskId: seeded.taskId, taskRestored: true, pinned: false });
+    expect(result.warning).toContain('pinning the session failed: pin refused');
+  });
+
+  it('没有调度工作区时只解除归档', async () => {
+    const home = await bridgeHome(null);
+    const unarchive = vi.fn(async () => undefined);
+    const ctx = makeContext({
+      workspaceRegistry: {
+        archivedSessionIds: ['worker'],
+        unarchiveSession: unarchive,
+        pinSession: vi.fn(async () => undefined),
+      },
+    });
+    const service = new SuperAgentService(ctx, { home });
+
+    const result = await service.restoreSession('worker', { pin: false });
+    expect(unarchive).toHaveBeenCalledWith('worker');
+    expect(result).toMatchObject({ sessionId: 'worker', taskRestored: false, pinned: false });
+    expect(result.warning).toContain('has no workspaceRoot');
+  });
+
+  it('注册表缺失时拒绝恢复', async () => {
+    const service = new SuperAgentService(makeContext({}), { home: await bridgeHome('/dispatch') });
+    await expect(service.restoreSession('worker', { pin: true })).rejects.toThrow(
+      /workspaceRegistry is unavailable/,
+    );
+  });
+
   it('仅在 Windows 上转换盘符工作区', async () => {
     const ctx = makeContext({});
     const home = await bridgeHome('/z/dispatch-root');
