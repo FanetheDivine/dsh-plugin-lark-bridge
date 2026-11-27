@@ -28,7 +28,7 @@ description: "任务列表：任务会话消息不含会话元信息"
 
 **Purpose**: 提示词文案是所有故事的共同落点。
 
-- [ ] T001 按 plan.md「设计」修改 `SA_DISPATCH_PROMPT` 三处：「Start a task」的 session_create 句只留任务请求；「Add messages to a task」新增两条总约束；「Change a session's model」补「Send the task session nothing about the switch.」 src/sa-dispatch/prompt.ts
+- [X] T001 按 plan.md「设计」修改 `SA_DISPATCH_PROMPT` 三处：「Start a task」的 session_create 句只留任务请求；「Add messages to a task」新增两条总约束；「Change a session's model」补「Send the task session nothing about the switch.」 src/sa-dispatch/prompt.ts
 
 ---
 
@@ -38,7 +38,7 @@ description: "任务列表：任务会话消息不含会话元信息"
 
 **Independent Test**: 新用例断言 Start a task 文案与全文不含 `its target workspace`。
 
-- [ ] T002 [US1] 新增用例「提示词禁止向任务会话暴露会话元信息」：断言 `section('Start a task')` 含 `The prompt holds only this task's request`，`SA_DISPATCH_PROMPT` 不含 `its target workspace` tests/sa-dispatch.test.ts
+- [X] T002 [US1] 新增用例「提示词禁止向任务会话暴露会话元信息」：断言 `section('Start a task')` 含 `The prompt holds only this task's request`，`SA_DISPATCH_PROMPT` 不含 `its target workspace` tests/sa-dispatch.test.ts
 
 ---
 
