@@ -253,7 +253,7 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 | 等待取消提醒 | 插件结束已在等待的提问时，在下一次模型请求前插入一次 S |
 | 轮次自动上报 | 正常结束、本轮未上报、无运行中子代理时把最后一段文本作为 `progress` 上报 |
 | 失败通知 | 轮次以错误结束时投递 `<task_session_failure>` |
-| 归档通知 | 被管理会话被归档时归档任务并投递 `<task_session_archived>` |
+| 归档通知 | 被管理会话被归档时归档任务并写待注入记录；调度会话下次 pre-step 与任务日志一起注入 `<task_session_archived>` |
 
 - `tools/pre-execute` 保留其他钩子的拒绝或取消；其余被管理提问直接交给环绕钩子，跳过交互审批。`tools/execute` 返回成功值 `{ answers: [] }`，表示没有实际用户答案；`tools/post-execute` 将模型可见的正文设为 S。
 - S 的固定正文为 `src/lark-super-agent/managed/task-rules.ts` 的 `TASK_RULES_TEXT`。它要求模型从原上下文组织任务目的、当前进展、问题与选项，调用 `send_report(kind=question)`。插件不复制或记录调用的题面或选项，也不补发提问。
@@ -285,6 +285,7 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 | `reports/<taskId>/<reportId>.md` | 上报正文与元数据；由 `send_report` 与自动上报写入 |
 | `reports/<taskId>/<reportId>-<n>-<文件名>.md` | 上报附件副本 |
 | `task-logs/<taskId>.jsonl` | 任务日志：用户直接与任务会话交互的记录；由插件在 `session/event` 中追加，不单独 git 提交 |
+| `archive-notices.json` | 待注入归档通知；归档时追加，进入调度会话事件日志后删除，不单独 git 提交 |
 | `archive/<taskId>/task.json` | 任务全量快照、归档时间与结束原因 |
 | `archive/<taskId>/reports/` | 已结束任务的全部上报与附件 |
 | `archive/<taskId>/task-log.jsonl` | 任务结束时由 `task-logs/` 迁入的日志；归档后插件与调度会话都不再读取 |
@@ -313,7 +314,7 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 调度会话判定读取 `workspaceRegistry.archivedSessionIds`：桥接 `sessionId` 为空、在归档集合中、或 `resolveAgent` 返回 `session/not-found` 时新建调度会话，新建复用桥接会话的预设、标题、挂载、置顶与状态写入；其他解析错误按未送达处理。没有 `workspaceRoot` 时返回 `no_workspace`，不存档也不新建。
 - 投递使用 `sessionController.resolveAgent(sessionId)` 取得 agent，再调用 `agent.steer`。消息采用 `user` 角色，`source.kind` 为 `lark-super-agent`；空闲会话因此被唤醒。
 - 投递按工作区一条队列串行，顺序等于存档顺序；新建调度会话单飞，多个上报共享同一个会话。投递失败会重新解析或重建后重试一次。
-- `steer` 之后让出两个微任务：会话已空闲且消息仍在 `next-step` 队列时，移除并改为 `followup`，与飞书消息注入共用同一段收尾逻辑（`src/steering.ts`）。上报、失败通知与归档通知都经此投递。
+- `steer` 之后让出两个微任务：会话已空闲且消息仍在 `next-step` 队列时，移除并改为 `followup`，与飞书消息注入共用同一段收尾逻辑（`src/steering.ts`）。上报与失败通知都经此投递；归档通知不走这段链路。
 - 注入块含 `sessionid`、`reportid`、`taskid`、`kind` 与 `origin` 属性，以及 `<report_path>`、`<attachment_paths>`、`<unread_reports>` 与 `<instructions>`：路径相对调度工作区根、以 `/` 分隔，报告位于 `reports/<taskId>/<reportId>.md`。块内没有 `desc` 与正文，调度会话自行读取文件。任务结束后报告移到 `archive/<taskId>/reports/`，调度提示词要求读取失败时改读该位置。闭合标签与属性值会转义。
 - 未读报告按台账记录汇总：任务台账新增 `deliveredReportIds`，未读为 `reportIds` 减去它。每次投递列出全部任务的未读报告并要求先读任务与报告；新建调度会话额外带 `<task_snapshot>`。投递成功后把列出的报告写进 `deliveredReportIds` 并提交；标记失败只记 `warning`，下次可能重复列出。旧台账按全部已投递初始化。
 - git 提交失败只记 `warning`，投递照常执行。
@@ -323,13 +324,13 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 成功的 `send_report` 在对话中显示为上报卡片，内容为类型、`desc`、Markdown 正文、附件与 `reportId`：
   - 前端注册 Conversation Definition `lark-report-result`，匹配 `send_report` 的 `tool/call` 与投递成功的 `tool/result`，参数取自 `tool/call` 的 `arguments`。
   - Definition 产出 `lark-report` Chat 节点，`groupTree` 为 `turn`，位于结果之后。节点不进入过程分组，轮次折叠后仍然可见。
-  - 卡片注册在 `conversation.chat.node` 的 `lark-report` 键，附件按钮调用宿主 `openFile` 在右侧栏打开。
+  - 卡片注册在 `conversation.chat.node` 的 `lark-report` 键，默认展开并在头部右侧提供「收起」/「展开」按钮（`aria-expanded`）；收起后保留标题、类型标签、单行任务简介预览、回执与开关，展开后恢复完整任务简介、Markdown 正文与附件列表。附件按钮调用宿主 `openFile` 在右侧栏打开。
   - 卡片容器、Markdown 正文、任务简介与附件名使用 `--dsw-alias-label-primary`，与宿主对话正文同色；回执、标签与完整路径保留辅助色。
   - `send_report` 的工具行由宿主默认工具行显示，进行中、失败与中断都沿用它。
 
 ## 任务日志
 
-任务日志让调度会话知道用户直接在任务会话 GUI 里做过什么。
+任务日志让调度会话知道用户直接在任务会话 GUI 里做过什么。三类信号的划分见 [dispatch-signals.md](./dispatch-signals.md)。
 
 - 全局行在 `session/event` 中观察被管理会话：`source.kind` 为 `user` 的 `user/message` 写 `user_message` 条目；`turn/end` 的原因为 `{ kind: 'aborted', reason: { kind: 'user' } }` 且会话不在 `workspaceRegistry.archivedSessionIds` 时写 `user_stop` 条目。
 - 宿主归档会话并停止活动时，先写归档集合再以同样的 `{ kind: 'user' }` 取消轮次，所以归档引发的取消按归档集合排除。
@@ -337,7 +338,9 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 写日志不唤醒调度会话。
 - 调度会话每次 `agent/pre-step` 前，插件扫描该会话完整事件日志，取出来源为 `lark-task-log` 的消息里已注入的条目 `id`，只注入还没有的条目，合成一条消息，按时间升序，排在桥接提醒之后、本批第一条 `<lark-message>` 之前。扫描位置缓存在进程内，缓存丢失时从头重建。压缩只改变模型可见表层，事件日志仍在，因此不会重复注入。
 - 没有任何注入标记的调度会话视为全新会话：先注入 `<task_snapshot covers_entries="…">`，列出全部未结束任务的标识、标题、状态、工作区、任务会话、最新报告路径与 `<unread_reports>`，并附各任务最新报告之后的日志条目；更早的条目记入 `covers_entries`，视为已覆盖。快照带 `<instructions>`，要求先读任务与未读报告。没有未结束任务时注入空快照，使标记落地。
-- 注入消息因请求失败没有写入会话日志时，下一次 pre-step 会再次注入。
+- 归档通知与日志条目共用这条注入消息：归档时把记录写入 `archive-notices.json`，注入时追加在日志条目之后，块为 `<task_session_archived id="…" sessionid="…" taskid="…"/>`，`id` 为 `<taskId>:<归档时间>`。
+- 归档块进入调度会话事件日志后删除对应记录；`session_restore` 恢复任务时直接删除该任务的记录。没有工作区或没有对应任务时不写记录。
+- 注入消息因请求失败没有写入会话日志时，下一次 pre-step 会再次注入，归档通知同样如此。
 - 日志与报告存档、台账互相独立：台账 `task.messages` 记调度会话处理过的用户消息，报告存档只记上报，日志只记调度会话看不到的用户直接交互。
 
 ## 生命周期

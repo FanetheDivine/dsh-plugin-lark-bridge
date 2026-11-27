@@ -537,6 +537,8 @@ describe('SA-调度会话子行', () => {
     expect(other).toContain('task_session_failure');
     expect(other).toContain('Set the task to failed, notify the user once about that failure');
     expect(other).toContain('task_session_archived');
+    expect(other).toContain('It arrives with your next step');
+    expect(other).toContain("Do not notify the user about it: it is the user's own action");
   });
 
   it('提示词默认新任务，只按引用或点名归入未结束任务', () => {

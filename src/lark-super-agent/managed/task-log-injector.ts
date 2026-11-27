@@ -1,5 +1,5 @@
 /**
- * 任务日志注入：调度会话每次 pre-step 前，把会话事件日志里还没有的日志条目合成一条消息。
+ * 重要消息注入：调度会话每次 pre-step 前，把会话事件日志里还没有的日志条目与待注入归档通知合成一条消息。
  * 没有注入过的会话按全新会话处理，先注入未结束任务快照。导出 TASK_LOG_SOURCE_KIND 与 TaskLogInjector。
  */
 import { readFile } from 'node:fs/promises';
@@ -8,7 +8,8 @@ import { createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm';
 
 import { isLarkMessage, isReminderMessage } from '../../message.ts';
 import type { LarkSuperAgentService, Task } from '../api.ts';
-import { escapeXmlAttribute, TASK_SESSION_INSTRUCTIONS } from '../blocks.ts';
+import { readArchiveNotices, removeArchiveNotices } from '../archive-notices.ts';
+import { escapeXmlAttribute, TASK_SESSION_INSTRUCTIONS, taskSessionArchived } from '../blocks.ts';
 import { workspaceRelative } from '../paths.ts';
 import { readTaskLog, type TaskLogEntry } from '../task-log.ts';
 
@@ -33,7 +34,14 @@ export interface SessionLike {
 interface ScanState {
   scanned: number;
   readonly injected: Set<string>;
+  /** 已进入事件日志的归档通知 id。 */
+  readonly archived: Set<string>;
   marked: boolean;
+}
+
+/** 注入器依赖。 */
+export interface TaskLogInjectorOptions {
+  readonly logger?: { warn?(...args: unknown[]): void };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -77,13 +85,15 @@ async function reportTime(
   }
 }
 
-/** 日志注入器。 */
+/** 日志与归档通知注入器。 */
 export class TaskLogInjector {
   private readonly service: LarkSuperAgentService;
+  private readonly options: TaskLogInjectorOptions;
   private readonly scans = new Map<string, ScanState>();
 
-  constructor(service: LarkSuperAgentService) {
+  constructor(service: LarkSuperAgentService, options: TaskLogInjectorOptions = {}) {
     this.service = service;
+    this.options = options;
   }
 
   /**
@@ -93,7 +103,7 @@ export class TaskLogInjector {
   private scan(sessionId: string, session: SessionLike): ScanState {
     let state = this.scans.get(sessionId);
     if (state === undefined || state.scanned > session.seq) {
-      state = { scanned: 0, injected: new Set(), marked: false };
+      state = { scanned: 0, injected: new Set(), archived: new Set(), marked: false };
       this.scans.set(sessionId, state);
     }
     for (let seq = state.scanned; seq < session.seq; seq += 1) {
@@ -108,6 +118,9 @@ export class TaskLogInjector {
         if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string') continue;
         for (const match of block.text.matchAll(/<task_log_entry id="([^"]*)"/g)) {
           if (match[1] !== undefined) state.injected.add(match[1]);
+        }
+        for (const match of block.text.matchAll(/<task_session_archived id="([^"]*)"/g)) {
+          if (match[1] !== undefined) state.archived.add(match[1]);
         }
         for (const match of block.text.matchAll(/covers_entries="([^"]*)"/g)) {
           for (const id of (match[1] ?? '').split(',')) if (id !== '') state.injected.add(id);
@@ -192,6 +205,10 @@ export class TaskLogInjector {
   async build(sessionId: string, session: SessionLike): Promise<UserMessage | undefined> {
     const { root, tasks } = await this.service.taskLogContext();
     const state = this.scan(sessionId, session);
+    await this.prune(root, state);
+    const notices = (await readArchiveNotices(root)).filter(
+      (notice) => !state.archived.has(notice.id),
+    );
     const byTask = await this.entriesOf(root, tasks);
     let text: string;
     if (!state.marked) {
@@ -201,13 +218,27 @@ export class TaskLogInjector {
         .flat()
         .filter((entry) => !state.injected.has(entry.id))
         .sort((a, b) => Date.parse(a.time) - Date.parse(b.time) || a.id.localeCompare(b.id));
-      if (unseen.length === 0) return undefined;
+      if (unseen.length === 0 && notices.length === 0) return undefined;
       text = unseen.map(entryBlock).join('\n');
     }
+    const archived = notices.map((notice) =>
+      taskSessionArchived({ id: notice.id, sessionId: notice.sessionId, taskId: notice.taskId }),
+    );
+    const message = [text, ...archived].filter((part) => part !== '').join('\n');
     return createUserMessage({
-      content: [{ type: 'text', text }],
+      content: [{ type: 'text', text: message }],
       source: { kind: TASK_LOG_SOURCE_KIND },
     });
+  }
+
+  /** 删除事件日志里已出现的归档通知记录；失败只记日志。 */
+  private async prune(root: string, state: ScanState): Promise<void> {
+    if (state.archived.size === 0) return;
+    try {
+      await removeArchiveNotices(root, (notice) => state.archived.has(notice.id));
+    } catch (error) {
+      this.options.logger?.warn?.('lark-super-agent: archive notice cleanup failed', error);
+    }
   }
 }
 

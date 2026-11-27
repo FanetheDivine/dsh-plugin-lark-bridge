@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { Task } from '../src/lark-super-agent/api.ts';
+import { readArchiveNotices } from '../src/lark-super-agent/archive-notices.ts';
 import { readBridgeState } from '../src/lark-super-agent/bridge.ts';
 import { runGit } from '../src/lark-super-agent/git.ts';
 import {
@@ -432,7 +433,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     expect(String(warnings[0]?.[0])).toContain('delivering');
   });
 
-  it('归档被管理会话时结束任务并投递归档通知', async () => {
+  it('归档被管理会话时结束任务并写待注入记录，不投递即时消息', async () => {
     const root = await temporaryDirectory();
     const home = await bridgeHome(root);
     const steer = vi.fn();
@@ -443,17 +444,19 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     const { taskId } = await seedTask(service, 'worker');
 
     await service.notifyArchived('worker');
-    expect(messageText(steer.mock.calls[0]?.[0])).toBe(
-      `<task_session_archived sessionid="worker" taskid="${taskId}"/>`,
-    );
+    expect(steer).not.toHaveBeenCalled();
     expect((await readTaskState(root)).tasks).toEqual([]);
     expect(await readArchivedTask(root, taskId)).toMatchObject({
       id: taskId,
       endReason: 'session_archived',
     });
+    const notices = await readArchiveNotices(root);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatchObject({ taskId, sessionId: 'worker' });
+    expect(notices[0]?.id).toBe(`${taskId}:${notices[0]?.time}`);
 
     await service.notifyArchived('other');
-    expect(steer).toHaveBeenCalledOnce();
+    expect(await readArchiveNotices(root)).toHaveLength(1);
   });
 
   it('pruneTasks 归档已归档与已不存在的会话', async () => {
@@ -756,7 +759,8 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     });
     const service = new SuperAgentService(ctx, { home });
     const seeded = await seedTask(service, 'worker');
-    await service.endTask(seeded.taskId, 'session_archived');
+    await service.notifyArchived('worker');
+    expect(await readArchiveNotices(root)).toHaveLength(1);
 
     await expect(service.restoreSession(' worker ', { pin: true })).resolves.toEqual({
       sessionId: 'worker',
@@ -770,6 +774,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
       id: seeded.taskId,
       status: 'in_progress',
     });
+    expect(await readArchiveNotices(root)).toEqual([]);
   });
 
   it('恢复已完成任务的会话时不恢复任务并给出原因', async () => {

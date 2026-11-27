@@ -40,6 +40,21 @@ describe('卡片正文颜色', () => {
     expectPrimaryColor(css, '.dsh-lark-report-body > [data-markdown-variant="compact"]');
   });
 
+  it('上报折叠开关与折叠态摘要行遵循设计令牌与键盘焦点样式', () => {
+    const css = cssOf('report-card.css');
+    expect(ruleOf(css, '.dsh-lark-report-toggle')).toContain(
+      'color: var(--dsw-alias-label-secondary)',
+    );
+    expect(ruleOf(css, '.dsh-lark-report-toggle:focus-visible')).toContain('--dsw-focus-ring');
+    expect(
+      ruleOf(css, '.dsh-lark-report-toggle[aria-expanded="true"] .dsh-lark-report-toggle-icon'),
+    ).toContain('transform: rotate(180deg)');
+    expect(ruleOf(css, '.dsh-lark-report-head-desc')).toContain(
+      'color: var(--dsw-alias-label-secondary)',
+    );
+    expect(ruleOf(css, '.dsh-lark-report-head-desc')).toContain('text-overflow: ellipsis');
+  });
+
   it('通知容器与正文使用主前景色并保留换行', () => {
     const css = cssOf('notify-card.css');
     expectPrimaryColor(css, '.dsh-lark-notify');

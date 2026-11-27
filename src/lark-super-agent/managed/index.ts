@@ -137,7 +137,7 @@ export function applyManagedSessions(
   });
 
   // 调度会话每次 pre-step 前注入还没有的任务日志条目；全新会话先收到未结束任务快照。
-  const logInjector = new TaskLogInjector(service);
+  const logInjector = new TaskLogInjector(service, { logger: ctx.logger });
   ctx.on('agent/pre-step', async ({ agent, step }, next) => {
     const decision = await next();
     if (decision.kind === 'reject') return decision;
