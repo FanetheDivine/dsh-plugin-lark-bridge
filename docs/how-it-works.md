@@ -205,7 +205,7 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 
 - 前端注册 Conversation Definition `lark-notify-result`，匹配 `lark_notify` 的 `tool/call` 与成功的 `tool/result`。成功文案同时识别新文案与历史文案（「已发送给用户（消息 …）」「已发送给用户（N 条）」「已回复给用户（N 条）」）。卡片内容取自 `tool/call` 的 `arguments`：`text`、卡片模式的 `summary` 与 `task_id`；会话取自结果元数据的 `taskSessionId`，兼容历史元数据的 `sessionId`。
 - Definition 产出 `lark-notify` Chat 节点，`groupTree` 为 `turn`，位于结果之后。节点不进入过程分组，轮次折叠后仍然可见。
-- 卡片注册在 `conversation.chat.node` 的 `lark-notify` 键，按纯文本保留换行。卡片模式常显总结，完整 Markdown 放在默认收起的 `<details>`。带 `task_id` 时显示任务标识，会话区域显示任务会话标识，并通过 `useWorkspaces` 同时读取工作区成员关系与归档状态。没有 `task_id` 且没有历史元数据时不显示任务与会话。
+- 卡片注册在 `conversation.chat.node` 的 `lark-notify` 键，按纯文本保留换行。分隔线上方整块是折叠热区：卡片模式显示总结、默认折叠，文本模式显示「通知」标题、默认展开；正文在分隔线下方。任务与会话行常显在卡片底部：带 `task_id` 时显示任务标识，会话区域显示任务会话标识，并通过 `useWorkspaces` 同时读取工作区成员关系与归档状态。没有 `task_id` 且没有历史元数据时不显示任务与会话。悬停卡片任意位置整体切换背景色。
 - 目标属于工作区且未归档时显示按钮，点击调用 `ctx.uiWorkspace.openSession`。已归档目标显示「已归档」标签，未知目标只显示标识。
 - 进行中、失败与中断沿用宿主默认工具行。历史窗口缺少调用参数或正文为空时不产生空卡片；历史结果缺少元数据时只显示正文。
 
@@ -327,8 +327,9 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 成功的 `send_report` 在对话中显示为上报卡片，内容为类型、`desc`、Markdown 正文、附件与 `reportId`：
   - 前端注册 Conversation Definition `lark-report-result`，匹配 `send_report` 的 `tool/call` 与投递成功的 `tool/result`，参数取自 `tool/call` 的 `arguments`。
   - Definition 产出 `lark-report` Chat 节点，`groupTree` 为 `turn`，位于结果之后。节点不进入过程分组，轮次折叠后仍然可见。
-  - 卡片注册在 `conversation.chat.node` 的 `lark-report` 键，默认展开。头部整行是折叠开关：点击标题、类型标签、任务简介预览、回执或箭头都切换折叠（`aria-expanded`），右侧只显示随状态翻转的箭头，状态文案由 `aria-label` 提供。收起后保留头部，展开后显示完整任务简介、Markdown 正文与附件列表。附件按钮位于头部之外，调用宿主 `openFile` 在右侧栏打开。
+  - 卡片注册在 `conversation.chat.node` 的 `lark-report` 键，默认展开。分隔线上方整块是折叠热区，覆盖标题行与展开态任务简介：点击标题、类型标签、任务简介、回执或箭头都切换折叠（`aria-expanded`），右侧只显示随状态翻转的箭头，状态文案由 `aria-label` 提供。收起后保留标题行并内联显示任务简介摘要，展开后显示任务简介、Markdown 正文与附件列表。正文与附件列表在分隔线下方、热区之外，附件按钮调用宿主 `openFile` 在右侧栏打开。
   - 卡片容器、Markdown 正文、任务简介与附件名使用 `--dsw-alias-label-primary`，与宿主对话正文同色；回执、标签与完整路径保留辅助色。
+  - 容器无内边距，热区与各展开区块各自承担内边距。悬停卡片任意位置整体背景切换为 `--dsw-alias-turn-trigger-bg-hover`，回退 `--dsw-alias-interactive-bg-hover`。
   - `send_report` 的工具行由宿主默认工具行显示，进行中、失败与中断都沿用它。
 
 ## 任务日志

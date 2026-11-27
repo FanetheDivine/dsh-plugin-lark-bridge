@@ -145,6 +145,8 @@ describe('ReportCard 交互', () => {
     expect(toggle?.getAttribute('aria-expanded')).toBe('true');
     expect(toggle?.getAttribute('aria-label')).toBe('收起');
     expect(container.querySelector('.dsh-lark-report-desc')).not.toBeNull();
+    // 展开态任务简介在热区内部，点击它同样切换折叠。
+    expect(toggle?.querySelector('.dsh-lark-report-desc')).not.toBeNull();
     expect(container.querySelector('.dsh-lark-report-body')).not.toBeNull();
     expect(container.querySelector('.dsh-lark-report-files')).not.toBeNull();
     expect(container.querySelector('.dsh-lark-report-head-desc')).toBeNull();
@@ -210,14 +212,19 @@ describe('ReportCard 交互', () => {
     expect(card?.getAttribute('data-expanded')).toBe('true');
 
     await act(async () => {
-      container.querySelector<HTMLElement>('.dsh-lark-report-receipt')?.click();
+      container.querySelector<HTMLElement>('.dsh-lark-report-desc-text')?.click();
     });
     expect(card?.getAttribute('data-expanded')).toBe('false');
 
     await act(async () => {
+      container.querySelector<HTMLElement>('.dsh-lark-report-receipt')?.click();
+    });
+    expect(card?.getAttribute('data-expanded')).toBe('true');
+
+    await act(async () => {
       container.querySelector<HTMLElement>('.dsh-lark-report-file')?.click();
     });
-    expect(card?.getAttribute('data-expanded')).toBe('false');
+    expect(card?.getAttribute('data-expanded')).toBe('true');
 
     await act(async () => root.unmount());
     container.remove();

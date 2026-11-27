@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// lark_notify 卡片测试：正文、来源会话链接、归档标记与历史兼容。
+// lark_notify 卡片测试：热区折叠、两种模式默认状态、常显任务/会话行、归档标记与历史兼容。
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -49,10 +49,32 @@ function render(options: RenderOptions = {}): string {
   return renderToStaticMarkup(createElement(NotifyCard, cardProps(options)));
 }
 
+/** 把卡片挂到文档并返回容器与卸载函数。 */
+async function mount(options: RenderOptions = {}) {
+  const { createRoot } = await import('react-dom/client');
+  const { act } = await import('react');
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(createElement(NotifyCard, cardProps(options)));
+  });
+  return {
+    container,
+    act,
+    unmount: async () => {
+      await act(async () => root.unmount());
+      container.remove();
+    },
+  };
+}
+
 describe('NotifyCard 正文', () => {
-  it('只显示完整正文并保留换行', () => {
+  it('文本模式默认展开，显示完整正文并保留换行', () => {
     const html = render();
     expect(html).toContain('data-dsh-lark-notify-card');
+    expect(html).toContain('data-expanded="true"');
+    expect(html).toContain('data-dsh-lark-notify-toggle');
     expect(html).toContain('第一行\n第二行');
     expect(html).toContain('dsh-lark-notify-body');
     expect(html).not.toContain('dsh-lark-notify-session');
@@ -74,12 +96,79 @@ describe('NotifyCard 正文', () => {
     expect(html).not.toContain('messageId');
   });
 
-  it('历史通知只有一个正文区域', () => {
+  it('历史通知只有一个正文区域，没有任务与会话行', () => {
     const container = document.createElement('div');
     container.innerHTML = render();
     const section = container.querySelector('section');
-    expect(section?.children).toHaveLength(1);
-    expect(section?.textContent).toBe('第一行\n第二行');
+    expect(section?.querySelectorAll('.dsh-lark-notify-body')).toHaveLength(1);
+    expect(section?.querySelector('.dsh-lark-notify-body')?.textContent).toBe('第一行\n第二行');
+    expect(section?.querySelector('.dsh-lark-notify-meta')).toBeNull();
+  });
+});
+
+describe('NotifyCard 热区折叠', () => {
+  it('文本模式热区显示「通知」标题，点击收起正文，再次点击展开', async () => {
+    const { container, act, unmount } = await mount();
+    const card = container.querySelector('.dsh-lark-notify');
+    const toggle = container.querySelector<HTMLButtonElement>('[data-dsh-lark-notify-toggle]');
+    expect(toggle?.getAttribute('type')).toBe('button');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle?.getAttribute('aria-label')).toBe('收起');
+    expect(toggle?.querySelector('.dsh-lark-notify-title')?.textContent).toBe('通知');
+    expect(container.querySelector('.dsh-lark-notify-body')).not.toBeNull();
+
+    await act(async () => toggle?.click());
+    expect(card?.getAttribute('data-expanded')).toBe('false');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle?.getAttribute('aria-label')).toBe('展开');
+    expect(container.querySelector('.dsh-lark-notify-body')).toBeNull();
+
+    await act(async () => toggle?.click());
+    expect(card?.getAttribute('data-expanded')).toBe('true');
+    expect(container.querySelector('.dsh-lark-notify-body')?.textContent).toBe('第一行\n第二行');
+    await unmount();
+  });
+
+  it('卡片模式默认折叠，总结在热区内，点击展开完整正文', async () => {
+    const html = render({ summary: 'xxx 任务已完成' });
+    expect(html).toContain('data-expanded="false"');
+    expect(html).toContain('data-dsh-lark-notify-summary');
+    expect(html).not.toContain('<details');
+    expect(html).not.toContain('dsh-lark-notify-body');
+
+    const { container, act, unmount } = await mount({ summary: 'xxx 任务已完成' });
+    const card = container.querySelector('.dsh-lark-notify');
+    const toggle = container.querySelector<HTMLButtonElement>('[data-dsh-lark-notify-toggle]');
+    expect(toggle?.querySelector('[data-dsh-lark-notify-summary]')?.textContent).toBe(
+      'xxx 任务已完成',
+    );
+    expect(toggle?.getAttribute('aria-label')).toBe('展开');
+
+    await act(async () => toggle?.click());
+    expect(card?.getAttribute('data-expanded')).toBe('true');
+    expect(container.querySelector('.dsh-lark-notify-body')?.textContent).toBe('第一行\n第二行');
+    await unmount();
+  });
+
+  it('折叠态任务与会话行常显，点击会话链接不改变展开状态', async () => {
+    const html = render({ summary: '总结', taskId: 'task-1', sessionId: 'session-1' });
+    expect(html).toContain('data-expanded="false"');
+    expect(html).toContain('data-dsh-lark-notify-task');
+    expect(html).toContain('data-dsh-lark-notify-session-link');
+
+    const openSession = vi.fn();
+    const { container, act, unmount } = await mount({
+      summary: '总结',
+      taskId: 'task-1',
+      sessionId: 'session-1',
+      openSession,
+    });
+    const card = container.querySelector('.dsh-lark-notify');
+    const link = container.querySelector<HTMLButtonElement>('[data-dsh-lark-notify-session-link]');
+    await act(async () => link?.click());
+    expect(openSession).toHaveBeenCalledWith('session-1');
+    expect(card?.getAttribute('data-expanded')).toBe('false');
+    await unmount();
   });
 });
 
@@ -109,40 +198,19 @@ describe('NotifyCard 会话链接', () => {
   });
 
   it('点击链接以来源 sessionId 调用宿主导航', async () => {
-    const { createRoot } = await import('react-dom/client');
-    const { act } = await import('react');
-    const container = document.createElement('div');
-    document.body.appendChild(container);
     const openSession = vi.fn();
-    const root = createRoot(container);
-    await act(async () => {
-      root.render(createElement(NotifyCard, cardProps({ sessionId: 'session-1', openSession })));
-    });
-    const button = container.querySelector('button');
+    const { container, act, unmount } = await mount({ sessionId: 'session-1', openSession });
+    const button = container.querySelector<HTMLButtonElement>(
+      '[data-dsh-lark-notify-session-link]',
+    );
     expect(button).not.toBeNull();
     await act(async () => button?.click());
     expect(openSession).toHaveBeenCalledWith('session-1');
-    await act(async () => root.unmount());
-    container.remove();
+    await unmount();
   });
 });
 
 describe('NotifyCard 卡片模式与任务', () => {
-  it('卡片模式常显总结，完整 Markdown 原文放进折叠区', () => {
-    const html = render({ summary: 'xxx 任务已完成' });
-    expect(html).toContain('data-dsh-lark-notify-summary');
-    expect(html).toContain('xxx 任务已完成');
-    expect(html).toContain('<details');
-    expect(html).not.toContain('<details open');
-    expect(html).toContain('第一行\n第二行');
-  });
-
-  it('文本模式没有总结与折叠区', () => {
-    const html = render();
-    expect(html).not.toContain('data-dsh-lark-notify-summary');
-    expect(html).not.toContain('<details');
-  });
-
   it('带 task_id 时显示任务标识，并链接到任务会话', () => {
     const html = render({ taskId: 'task-1', sessionId: 'session-task-1' });
     expect(html).toContain('data-dsh-lark-notify-task');
@@ -166,16 +234,30 @@ describe('NotifyCard 卡片模式与任务', () => {
 });
 
 describe('NotifyCard 文案', () => {
-  it('会话与归档文案键在中英文字典中都有值', () => {
+  it('会话、归档与热区文案键在中英文字典中都有值', () => {
     for (const key of [
       'notify.session',
       'notify.openSession',
       'notify.archived',
       'notify.task',
+      'notify.title',
+      'notify.collapse',
       'notify.expand',
     ] as const) {
       expect(zh[key]).not.toBe('');
       expect(en[key]).not.toBe('');
     }
+  });
+
+  it('缺少翻译函数时使用英文回退', () => {
+    const textMode = renderToStaticMarkup(
+      createElement(NotifyCard, { ...cardProps(), t: undefined }),
+    );
+    expect(textMode).toContain('Notification');
+    expect(textMode).toContain('aria-label="Collapse"');
+    const cardMode = renderToStaticMarkup(
+      createElement(NotifyCard, { ...cardProps({ summary: 'done' }), t: undefined }),
+    );
+    expect(cardMode).toContain('aria-label="Expand"');
   });
 });
