@@ -47,6 +47,16 @@ export function apply(ctx: Context, config?: unknown): void {
     logger: ctx.logger,
   });
 
+  // 上报路径在调度会话缺失时复用桥接会话的创建流程。
+  ctx.effect(
+    () =>
+      ctx.provide('larkBridgeSessions', {
+        ensureDispatchSession: (workspaceRoot: string) =>
+          sessions.ensureDispatchSession(workspaceRoot),
+      }),
+    `${PLUGIN_LABEL}: bridge sessions`,
+  );
+
   const uninstallReminder = installReminderGuard({ ctx, sessions, logger: ctx.logger });
   ctx.effect(() => () => uninstallReminder(), `${PLUGIN_LABEL}: reminder guard`);
 

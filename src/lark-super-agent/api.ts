@@ -39,7 +39,10 @@ export interface Task {
   workspaceId: string | null;
   /** 会话工作目录。 */
   cwd: string;
+  /** 已存档报告，按存档顺序。 */
   reportIds: string[];
+  /** 已成功投递给调度会话的报告。 */
+  deliveredReportIds: string[];
   messages: TaskMessage[];
   readonly createdAt: string;
   updatedAt: string;
@@ -88,11 +91,15 @@ export interface SendReportInput {
   desc?: string;
 }
 
-/** 上报结果。 */
+/** 上报结果；未存档时没有报告标识与路径。 */
 export interface SendReportResult {
-  reportId: string;
-  taskId: string;
-  delivered: true;
+  reportId?: string;
+  /** 被管理任务；没有工作区时省略。 */
+  taskId?: string;
+  reportPath?: string;
+  delivered: boolean;
+  /** 未送达原因：`no_workspace`、`create_failed`、`delivery_failed`。 */
+  reason?: string;
   warning?: string;
 }
 

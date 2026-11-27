@@ -3,6 +3,7 @@
  * 全局行装配一次，被管理会话能力与调度会话工具共用。
  */
 
+import { join, resolve } from 'node:path';
 import type { ModelSelection } from '@deepseek-ai/dsh-agent';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { type SteeringAgent, settleSteering } from '../steering.ts';
@@ -13,6 +14,7 @@ import type {
   CreateTaskInput,
   EndReason,
   LarkSuperAgentService,
+  ReportKind,
   ReportOrigin,
   SendReportInput,
   SendReportResult,
@@ -21,11 +23,22 @@ import type {
   UpdateTaskInput,
   WorkspaceRegistryLike,
 } from './api.ts';
-import { taskSessionArchived, taskSessionFailure, taskSessionMessage } from './blocks.ts';
+import {
+  type TaskSnapshotRef,
+  taskSessionArchived,
+  taskSessionFailure,
+  taskSessionMessage,
+  type UnreadReportRef,
+} from './blocks.ts';
 import { readBridgeState } from './bridge.ts';
 import { findTaskBySession, NotesStore } from './notes.ts';
 import { workspaceRelative } from './paths.ts';
-import { ReportStore } from './reports.ts';
+import {
+  type ArchivedReport,
+  type DeliveryOutcome,
+  ReportStore,
+  validateReportInput,
+} from './reports.ts';
 import { appendTaskLogEntry } from './task-log.ts';
 
 export { readBridgeState } from './bridge.ts';
@@ -103,6 +116,8 @@ export interface SuperAgentServiceOptions {
   reportId?: (date: Date) => string;
   /** 转换调度工作区路径时使用的平台；缺省为当前平台。 */
   platform?: NodeJS.Platform;
+  /** 新建调度会话；由桥接会话管理器提供。 */
+  ensureDispatchSession?: (workspaceRoot: string) => Promise<{ sessionId: string }>;
 }
 
 function errorMessage(error: unknown): string {
@@ -150,6 +165,48 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export const NOT_MANAGED_ERROR =
   'send_report is only available in a session managed by the dispatch session';
 
+/** 投递失败原因：创建调度会话失败，或投递本身失败。 */
+class DeliveryError extends Error {
+  readonly reason: 'create_failed' | 'delivery_failed';
+
+  constructor(reason: 'create_failed' | 'delivery_failed', message: string) {
+    super(message);
+    this.name = 'DeliveryError';
+    this.reason = reason;
+  }
+}
+
+/** 宿主用 `session/not-found` 表示会话不存在。 */
+function isSessionNotFound(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  if ((error as { code?: unknown }).code === 'session/not-found') return true;
+  return /session\b.*\bnot found/i.test(errorMessage(error));
+}
+
+/** 按任务合并未读编号。 */
+function groupByTask(
+  entries: readonly UnreadReportRef[],
+): { taskId: string; reportIds: string[] }[] {
+  const byTask = new Map<string, string[]>();
+  for (const entry of entries) {
+    const list = byTask.get(entry.taskId) ?? [];
+    list.push(entry.reportId);
+    byTask.set(entry.taskId, list);
+  }
+  return [...byTask].map(([taskId, reportIds]) => ({ taskId, reportIds }));
+}
+
+/** 任务快照条目。 */
+function taskSnapshot(task: Task): TaskSnapshotRef {
+  return {
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    workspaceId: task.workspaceId,
+    sessionId: task.sessionId,
+  };
+}
+
 /** lark-super-agent 的任务、上报与失败通知服务。 */
 export class SuperAgentService implements LarkSuperAgentService {
   /** 按任务类型（省略时取默认任务类型）读取任务会话模型的实时值；未配置时返回 undefined。 */
@@ -160,6 +217,8 @@ export class SuperAgentService implements LarkSuperAgentService {
   private readonly options: SuperAgentServiceOptions;
   /** 任务建立后的监听；由被管理会话能力设置。 */
   private managedListener: ((sessionId: string) => void) | undefined;
+  /** 按工作区串行的投递链。 */
+  private readonly deliveryChains = new Map<string, Promise<unknown>>();
 
   constructor(ctx: ContextLike, options: SuperAgentServiceOptions = {}) {
     this.ctx = ctx;
@@ -376,22 +435,201 @@ export class SuperAgentService implements LarkSuperAgentService {
     });
   }
 
+  /** 读取已归档会话标识。 */
+  private async archivedSessions(): Promise<Set<string>> {
+    const registry = this.ctx.get('workspaceRegistry') as WorkspaceRegistryLike | undefined;
+    return new Set(registry?.archivedSessionIds ?? []);
+  }
+
+  /** 解析一个会话；区分不存在、解析失败与可用 agent。 */
+  private async resolveSession(
+    sessionId: string,
+  ): Promise<
+    { kind: 'agent'; agent: AgentLike } | { kind: 'missing' } | { kind: 'error'; error: unknown }
+  > {
+    const controller = this.ctx.get('sessionController') as SessionControllerLike | undefined;
+    if (controller === undefined || typeof controller.resolveAgent !== 'function') {
+      return { kind: 'error', error: new Error('sessionController is unavailable') };
+    }
+    try {
+      const resolved = await controller.resolveAgent(sessionId);
+      if (resolved === null || resolved === undefined) return { kind: 'missing' };
+      if ('error' in resolved && resolved.error !== undefined) {
+        return isSessionNotFound(resolved.error)
+          ? { kind: 'missing' }
+          : { kind: 'error', error: resolved.error };
+      }
+      const agent = 'agent' in resolved ? resolved.agent : resolved;
+      if (agent === undefined) return { kind: 'missing' };
+      return { kind: 'agent', agent };
+    } catch (error) {
+      return isSessionNotFound(error) ? { kind: 'missing' } : { kind: 'error', error };
+    }
+  }
+
+  /** 取当前或新建的调度会话；归档按不存在处理。 */
+  private async dispatchTarget(
+    state: BridgeState,
+    root: string,
+  ): Promise<{ agent: AgentLike; sessionId: string; created: boolean }> {
+    const archived = await this.archivedSessions();
+    const sessionId = state.sessionId;
+    if (sessionId !== null && !archived.has(sessionId)) {
+      const resolved = await this.resolveSession(sessionId);
+      if (resolved.kind === 'agent') {
+        if (typeof resolved.agent.steer !== 'function') {
+          throw new DeliveryError(
+            'delivery_failed',
+            `dispatch agent cannot accept messages: ${sessionId}`,
+          );
+        }
+        return { agent: resolved.agent, sessionId, created: false };
+      }
+      if (resolved.kind === 'error') {
+        throw new DeliveryError(
+          'delivery_failed',
+          `dispatch session is unavailable: ${errorMessage(resolved.error)}`,
+        );
+      }
+    }
+    return this.createDispatchTarget(root);
+  }
+
+  /** 新建调度会话并复核桥接状态。 */
+  private async createDispatchTarget(
+    root: string,
+  ): Promise<{ agent: AgentLike; sessionId: string; created: boolean }> {
+    const ensure = this.options.ensureDispatchSession;
+    if (ensure === undefined) {
+      throw new DeliveryError('create_failed', 'no dispatch session and no way to create one');
+    }
+    let createdId: string;
+    try {
+      createdId = (await ensure(root)).sessionId;
+    } catch (error) {
+      throw new DeliveryError('create_failed', errorMessage(error));
+    }
+    const latest = await this.bridgeState();
+    const sessionId = latest.sessionId ?? createdId;
+    if (sessionId.trim() === '') {
+      throw new DeliveryError('create_failed', 'dispatch session creation returned no session id');
+    }
+    const resolved = await this.resolveSession(sessionId);
+    if (resolved.kind !== 'agent') {
+      throw new DeliveryError(
+        'create_failed',
+        `dispatch session ${sessionId} is unavailable after creation`,
+      );
+    }
+    return { agent: resolved.agent, sessionId, created: true };
+  }
+
+  /** 列出全部任务的未读报告。 */
+  private unreadReports(root: string, tasks: readonly Task[]): UnreadReportRef[] {
+    const entries: UnreadReportRef[] = [];
+    for (const task of tasks) {
+      const delivered = new Set(task.deliveredReportIds);
+      for (const reportId of task.reportIds) {
+        if (delivered.has(reportId)) continue;
+        entries.push({
+          taskId: task.id,
+          reportId,
+          path: workspaceRelative(root, join(root, 'reports', task.id, `${reportId}.md`)),
+        });
+      }
+    }
+    return entries;
+  }
+
+  /** 按工作区串行投递；顺序等于存档登记顺序。 */
+  private enqueueDelivery<T>(root: string, task: () => Promise<T>): Promise<T> {
+    const key = resolve(root);
+    const previous = this.deliveryChains.get(key) ?? Promise.resolve();
+    const result = previous.catch(() => undefined).then(task);
+    const tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.deliveryChains.set(key, tail);
+    void tail.then(() => {
+      if (this.deliveryChains.get(key) === tail) this.deliveryChains.delete(key);
+    });
+    return result;
+  }
+
+  /** 投递一份已存档上报；失败重试一次，成功后标记已读。 */
+  private async deliverReport(
+    report: ArchivedReport,
+    context: {
+      root: string;
+      callerSessionId: string;
+      taskId: string;
+      kind: ReportKind;
+      origin: ReportOrigin;
+    },
+  ): Promise<DeliveryOutcome> {
+    let warning: string | undefined;
+    let lastError = new DeliveryError('delivery_failed', 'delivery failed');
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const state = await this.bridgeState();
+        if (state.workspaceRoot === null) return { delivered: false, reason: 'no_workspace' };
+        const target = await this.dispatchTarget(state, context.root);
+        const tasks = await this.notes(context.root).listTasks();
+        const unread = this.unreadReports(context.root, tasks);
+        const current = unread.some(
+          (entry) => entry.taskId === report.taskId && entry.reportId === report.reportId,
+        );
+        if (!current) return { delivered: true, ...(warning === undefined ? {} : { warning }) };
+        await this.deliver(
+          target.agent,
+          taskSessionMessage({
+            sessionId: context.callerSessionId,
+            reportId: report.reportId,
+            taskId: report.taskId,
+            kind: context.kind,
+            origin: context.origin,
+            reportPath: workspaceRelative(context.root, report.reportPath),
+            attachmentPaths: report.files.map((file) => workspaceRelative(context.root, file)),
+            unreadReports: unread,
+            ...(target.created ? { snapshot: tasks.map(taskSnapshot) } : {}),
+          }),
+        );
+        try {
+          await this.notes(context.root).markReportsDelivered(groupByTask(unread));
+        } catch (error) {
+          warning = `reports were delivered but marking them read failed: ${errorMessage(error)}`;
+        }
+        return { delivered: true, ...(warning === undefined ? {} : { warning }) };
+      } catch (error) {
+        lastError =
+          error instanceof DeliveryError
+            ? error
+            : new DeliveryError('delivery_failed', errorMessage(error));
+      }
+    }
+    return {
+      delivered: false,
+      reason: `${lastError.reason}: ${lastError.message}`,
+      ...(warning === undefined ? {} : { warning }),
+    };
+  }
+
   /** 存档并投递一份上报；调用方必须已被管理。 */
   async sendReport(
     input: SendReportInput,
     callerSessionId: string,
     origin: ReportOrigin = 'send_report',
   ): Promise<SendReportResult> {
-    const task = await this.managedTask(callerSessionId);
-    if (task === undefined) throw new Error(NOT_MANAGED_ERROR);
     const caller = this.agent(callerSessionId);
     const cwd = caller?.session?.cwd ?? process.cwd();
+    await validateReportInput(input, cwd);
     const state = await this.bridgeState();
-    if (state.workspaceRoot === null) {
-      throw new Error('lark-bridge has no workspaceRoot; report was not archived');
-    }
-    const agent = await this.resolveDispatchAgent(state);
-    const reports = new ReportStore(state.workspaceRoot, {
+    if (state.workspaceRoot === null) return { delivered: false, reason: 'no_workspace' };
+    const task = await this.managedTask(callerSessionId);
+    if (task === undefined) throw new Error(NOT_MANAGED_ERROR);
+    const root = state.workspaceRoot;
+    const reports = new ReportStore(root, {
       cwd,
       ...(this.options.now === undefined ? {} : { now: this.options.now }),
       ...(this.options.reportId === undefined ? {} : { reportId: this.options.reportId }),
@@ -402,26 +640,27 @@ export class SuperAgentService implements LarkSuperAgentService {
       task.id,
       origin,
       (report) =>
-        this.deliver(
-          agent,
-          taskSessionMessage({
-            sessionId: callerSessionId,
-            reportId: report.reportId,
-            taskId: report.taskId,
+        this.enqueueDelivery(root, () =>
+          this.deliverReport(report, {
+            root,
+            callerSessionId,
+            taskId: task.id,
             kind: input.kind,
             origin,
-            reportPath: workspaceRelative(state.workspaceRoot as string, report.reportPath),
-            attachmentPaths: report.files.map((file) =>
-              workspaceRelative(state.workspaceRoot as string, file),
-            ),
           }),
         ),
+    );
+    const outcome = archived.delivery === undefined ? { delivered: true } : await archived.delivery;
+    const warnings = [archived.warning, outcome.warning].filter(
+      (value): value is string => value !== undefined,
     );
     return {
       reportId: archived.reportId,
       taskId: archived.taskId,
-      delivered: true,
-      ...(archived.warning === undefined ? {} : { warning: archived.warning }),
+      reportPath: workspaceRelative(root, archived.reportPath),
+      delivered: outcome.delivered,
+      ...(outcome.reason === undefined ? {} : { reason: outcome.reason }),
+      ...(warnings.length === 0 ? {} : { warning: warnings.join('; ') }),
     };
   }
 

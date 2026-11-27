@@ -48,6 +48,26 @@ async function bridgeHome(workspaceRoot: string | null, sessionId: string | null
   return home;
 }
 
+/** 改写桥接状态。 */
+async function setBridgeState(
+  home: string,
+  workspaceRoot: string | null,
+  sessionId: string | null,
+): Promise<void> {
+  await writeFile(
+    join(home, 'lark-bridge', 'state.json'),
+    JSON.stringify({ workspaceRoot, sessionId }),
+    'utf8',
+  );
+}
+
+/** 构造宿主的会话不存在错误。 */
+function sessionNotFound(sessionId: string): Error {
+  return Object.assign(new Error(`session "${sessionId}" not found`), {
+    code: 'session/not-found',
+  });
+}
+
 function makeContext(services: Record<string, unknown>, warnings: unknown[][] = []): ContextLike {
   return {
     get: ((name: string) => services[name]) as ContextLike['get'],
@@ -260,6 +280,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     expect(result).toEqual({
       reportId: 'report-20260102030405-abc123',
       taskId,
+      reportPath: `reports/${taskId}/report-20260102030405-abc123.md`,
       delivered: true,
     });
     expect(steer).toHaveBeenCalledOnce();
@@ -275,6 +296,10 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     );
     expect(block).toContain(`reports/${taskId}/report-20260102030405-abc123-1-answer.md`);
     expect(block).not.toContain(root);
+    expect(block).toContain(
+      `<unread_report taskid="${taskId}" reportid="report-20260102030405-abc123">reports/${taskId}/report-20260102030405-abc123.md</unread_report>`,
+    );
+    expect(block).toContain('before you reply');
     const reportPath = join(root, 'reports', taskId, 'report-20260102030405-abc123.md');
     const archived = await readFile(reportPath, 'utf8');
     expect(archived).toContain('origin: "send_report"');
@@ -316,7 +341,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     expect(await exists(join(root, 'reports'))).toBe(false);
   });
 
-  it('调度会话不可用时上报失败且不写文件', async () => {
+  it('调度会话不可用时报未送达并保留存档', async () => {
     const root = await temporaryDirectory();
     const home = await bridgeHome(root);
     const service = new SuperAgentService(
@@ -326,10 +351,17 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
       { home },
     );
     await seedTask(service, 'worker');
-    await expect(service.sendReport({ kind: 'progress', text: 'hello' }, 'worker')).rejects.toThrow(
-      'offline',
-    );
-    expect(await exists(join(root, 'reports'))).toBe(false);
+    const result = await service.sendReport({ kind: 'progress', text: 'hello' }, 'worker');
+    expect(result).toMatchObject({
+      delivered: false,
+      reason: 'delivery_failed: dispatch session is unavailable: offline',
+    });
+    expect(result.reportPath).toMatch(/^reports\/task-.*\/report-.*\.md$/);
+    expect(await exists(join(root, 'reports'))).toBe(true);
+    const [task] = (await readTaskState(root)).tasks;
+    expect(task?.reportIds).toEqual([result.reportId]);
+    expect(task?.deliveredReportIds).toEqual([]);
+    expect((await runGit(['status', '--porcelain'], root)).stdout.trim()).toBe('');
   });
 
   it('为被管理会话投递失败块，未被管理的会话不投递', async () => {
@@ -530,6 +562,184 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
       taskId,
     });
     expect((await service.managedTask('multi'))?.messages[0]?.text).toBe(first);
+  });
+
+  it('调度会话已归档时新建并投递', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'archived');
+    const steer = vi.fn();
+    const ensure = vi.fn(async () => {
+      await setBridgeState(home, root, 'rebuilt');
+      return { sessionId: 'rebuilt' };
+    });
+    const service = new SuperAgentService(
+      makeContext({
+        sessionController: {
+          resolveAgent: async (id: string) =>
+            id === 'rebuilt' ? { agent: { steer } } : { agent: { steer: vi.fn() } },
+        },
+        workspaceRegistry: { archivedSessionIds: ['archived'] },
+      }),
+      { home, ensureDispatchSession: ensure, reportId: () => 'report-20260102030405-abc123' },
+    );
+    const { taskId } = await seedTask(service, 'worker');
+    const result = await service.sendReport({ kind: 'progress', text: '归档后' }, 'worker');
+    expect(result.delivered).toBe(true);
+    expect(ensure).toHaveBeenCalledOnce();
+    expect(String(ensure.mock.calls[0]?.[0]).replaceAll('\\', '/')).toBe(
+      root.replaceAll('\\', '/'),
+    );
+    expect(steer).toHaveBeenCalledOnce();
+    const block = messageText(steer.mock.calls[0]?.[0]);
+    expect(block).toContain('<task_snapshot>');
+    expect(block).toContain(`reports/${taskId}/report-20260102030405-abc123.md`);
+    expect(block).toContain('before you reply');
+    expect((await readBridgeState(home)).sessionId).toBe('rebuilt');
+    expect((await readTaskState(root)).tasks[0]?.deliveredReportIds).toEqual([result.reportId]);
+  });
+
+  it('调度会话不存在时新建并投递', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'gone');
+    const steer = vi.fn();
+    const ensure = vi.fn(async () => {
+      await setBridgeState(home, root, 'fresh');
+      return { sessionId: 'fresh' };
+    });
+    const service = new SuperAgentService(
+      makeContext({
+        sessionController: {
+          resolveAgent: async (id: string) =>
+            id === 'gone' ? { error: sessionNotFound(id) } : { agent: { steer } },
+        },
+      }),
+      { home, ensureDispatchSession: ensure },
+    );
+    await seedTask(service, 'worker');
+    const result = await service.sendReport({ kind: 'progress', text: '缺失后' }, 'worker');
+    expect(result.delivered).toBe(true);
+    expect(ensure).toHaveBeenCalledOnce();
+    expect(steer).toHaveBeenCalledOnce();
+    expect((await readBridgeState(home)).sessionId).toBe('fresh');
+  });
+
+  it('调度会话解析返回其他错误时不新建', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'broken');
+    const ensure = vi.fn();
+    const service = new SuperAgentService(
+      makeContext({
+        sessionController: { resolveAgent: async () => ({ error: new Error('offline') }) },
+      }),
+      { home, ensureDispatchSession: ensure },
+    );
+    await seedTask(service, 'worker');
+    const result = await service.sendReport({ kind: 'progress', text: '离线' }, 'worker');
+    expect(result.delivered).toBe(false);
+    expect(result.reason).toMatch(/^delivery_failed:/);
+    expect(ensure).not.toHaveBeenCalled();
+    expect(await exists(join(root, 'reports'))).toBe(true);
+  });
+
+  it('投递块列出全部未读报告并在送达后标记', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const steer = vi.fn();
+    const service = new SuperAgentService(
+      makeContext({ sessionController: { resolveAgent: async () => ({ agent: { steer } }) } }),
+      { home, reportId: () => 'report-20260102030405-abc123' },
+    );
+    const { taskId } = await seedTask(service, 'worker');
+    const ledgerPath = join(root, 'message-task-status.json');
+    const ledger = JSON.parse(await readFile(ledgerPath, 'utf8')) as {
+      tasks: Array<{ id: string; reportIds: string[]; deliveredReportIds?: string[] }>;
+    };
+    const task = ledger.tasks[0];
+    if (task !== undefined) {
+      task.reportIds.push('report-20260101090000-old001');
+      task.deliveredReportIds = [];
+    }
+    await writeFile(ledgerPath, JSON.stringify(ledger), 'utf8');
+
+    const result = await service.sendReport({ kind: 'progress', text: '新的' }, 'worker');
+    expect(result.delivered).toBe(true);
+    const block = messageText(steer.mock.calls[0]?.[0]);
+    expect(block).toContain(
+      `<unread_report taskid="${taskId}" reportid="report-20260101090000-old001">reports/${taskId}/report-20260101090000-old001.md</unread_report>`,
+    );
+    expect(block).toContain(
+      `<unread_report taskid="${taskId}" reportid="report-20260102030405-abc123">reports/${taskId}/report-20260102030405-abc123.md</unread_report>`,
+    );
+    expect((await readTaskState(root)).tasks[0]?.deliveredReportIds).toEqual([
+      'report-20260101090000-old001',
+      'report-20260102030405-abc123',
+    ]);
+    expect((await runGit(['status', '--porcelain'], root)).stdout.trim()).toBe('');
+  });
+
+  it('投递失败重试一次后成功', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const steer = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('steer failed');
+      })
+      .mockResolvedValue(undefined);
+    const service = new SuperAgentService(
+      makeContext({ sessionController: { resolveAgent: async () => ({ agent: { steer } }) } }),
+      { home },
+    );
+    await seedTask(service, 'worker');
+    const result = await service.sendReport({ kind: 'progress', text: '重试' }, 'worker');
+    expect(result.delivered).toBe(true);
+    expect(steer).toHaveBeenCalledTimes(2);
+    expect((await readTaskState(root)).tasks[0]?.deliveredReportIds).toEqual([result.reportId]);
+  });
+
+  it('没有工作区时忽略报告', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(null, 'dispatch');
+    const ensure = vi.fn();
+    const service = new SuperAgentService(makeContext({}), { home, ensureDispatchSession: ensure });
+    const result = await service.sendReport({ kind: 'progress', text: '无处存放' }, 'worker');
+    expect(result).toEqual({ delivered: false, reason: 'no_workspace' });
+    expect(ensure).not.toHaveBeenCalled();
+    expect(await exists(join(root, 'reports'))).toBe(false);
+    expect((await readBridgeState(home)).sessionId).toBe('dispatch');
+  });
+
+  it('并发上报只新建一个调度会话并按顺序投递', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, null);
+    const steer = vi.fn();
+    const ensure = vi.fn(async () => {
+      await setBridgeState(home, root, 'shared');
+      return { sessionId: 'shared' };
+    });
+    const service = new SuperAgentService(
+      makeContext({ sessionController: { resolveAgent: async () => ({ agent: { steer } }) } }),
+      { home, ensureDispatchSession: ensure },
+    );
+    await seedTask(service, 'worker-a');
+    await seedTask(service, 'worker-b');
+    const results = await Promise.all([
+      service.sendReport({ kind: 'progress', text: '第一份' }, 'worker-a'),
+      service.sendReport({ kind: 'progress', text: '第二份' }, 'worker-b'),
+    ]);
+    expect(results.map((result) => result.delivered)).toEqual([true, true]);
+    expect(ensure).toHaveBeenCalledOnce();
+    const blocks = steer.mock.calls.map((call) => messageText(call[0]));
+    const reportIds = blocks.flatMap((block) =>
+      [...block.matchAll(/<unread_report taskid="[^"]*" reportid="([^"]*)"/g)].map(
+        (match) => match[1],
+      ),
+    );
+    expect(reportIds).toHaveLength(2);
+    expect(new Set(reportIds).size).toBe(2);
+    expect(blocks.some((block) => block.includes('<task_snapshot>'))).toBe(true);
+    const tasks = (await readTaskState(root)).tasks;
+    expect(tasks.reduce((total, task) => total + task.deliveredReportIds.length, 0)).toBe(2);
   });
 
   it('仅在 Windows 上转换盘符工作区', async () => {

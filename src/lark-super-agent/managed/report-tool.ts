@@ -60,9 +60,25 @@ export function buildSendReportTool(service: LarkSuperAgentService) {
         type: 'object',
         additionalProperties: false,
         properties: {
-          reportId: { type: 'string', required: true },
-          taskId: { type: 'string', required: true },
-          delivered: { type: 'boolean', required: true, const: true },
+          reportId: {
+            type: 'string',
+            description: 'Report id; absent when the report was not archived.',
+          },
+          taskId: { type: 'string', description: 'Managed task id; absent without a workspace.' },
+          reportPath: {
+            type: 'string',
+            description:
+              'Report path relative to the dispatch workspace; absent when not archived.',
+          },
+          delivered: {
+            type: 'boolean',
+            required: true,
+            description: 'Whether the dispatch session received the report.',
+          },
+          reason: {
+            type: 'string',
+            description: 'Why an undelivered report was not delivered.',
+          },
           warning: {
             type: 'string',
             description: 'Non-fatal post-delivery warning, such as a commit failure.',

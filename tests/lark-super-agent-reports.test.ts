@@ -223,7 +223,7 @@ describe('lark-super-agent reports', { timeout: 30000 }, () => {
     expect((await runGit(['status', '--porcelain'], root)).stdout.trim()).toBe('');
   });
 
-  it('投递在写入之后、提交之前执行', async () => {
+  it('投递在写入与提交之后执行', async () => {
     const root = await temporaryDirectory();
     const taskId = await workerTask(root);
     const reportId = 'report-20260102030405-000001';
@@ -235,32 +235,43 @@ describe('lark-super-agent reports', { timeout: 30000 }, () => {
       'send_report',
       async (archived) => {
         expect(await readFile(archived.reportPath, 'utf8')).toContain('投递正文');
+        expect((await runGit(['log', '-1', '--pretty=%s'], root)).stdout.trim()).toBe(
+          `lark-super-agent: report ${reportId}`,
+        );
         delivered.push(archived);
+        return { delivered: true };
       },
     );
+    await expect(result.delivery).resolves.toEqual({ delivered: true });
     expect(delivered.map((archived) => archived.reportId)).toEqual([reportId]);
     expect(delivered[0]?.taskId).toBe(taskId);
     expect(result.warning).toBeUndefined();
     expect((await runGit(['status', '--porcelain'], root)).stdout.trim()).toBe('');
   });
 
-  it('投递抛错时向上传播并跳过提交', async () => {
+  it('投递抛错时保留存档与提交并返回未送达', async () => {
     const root = await temporaryDirectory();
     const taskId = await workerTask(root);
     const reportId = 'report-20260102030405-000002';
-    await expect(
-      new ReportStore(root, { reportId: () => reportId }).archiveReport(
-        { kind: 'progress', text: '正文' },
-        'worker',
-        taskId,
-        'send_report',
-        () => {
-          throw new Error('delivery failed');
-        },
-      ),
-    ).rejects.toThrow('delivery failed');
+    const result = await new ReportStore(root, { reportId: () => reportId }).archiveReport(
+      { kind: 'progress', text: '正文' },
+      'worker',
+      taskId,
+      'send_report',
+      async () => {
+        throw new Error('delivery failed');
+      },
+    );
     expect(await exists(join(root, 'reports', taskId, `${reportId}.md`))).toBe(true);
-    expect((await runGit(['status', '--porcelain'], root)).stdout).not.toBe('');
+    await expect(result.delivery).resolves.toEqual({
+      delivered: false,
+      reason: 'delivery failed: delivery failed',
+    });
+    expect((await readTaskState(root)).tasks[0]?.reportIds).toEqual([reportId]);
+    expect((await runGit(['status', '--porcelain'], root)).stdout.trim()).toBe('');
+    expect((await runGit(['log', '-1', '--pretty=%s'], root)).stdout.trim()).toBe(
+      `lark-super-agent: report ${reportId}`,
+    );
   });
 
   it('提交失败时返回 warning 并保留上报文件', async () => {
@@ -276,6 +287,7 @@ describe('lark-super-agent reports', { timeout: 30000 }, () => {
       'send_report',
     );
     expect(report.warning).toMatch(/no-report-commit/);
+    expect(report.warning).toMatch(/archived but git commit failed/);
     expect(await exists(report.reportPath)).toBe(true);
   });
 });

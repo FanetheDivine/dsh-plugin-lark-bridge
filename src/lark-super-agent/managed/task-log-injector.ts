@@ -8,7 +8,7 @@ import { createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm';
 
 import { isLarkMessage, isReminderMessage } from '../../message.ts';
 import type { LarkSuperAgentService, Task } from '../api.ts';
-import { escapeXmlAttribute } from '../blocks.ts';
+import { escapeXmlAttribute, TASK_SESSION_INSTRUCTIONS } from '../blocks.ts';
 import { workspaceRelative } from '../paths.ts';
 import { readTaskLog, type TaskLogEntry } from '../task-log.ts';
 
@@ -161,11 +161,24 @@ export class TaskLogInjector {
       ];
       taskLines.push(`<task ${attributes.join(' ')}/>`);
     }
+    const unread: string[] = [];
+    for (const task of tasks) {
+      const delivered = new Set(task.deliveredReportIds);
+      for (const reportId of task.reportIds) {
+        if (delivered.has(reportId)) continue;
+        const path = workspaceRelative(root, join(root, 'reports', task.id, `${reportId}.md`));
+        unread.push(
+          `<unread_report taskid="${escapeXmlAttribute(task.id)}" reportid="${escapeXmlAttribute(reportId)}">${escapeClosing(path, ['unread_report'])}</unread_report>`,
+        );
+      }
+    }
     recent.sort((a, b) => Date.parse(a.time) - Date.parse(b.time) || a.id.localeCompare(b.id));
     return [
       `<task_snapshot covers_entries="${escapeXmlAttribute(covered.join(','))}">`,
       ...taskLines,
       '</task_snapshot>',
+      ...(unread.length === 0 ? [] : ['<unread_reports>', ...unread, '</unread_reports>']),
+      `<instructions>${TASK_SESSION_INSTRUCTIONS}</instructions>`,
       ...recent.map(entryBlock),
     ].join('\n');
   }

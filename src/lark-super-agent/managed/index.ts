@@ -89,6 +89,9 @@ export function applyManagedSessions(
         sessionId,
         'ask_intercept',
       );
+      if (!report.delivered) {
+        throw new Error(report.reason ?? 'question report was not delivered');
+      }
       const task = await service.managedTask(sessionId);
       if (task !== undefined && task.id === report.taskId && task.status === 'in_progress') {
         await service.updateTask({ taskId: task.id, status: 'waiting_user' });

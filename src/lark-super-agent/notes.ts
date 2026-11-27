@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
-
+import { replaceFile } from '../atomic.ts';
 import type {
   CreateTaskInput,
   EndReason,
@@ -87,6 +87,7 @@ const taskSchema = z.object({
   workspaceId: line.nullable(),
   cwd: z.string(),
   reportIds: z.array(line),
+  deliveredReportIds: z.array(line).optional(),
   messages: z.array(messageSchema).min(1),
   createdAt: time,
   updatedAt: time,
@@ -119,7 +120,7 @@ export async function atomicWriteJson(path: string, value: unknown): Promise<voi
       encoding: 'utf8',
       flag: 'wx',
     });
-    await rename(temporary, path);
+    await replaceFile(temporary, path);
   } catch (error) {
     await rm(temporary, { force: true }).catch(() => undefined);
     throw error;
@@ -151,10 +152,11 @@ async function readJson(path: string): Promise<{ value: unknown } | { invalid: t
   }
 }
 
-/** 去掉可选字段上的 undefined，满足 exactOptionalPropertyTypes。 */
+/** 去掉可选字段上的 undefined，满足 exactOptionalPropertyTypes；旧任务按已投递初始化。 */
 function normalizeTask(task: z.infer<typeof taskSchema>): Task {
   return {
     ...task,
+    deliveredReportIds: task.deliveredReportIds ?? [...task.reportIds],
     messages: task.messages.map((message) =>
       message.messageId === undefined
         ? { text: message.text, time: message.time }
@@ -290,6 +292,7 @@ export class NotesStore {
           input.workspaceId === null ? null : validateLine(input.workspaceId, 'workspace id'),
         cwd: input.cwd,
         reportIds: [],
+        deliveredReportIds: [],
         messages: [messageOf(input.message, at)],
         createdAt: at,
         updatedAt: at,
@@ -326,6 +329,31 @@ export class NotesStore {
       await atomicWriteJson(join(this.root, TASKS_FILE), { version: 2, tasks: state.tasks });
       await commitFilesInQueue(this.root, [TASKS_FILE], `lark-super-agent: update ${task.id}`);
       return { taskId: task.id, status: task.status };
+    });
+  }
+
+  /** 把一批报告记为已投递；没有变化时不写台账。 */
+  async markReportsDelivered(
+    entries: readonly { taskId: string; reportIds: readonly string[] }[],
+  ): Promise<{ changed: boolean }> {
+    return runSerial(this.root, async () => {
+      const state = await readTaskState(this.root);
+      assertLedgerValid(state);
+      let changed = false;
+      for (const entry of entries) {
+        const task = state.tasks.find((item) => item.id === entry.taskId);
+        if (task === undefined) continue;
+        for (const reportId of entry.reportIds) {
+          if (!task.reportIds.includes(reportId)) continue;
+          if (task.deliveredReportIds.includes(reportId)) continue;
+          task.deliveredReportIds.push(reportId);
+          changed = true;
+        }
+      }
+      if (!changed) return { changed: false };
+      await atomicWriteJson(join(this.root, TASKS_FILE), { version: 2, tasks: state.tasks });
+      await commitFilesInQueue(this.root, [TASKS_FILE], 'lark-super-agent: mark reports delivered');
+      return { changed: true };
     });
   }
 

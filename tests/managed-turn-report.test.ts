@@ -22,10 +22,23 @@ function makeService(managed: readonly string[] = ['worker']) {
 }
 
 function makeReporter(
-  options: { managed?: readonly string[]; subagent?: boolean; failReport?: Error } = {},
+  options: {
+    managed?: readonly string[];
+    subagent?: boolean;
+    failReport?: Error;
+    undelivered?: boolean;
+  } = {},
 ) {
   const service = makeService(options.managed);
   if (options.failReport !== undefined) service.sendReport.mockRejectedValue(options.failReport);
+  if (options.undelivered === true) {
+    service.sendReport.mockResolvedValue({
+      reportId: 'report-20260101000000-abcdef',
+      taskId: TASK.id,
+      delivered: false,
+      reason: 'delivery_failed: dispatch offline',
+    } as never);
+  }
   const warnings: unknown[][] = [];
   const reporter = new TurnReporter({
     service: service as unknown as LarkSuperAgentService,
@@ -184,6 +197,14 @@ describe('TurnReporter 自动上报', () => {
     expect(warnings).toHaveLength(1);
     expect(String(warnings[0]?.[0])).toContain('turn-end report was not delivered');
     expect(warnings[0]?.[1]).toEqual(new Error('dispatch offline'));
+  });
+
+  it('上报未送达时只记日志', async () => {
+    const { reporter, warnings, service } = makeReporter({ undelivered: true });
+    await play(reporter, 'worker', [start(1), say(1, 'done'), end(1)]);
+    expect(service.sendReport).toHaveBeenCalledOnce();
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.[1]).toBe('delivery_failed: dispatch offline');
   });
 
   it('忽略没有轮次号或不是对象的事件', async () => {
