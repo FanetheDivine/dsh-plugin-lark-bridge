@@ -627,6 +627,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     const ctx = makeContext({
       sessionController: { resolveAgent: async (id: string) => agents.get(id) ?? null },
       workspaceRegistry: { list: () => [{ id: 'workspace-a', path: '/project' }] },
+      sessionTitle: { get: () => ({ title: 'Fix widget' }) },
     });
     const service = new SuperAgentService(ctx, { home });
 
@@ -661,13 +662,13 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     ];
     const session = {
       id: 'reporter',
-      title: 'Reporter',
       cwd: '/project',
       surface: { nodes: [0] },
       eventAt: (seq: number) => events[seq],
     };
     const ctx = makeContext({
       sessionController: { resolveAgent: async () => ({ agent: { session } }) },
+      sessionTitle: { get: () => ({ title: 'Reporter' }) },
     });
     const service = new SuperAgentService(ctx, { home });
     await service.manageSession('reporter');
@@ -685,13 +686,13 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     const events = [{ type: 'user/message', data: { content: [{ type: 'text', text: first }] } }];
     const session = {
       id: 'multi',
-      title: 'Multi\nline title',
       cwd: '/project',
       surface: { nodes: [0] },
       eventAt: (seq: number) => events[seq],
     };
     const ctx = makeContext({
       sessionController: { resolveAgent: async () => ({ agent: { session } }) },
+      sessionTitle: { get: () => ({ title: 'Multi\nline title' }) },
     });
     const service = new SuperAgentService(ctx, { home });
     const { taskId, title } = await service.manageSession('multi');
@@ -703,6 +704,46 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
       taskId,
     });
     expect((await service.managedTask('multi'))?.messages[0]?.text).toBe(first);
+  });
+
+  it('manageSession 在标题缺失时用会话 id 作为初始标题', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const session = { id: 'raw', cwd: '/project' };
+    const ctx = makeContext({
+      sessionController: { resolveAgent: async () => ({ agent: { session } }) },
+      sessionTitle: { get: () => undefined },
+    });
+    const service = new SuperAgentService(ctx, { home });
+
+    await expect(service.manageSession('raw')).resolves.toMatchObject({ title: 'raw' });
+  });
+
+  it('manageSession 把只有空白的标题回退为会话 id', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const session = { id: 'blank', cwd: '/project' };
+    const ctx = makeContext({
+      sessionController: { resolveAgent: async () => ({ agent: { session } }) },
+      sessionTitle: { get: () => ({ title: '  \r\n\t ' }) },
+    });
+    const service = new SuperAgentService(ctx, { home });
+
+    await expect(service.manageSession('blank')).resolves.toMatchObject({ title: 'blank' });
+  });
+
+  it('manageSession 在宿主没有标题服务时用会话 id 作为初始标题', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const session = { id: 'bare', cwd: '/project' };
+    const service = new SuperAgentService(
+      makeContext({
+        sessionController: { resolveAgent: async () => ({ agent: { session } }) },
+      }),
+      { home },
+    );
+
+    await expect(service.manageSession('bare')).resolves.toMatchObject({ title: 'bare' });
   });
 
   it('调度会话已归档时新建并投递', async () => {
@@ -1032,9 +1073,10 @@ describe('SuperAgentService 接管补发', () => {
     const ctx = makeContext({
       sessionController: {
         resolveAgent: async () => ({
-          agent: { session: { title: 'Worker', header: { cwd: '/project' } } },
+          agent: { session: { header: { cwd: '/project' } } },
         }),
       },
+      sessionTitle: { get: () => ({ title: 'Worker' }) },
     });
     const service = new SuperAgentService(ctx, { home });
     const catchUp = vi.fn(async () => undefined);
@@ -1054,9 +1096,10 @@ describe('SuperAgentService 接管补发', () => {
       {
         sessionController: {
           resolveAgent: async () => ({
-            agent: { session: { title: 'Worker', header: { cwd: '/project' } } },
+            agent: { session: { header: { cwd: '/project' } } },
           }),
         },
+        sessionTitle: { get: () => ({ title: 'Worker' }) },
       },
       warnings,
     );

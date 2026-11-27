@@ -57,7 +57,6 @@ declare module '@deepseek-ai/dsh-llm' {
 
 interface SessionLike {
   id?: string;
-  title?: string;
   /** 会话创建目录；会话当前目录由宿主的 workingDirectory 投影记录。 */
   header?: { cwd?: string };
   running?: boolean;
@@ -100,6 +99,11 @@ interface SessionQueryLike {
       value?: { title?: { title?: string } };
     }[]
   >;
+}
+
+/** 宿主会话标题服务的最小接口：读取会话日志中的最新标题。 */
+interface SessionTitleLike {
+  get(session: unknown): { title?: unknown } | undefined;
 }
 
 interface AgentsLike {
@@ -169,6 +173,13 @@ function firstUserText(agent: AgentLike | undefined): string | undefined {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** 把会话标题折叠为单行；空白标题返回 undefined。 */
+function normalizeSessionTitle(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const title = value.replace(/\s*[\r\n]+\s*/g, ' ').trim();
+  return title === '' ? undefined : title;
 }
 
 /** 会话未被管理时 send_report 的错误。 */
@@ -315,7 +326,7 @@ export class SuperAgentService implements LarkSuperAgentService {
     }
     if ('error' in resolved && resolved.error !== undefined) throw resolved.error;
     const agent = 'agent' in resolved ? resolved.agent : resolved;
-    const title = agent?.session?.title?.replace(/\s*[\r\n]+\s*/g, ' ').trim() || id;
+    const title = this.sessionTitleOf(agent?.session) ?? id;
     const cwd = this.sessionDirectory(agent?.session) ?? this.fallbackDirectory(id);
     const first = firstUserText(agent);
     const { taskId } = await this.createTask({
@@ -327,6 +338,13 @@ export class SuperAgentService implements LarkSuperAgentService {
     });
     await this.reportTakeover(id, taskId);
     return { sessionId: id, taskId, title };
+  }
+
+  /** 读取会话的最新标题；服务缺失或没有标题时返回 undefined。 */
+  private sessionTitleOf(session: AgentLike['session']): string | undefined {
+    if (session === undefined) return undefined;
+    const service = this.ctx.get('sessionTitle') as SessionTitleLike | undefined;
+    return normalizeSessionTitle(service?.get?.(session)?.title);
   }
 
   /** 按工作目录匹配已注册工作区；没有匹配时返回 null。 */

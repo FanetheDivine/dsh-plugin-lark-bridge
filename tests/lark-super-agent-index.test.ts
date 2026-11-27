@@ -286,9 +286,10 @@ describe('lark-super-agent 全局行', () => {
       services: {
         sessionController: {
           resolveAgent: async () => ({
-            agent: { session: { id: 'worker', title: 'Worker', header: { cwd: '/project' } } },
+            agent: { session: { id: 'worker', header: { cwd: '/project' } } },
           }),
         },
+        sessionTitle: { get: () => ({ title: 'Worker' }) },
       },
     });
     const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({ delivered: true });
