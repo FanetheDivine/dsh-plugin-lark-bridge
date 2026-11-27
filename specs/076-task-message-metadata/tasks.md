@@ -78,7 +78,7 @@ description: "任务列表：任务会话消息不含会话元信息"
 
 **Independent Test**: 运行测试，重发请求与小节顺序断言通过。
 
-- [ ] T006 [US5] 运行 `pnpm test:code`，确认「提示词按顺序包含全部小节」与重发请求相关既有断言通过 tests/sa-dispatch.test.ts
+- [X] T006 [US5] 运行 `pnpm test:code`，确认「提示词按顺序包含全部小节」与重发请求相关既有断言通过 tests/sa-dispatch.test.ts
 
 ---
 
