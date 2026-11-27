@@ -438,6 +438,23 @@ describe('SA-调度会话子行', () => {
     expect(add).toContain('no acknowledgment of a report');
   });
 
+  it('提示词禁止向任务会话暴露会话元信息', () => {
+    const start = section('Start a task');
+    expect(start).toContain("The prompt holds only this task's request");
+    expect(SA_DISPATCH_PROMPT).not.toContain('its target workspace');
+    const add = section('Add messages to a task');
+    expect(add).toContain('Leave session metadata out');
+    expect(add).toContain('task_update add_message alike');
+    expect(add).toContain("user's own words pass through as they are");
+    expect(add).toContain('model route');
+    expect(add).toContain('working directory');
+    expect(add).toContain('session id');
+    expect(add).toContain('[model changed: ...]');
+    expect(add).toContain("the previous turn's failure and its cause");
+    const model = section("Change a session's model");
+    expect(model).toContain('Send the task session nothing about the switch');
+  });
+
   it('提示词要求下发后立刻用 lark_notify 回应，并按任务分开通知', () => {
     const respond = section('Respond to the user');
     expect(respond).toContain('The user reads only what lark_notify sends');
