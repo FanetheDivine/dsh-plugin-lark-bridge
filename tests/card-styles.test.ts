@@ -34,6 +34,12 @@ describe('卡片正文颜色', () => {
     }
   });
 
+  it('上报正文覆盖宿主 compact Markdown 变体的三级色', () => {
+    const css = cssOf('report-card.css');
+    // 宿主在 Markdown 根节点给 compact 变体写三级色；卡片内的覆盖规则特异性更高。
+    expectPrimaryColor(css, '.dsh-lark-report-body > [data-markdown-variant="compact"]');
+  });
+
   it('通知容器与正文使用主前景色并保留换行', () => {
     const css = cssOf('notify-card.css');
     expectPrimaryColor(css, '.dsh-lark-notify');

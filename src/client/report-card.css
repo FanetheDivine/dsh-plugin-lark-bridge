@@ -87,6 +87,11 @@
   overflow-wrap: anywhere;
 }
 
+/* 宿主 compact Markdown 变体在根节点写三级色；上报正文在卡片内取回主前景色。 */
+.dsh-lark-report-body > [data-markdown-variant="compact"] {
+  color: var(--dsw-alias-label-primary);
+}
+
 .dsh-lark-report-files {
   display: flex;
   flex-direction: column;
