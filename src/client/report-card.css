@@ -37,6 +37,16 @@
   font-weight: 500;
 }
 
+.dsh-lark-report-head-desc {
+  flex: 1 1 120px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dsh-lark-report-receipt {
   display: inline-flex;
   align-items: center;
@@ -45,6 +55,51 @@
   color: var(--dsw-alias-state-success-primary);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.dsh-lark-report-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 2px 6px;
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  background: none;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .dsh-lark-report-toggle:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
+}
+
+.dsh-lark-report-toggle:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid
+    var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 1px;
+}
+
+.dsh-lark-report-toggle-icon {
+  flex: none;
+  transition: transform 150ms ease;
+}
+
+.dsh-lark-report-toggle[aria-expanded="true"] .dsh-lark-report-toggle-icon {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dsh-lark-report-toggle-icon {
+    transition: none;
+  }
 }
 
 .dsh-lark-report-receipt::before {

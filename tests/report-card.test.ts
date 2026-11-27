@@ -39,12 +39,17 @@ function render(data: Partial<ReportCardData> = {}, props: Partial<ReportCardPro
 }
 
 describe('ReportCard 内容', () => {
-  it('显示类型、任务简介、正文、文件与回执', () => {
+  it('默认展开并显示类型、任务简介、正文、文件、回执与收起开关', () => {
     const html = render({}, { openFile: () => {} });
     expect(html).toContain('data-dsh-lark-report-card="progress"');
+    expect(html).toContain('data-expanded="true"');
+    expect(html).toContain('data-dsh-lark-report-toggle=""');
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain('aria-label="收起"');
     expect(html).toContain('上报');
     expect(html).toContain('进度');
     expect(html).toContain('修复登录重试');
+    expect(html).not.toContain('dsh-lark-report-head-desc');
     expect(html).toContain('<div data-markdown="compact">已定位到重试逻辑。</div>');
     expect(html).toContain('附件');
     expect(html).toContain('>report.md<');
@@ -67,18 +72,24 @@ describe('ReportCard 内容', () => {
     expect(html).toContain('>report.md<');
   });
 
-  it('提问类型使用提问标签，未知类型原样显示，缺失类型不显示标签', () => {
-    expect(render({ kind: 'question' })).toContain('提问');
+  it('提问类型使用提问标签，未知类型原样显示，缺失类型不显示标签，且全部带有默认展开开关', () => {
+    const question = render({ kind: 'question' });
+    expect(question).toContain('提问');
+    expect(question).toContain('aria-expanded="true"');
     const custom = render({ kind: 'custom' });
     expect(custom).toContain('data-dsh-lark-report-card="custom"');
     expect(custom).toContain('>custom<');
+    expect(custom).toContain('aria-expanded="true"');
     const none = render({ kind: '' });
     expect(none).toContain('data-dsh-lark-report-card="report"');
     expect(none).not.toContain('进度');
+    expect(none).toContain('aria-expanded="true"');
   });
 
-  it('没有打开能力时文件按钮禁用', () => {
-    expect(render()).toContain('disabled=""');
+  it('没有打开能力时文件按钮禁用，折叠按钮保持可用', () => {
+    expect(render()).toContain(
+      'class="dsh-lark-report-file" title="/tmp/report.md" aria-label="打开 /tmp/report.md" disabled=""',
+    );
     expect(render({}, { openFile: () => {} })).not.toContain('disabled=""');
   });
 });
@@ -100,26 +111,125 @@ describe('ReportCard 交互', () => {
         }),
       );
     });
-    const buttons = container.querySelectorAll('button');
-    expect(buttons).toHaveLength(2);
+    const fileButtons = container.querySelectorAll<HTMLButtonElement>('.dsh-lark-report-file');
+    expect(fileButtons).toHaveLength(2);
     await act(async () => {
-      buttons[1]?.click();
+      fileButtons[1]?.click();
     });
     expect(opened).toEqual(['docs/log.txt']);
-    expect(buttons[0]?.getAttribute('aria-label')).toBe('打开 /tmp/report.md');
+    expect(fileButtons[0]?.getAttribute('aria-label')).toBe('打开 /tmp/report.md');
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it('点击折叠开关收起主体并保留标题与摘要行，再次点击恢复完整内容', async () => {
+    const { createRoot } = await import('react-dom/client');
+    const { act } = await import('react');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(ReportCard, {
+          t,
+          node: { data: { ...DATA, kind: 'question' } },
+          openFile: () => {},
+        }),
+      );
+    });
+
+    const card = container.querySelector('.dsh-lark-report');
+    const toggle = container.querySelector<HTMLButtonElement>('[data-dsh-lark-report-toggle]');
+    expect(card?.getAttribute('data-expanded')).toBe('true');
+    expect(toggle?.getAttribute('type')).toBe('button');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle?.getAttribute('aria-label')).toBe('收起');
+    expect(container.querySelector('.dsh-lark-report-desc')).not.toBeNull();
+    expect(container.querySelector('.dsh-lark-report-body')).not.toBeNull();
+    expect(container.querySelector('.dsh-lark-report-files')).not.toBeNull();
+    expect(container.querySelector('.dsh-lark-report-head-desc')).toBeNull();
+
+    await act(async () => {
+      toggle?.click();
+    });
+
+    expect(card?.getAttribute('data-expanded')).toBe('false');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle?.getAttribute('aria-label')).toBe('展开');
+    expect(toggle?.textContent).toBe('展开');
+    expect(container.querySelector('.dsh-lark-report-desc')).toBeNull();
+    expect(container.querySelector('.dsh-lark-report-body')).toBeNull();
+    expect(container.querySelector('.dsh-lark-report-files')).toBeNull();
+    expect(container.querySelector('.dsh-lark-report-head-desc')?.textContent).toBe('修复登录重试');
+    expect(container.querySelector('.dsh-lark-report-title')?.textContent).toBe('上报');
+    expect(container.querySelector('.dsh-lark-report-receipt')?.textContent).toContain('report-7');
+
+    await act(async () => {
+      toggle?.click();
+    });
+
+    expect(card?.getAttribute('data-expanded')).toBe('true');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle?.getAttribute('aria-label')).toBe('收起');
+    expect(container.querySelector('.dsh-lark-report-desc')).not.toBeNull();
+    expect(container.querySelector('.dsh-lark-report-body')).not.toBeNull();
+    expect(container.querySelector('.dsh-lark-report-files')).not.toBeNull();
+    expect(container.querySelector('.dsh-lark-report-head-desc')).toBeNull();
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it('无 desc 时折叠后不显示空摘要占位', async () => {
+    const { createRoot } = await import('react-dom/client');
+    const { act } = await import('react');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(ReportCard, {
+          t,
+          node: { data: { ...DATA, desc: '' } },
+        }),
+      );
+    });
+    const toggle = container.querySelector<HTMLButtonElement>('[data-dsh-lark-report-toggle]');
+    await act(async () => {
+      toggle?.click();
+    });
+    expect(container.querySelector('.dsh-lark-report-head-desc')).toBeNull();
+    expect(container.querySelector('.dsh-lark-report-body')).toBeNull();
     await act(async () => root.unmount());
     container.remove();
   });
 });
 
 describe('ReportCard 文案', () => {
-  it('缺少翻译函数时使用英文回退', () => {
+  it('缺少翻译函数时使用英文回退', async () => {
     const html = renderToStaticMarkup(createElement(ReportCard, { node: { data: DATA } }));
     expect(html).toContain('Report');
     expect(html).toContain('Progress');
     expect(html).toContain('Task');
     expect(html).toContain('Files');
     expect(html).toContain('Delivered');
+    expect(html).toContain('Collapse');
+
+    const { createRoot } = await import('react-dom/client');
+    const { act } = await import('react');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(createElement(ReportCard, { node: { data: DATA } }));
+    });
+    const toggle = container.querySelector<HTMLButtonElement>('[data-dsh-lark-report-toggle]');
+    await act(async () => {
+      toggle?.click();
+    });
+    expect(toggle?.getAttribute('aria-label')).toBe('Expand');
+    await act(async () => root.unmount());
+    container.remove();
   });
 
   it('卡片文案键在中英文字典中都有值', () => {
@@ -130,6 +240,8 @@ describe('ReportCard 文案', () => {
       'report.desc',
       'report.files',
       'report.delivered',
+      'report.collapse',
+      'report.expand',
       'report.openFile',
       'report.copy',
       'report.copied',
