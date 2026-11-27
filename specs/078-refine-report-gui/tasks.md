@@ -41,12 +41,12 @@ description: "上报与通知卡片悬停变色与点击热区的任务清单"
 
 **Independent Test**: `pnpm test:code --notify-card` 与 `pnpm test:code --card-styles`：两种模式默认状态、热区切换、会话链接独立、常显信息行与文案键断言通过
 
-- [ ] T008 [P] [US2] 在 `tests/notify-card.test.ts` 重写卡片模式用例（总结在热区内、默认折叠、无 `<details>`、点击展开）；新增文本模式默认展开与「通知」标题、点击热区收起用例；会话链接改按 `data-dsh-lark-notify-session-link` 定位并断言点击不改变展开状态；折叠态任务与会话行常显；更新历史正文用例；文案用例覆盖 `notify.title`、`notify.collapse`、`notify.expand`
-- [ ] T009 [US2] 在 `src/client/locales.ts` 新增 `notify.title`（通知 / Notification）与 `notify.collapse`（收起 / Collapse），`notify.expand` 改值为 展开 / Expand
-- [ ] T010 [US2] 在 `src/client/notify-card.tsx` 渲染热区 `button.dsh-lark-notify-head`（`data-dsh-lark-notify-toggle`、图标 + 总结或 `notify.title` 标题 + 箭头、`aria-expanded`、`aria-label`），`expanded` 初值 `summary === undefined`；正文仅展开时渲染；任务与会话行包进 `footer.dsh-lark-notify-meta` 常显；移除 `<details>`
-- [ ] T011 [US2] 在 `src/client/notify-card.css` 写同构容器与热区样式（无容器 padding、整卡 `:hover`、热区 `padding: 10px 14px`、焦点环、箭头旋转），body 与 meta `padding: 8px 14px 12px` 带 border-top，meta 行距 6px；移除 session `margin-top` 与 details/summary 样式
-- [ ] T012 [P] [US2] 在 `tests/card-styles.test.ts` 新增通知卡片断言：`:hover` 令牌、热区 padding、body `pre-wrap` 与分区、meta border-top、箭头旋转
-- [ ] T013 [US2] 运行 `pnpm test:code --notify-card` 与 `pnpm test:code --card-styles`，修复断言与类型问题
+- [x] T008 [P] [US2] 在 `tests/notify-card.test.ts` 重写卡片模式用例（总结在热区内、默认折叠、无 `<details>`、点击展开）；新增文本模式默认展开与「通知」标题、点击热区收起用例；会话链接改按 `data-dsh-lark-notify-session-link` 定位并断言点击不改变展开状态；折叠态任务与会话行常显；更新历史正文用例；文案用例覆盖 `notify.title`、`notify.collapse`、`notify.expand`
+- [x] T009 [US2] 在 `src/client/locales.ts` 新增 `notify.title`（通知 / Notification）与 `notify.collapse`（收起 / Collapse），`notify.expand` 改值为 展开 / Expand
+- [x] T010 [US2] 在 `src/client/notify-card.tsx` 渲染热区 `button.dsh-lark-notify-head`（`data-dsh-lark-notify-toggle`、图标 + 总结或 `notify.title` 标题 + 箭头、`aria-expanded`、`aria-label`），`expanded` 初值 `summary === undefined`；正文仅展开时渲染；任务与会话行包进 `footer.dsh-lark-notify-meta` 常显；移除 `<details>`
+- [x] T011 [US2] 在 `src/client/notify-card.css` 写同构容器与热区样式（无容器 padding、整卡 `:hover`、热区 `padding: 10px 14px`、焦点环、箭头旋转），body 与 meta `padding: 8px 14px 12px` 带 border-top，meta 行距 6px；移除 session `margin-top` 与 details/summary 样式
+- [x] T012 [P] [US2] 在 `tests/card-styles.test.ts` 新增通知卡片断言：`:hover` 令牌、热区 padding、body `pre-wrap` 与分区、meta border-top、箭头旋转
+- [x] T013 [US2] 运行 `pnpm test:code --notify-card` 与 `pnpm test:code --card-styles`，修复断言与类型问题
 
 **Checkpoint**: 两张卡片交互与视觉一致
 

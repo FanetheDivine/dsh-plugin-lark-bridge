@@ -1,20 +1,101 @@
-/* lark_notify 成功通知卡片：正文、卡片模式的总结与折叠内容、任务与会话。颜色与宿主对话正文一致。 */
+/* lark_notify 成功通知卡片：热区、正文与常显的任务/会话行。颜色与宿主对话正文一致。
+   容器无内边距：热区铺满分隔线上方，展开区块各自承担内边距；悬停整卡变色。 */
 
 .dsh-lark-notify {
+  display: flex;
+  flex-direction: column;
   margin: 4px 0 8px;
-  padding: 10px 14px 12px;
   border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-markdown-code-block);
   color: var(--dsw-alias-label-primary);
   font: var(--dsw-font-xs-13);
   min-width: 0;
+  transition: background-color 0.1s;
+}
+
+@media (hover: hover) {
+  .dsh-lark-notify:hover {
+    background: var(--dsw-alias-turn-trigger-bg-hover, var(--dsw-alias-interactive-bg-hover));
+  }
+}
+
+.dsh-lark-notify-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.dsh-lark-notify-head:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid
+    var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: -2px;
+}
+
+.dsh-lark-notify-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.dsh-lark-notify-title {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.dsh-lark-notify-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.dsh-lark-notify-toggle-icon {
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--dsw-alias-label-secondary);
+  transition: transform 150ms ease;
+}
+
+.dsh-lark-notify-head[aria-expanded="true"] .dsh-lark-notify-toggle-icon {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dsh-lark-notify,
+  .dsh-lark-notify-toggle-icon {
+    transition: none;
+  }
 }
 
 .dsh-lark-notify-body {
+  padding: 8px 14px 12px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
   color: var(--dsw-alias-label-primary);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.dsh-lark-notify-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px 12px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 .dsh-lark-notify-session {
@@ -22,7 +103,6 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  margin-top: 8px;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -57,23 +137,4 @@
 
 .dsh-lark-notify-archived {
   flex: none;
-}
-
-.dsh-lark-notify-summary {
-  color: var(--dsw-alias-label-primary);
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.dsh-lark-notify-details {
-  margin-top: 6px;
-}
-
-.dsh-lark-notify-details > summary {
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-}
-
-.dsh-lark-notify-details > .dsh-lark-notify-body {
-  margin-top: 6px;
 }
