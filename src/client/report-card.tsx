@@ -1,5 +1,5 @@
 /**
- * `send_report` 成功上报的卡片：类型、任务简介、Markdown 正文、可打开的文件、报告编号与折叠开关。
+ * `send_report` 成功上报的卡片：类型、任务简介、Markdown 正文、可打开的文件与报告编号；头部整行切换折叠。
  * 注册到 `conversation.chat.node` 的 `lark-report` 键，节点由 `report-node.ts` 产出。
  */
 import {
@@ -59,7 +59,7 @@ function baseName(path: string): string {
   return parts.at(-1) ?? path;
 }
 
-/** 渲染上报卡片，默认展开，头部提供折叠/展开开关。 */
+/** 渲染上报卡片，默认展开；头部整行是折叠/展开开关。 */
 export function ReportCard({ node, openFile, t }: ReportCardProps) {
   const { kind, desc, text, files, reportId } = node.data;
   const [expanded, setExpanded] = useState(true);
@@ -78,7 +78,15 @@ export function ReportCard({ node, openFile, t }: ReportCardProps) {
       data-dsh-lark-report-card={kind || 'report'}
       data-expanded={expanded ? 'true' : 'false'}
     >
-      <header className="dsh-lark-report-head">
+      <button
+        type="button"
+        className="dsh-lark-report-head"
+        data-dsh-lark-report-toggle=""
+        aria-expanded={expanded}
+        aria-label={toggleLabel}
+        title={toggleLabel}
+        onClick={() => setExpanded((previous) => !previous)}
+      >
         <span className="dsh-lark-report-icon" aria-hidden>
           <IconPaperPlaneOutlineRegular size={14} />
         </span>
@@ -97,19 +105,9 @@ export function ReportCard({ node, openFile, t }: ReportCardProps) {
           {translate(t, 'report.delivered')}
           {reportId === '' ? null : <span className="dsh-lark-report-id">{reportId}</span>}
         </span>
-        <button
-          type="button"
-          className="dsh-lark-report-toggle"
-          data-dsh-lark-report-toggle=""
-          aria-expanded={expanded}
-          aria-label={toggleLabel}
-          title={toggleLabel}
-          onClick={() => setExpanded((previous) => !previous)}
-        >
-          <span className="dsh-lark-report-toggle-text">{toggleLabel}</span>
-          <IconChevronDownOutlineRegular size={12} className="dsh-lark-report-toggle-icon" />
-        </button>
-      </header>
+        <span className="dsh-lark-report-toggle-text">{toggleLabel}</span>
+        <IconChevronDownOutlineRegular size={12} className="dsh-lark-report-toggle-icon" />
+      </button>
       {!expanded || desc === '' ? null : (
         <div className="dsh-lark-report-desc">
           <span className="dsh-lark-report-label">{translate(t, 'report.desc')}</span>
