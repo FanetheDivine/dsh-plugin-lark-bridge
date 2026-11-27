@@ -84,9 +84,9 @@ description: "任务列表：任务会话消息不含会话元信息"
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T007 [P] 在调度提示词段落「发往任务会话的消息只有两类」一条后加元信息约束一条（含宿主事实来源、用户原话照转、任务所需路径照常） docs/how-it-works.md
-- [ ] T008 [P] 「被管理会话与调度消息」加残余风险一条：元信息约束靠调度模型遵守提示词，插件不做运行期文字过滤 docs/known-risks.md
-- [ ] T009 运行 `pnpm format && pnpm check`，修正发现的问题
+- [X] T007 [P] 在调度提示词段落「发往任务会话的消息只有两类」一条后加元信息约束一条（含宿主事实来源、用户原话照转、任务所需路径照常） docs/how-it-works.md
+- [X] T008 [P] 「被管理会话与调度消息」加残余风险一条：元信息约束靠调度模型遵守提示词，插件不做运行期文字过滤 docs/known-risks.md
+- [X] T009 运行 `pnpm format && pnpm check`，修正发现的问题
 
 ---
 
