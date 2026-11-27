@@ -2,10 +2,12 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { defineTool } from '@deepseek-ai/dsh-tools';
+import { ToolExecutionPipeline } from '@deepseek-ai/dsh-tools/pipeline';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apply, Config, inject } from '../src/lark-super-agent/index.ts';
-import { ASK_BLOCKED_ERROR, ASK_TOOL } from '../src/lark-super-agent/managed/ask-guard.ts';
+import { ASK_TOOL } from '../src/lark-super-agent/managed/ask-guard.ts';
 import { SEND_REPORT_DESCRIPTION } from '../src/lark-super-agent/managed/report-tool.ts';
 import {
   TASK_RULES_SOURCE_KIND,
@@ -313,17 +315,97 @@ describe('lark-super-agent 全局行', () => {
     return tool.execute(args, { agent: { session: { id: 'worker' } } });
   }
 
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+  /** 用宿主工具管线执行提问，复现成功结果用 schema 校验并重新渲染的流程。 */
+  async function executeAsk(base: RowCtx, exec: ReturnType<typeof askExec>) {
+    const body = vi.fn(async () => ({ answers: [] }));
+    const render = vi.fn((_args, value) => [
+      { type: 'text' as const, text: JSON.stringify(value) },
+    ]);
+    const ask = defineTool({
+      name: ASK_TOOL,
+      description: 'Ask the user',
+      parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            answers: {
+              type: 'array',
+              required: true,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  id: { type: 'string', required: true },
+                  selected: { type: 'array', required: true, items: { type: 'string' } },
+                  custom: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        render,
+      },
+      execute: body,
+    });
+    const ctx = {
+      ...base,
+      tools: { ...base.tools, checkGuards: () => undefined },
+      events: { dispatch: () => [] },
+      waterfall: (_scope: unknown, name: string, ...args: unknown[]) => {
+        const next = args.pop() as () => unknown;
+        const listener = base._onCallbacks.get(name)?.[0];
+        return listener === undefined ? next() : listener(...args, next);
+      },
+    };
+    const pipeline = new ToolExecutionPipeline(ctx as never, { get: () => ask });
+    const prepared = await pipeline.prepare(exec as never);
+    if (prepared.kind !== 'dispatch') throw new Error(`unexpected preparation: ${prepared.kind}`);
+    const result = await pipeline.complete(prepared.exec, await pipeline.dispatch(prepared.exec));
+    expect(body).not.toHaveBeenCalled();
+    expect(render).toHaveBeenCalledOnce();
+    return result;
+  }
+
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
   const questions = [{ id: 'q1', question: '选哪个？', options: [{ label: 'A' }, { label: 'B' }] }];
 
-  it('被管理会话的提问被拒绝，下一步注入含问题的 S，插件不代为上报', async () => {
+  it('被管理会话的提问只返回 S，不投递报告、不终止轮次', async () => {
     const { base, service } = startManagedRow();
     const sendReport = vi.spyOn(service, 'sendReport');
-    await expect(preExecute(base)(askExec(questions))).resolves.toEqual({
-      kind: 'deny',
-      reason: ASK_BLOCKED_ERROR,
+    const updateTask = vi.spyOn(service, 'updateTask');
+    const result = await executeAsk(base, askExec(questions));
+    expect(result).toEqual({
+      isError: false,
+      value: { answers: [] },
+      content: [{ type: 'text', text: TASK_RULES_TEXT }],
     });
     expect(sendReport).not.toHaveBeenCalled();
+    expect(updateTask).not.toHaveBeenCalled();
+
+    const messages = [sourcedMessage('user')];
+    const next = await runPreStep(
+      base,
+      { agent: { session: { id: 'worker' } } },
+      enterWith(messages),
+    );
+    expect(next.messages).toEqual(messages);
+  });
+
+  it('插件结束的等待在下一步注入 S', async () => {
+    const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
+    mkdirSync(workspaceRoot, { recursive: true });
+    writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
+    writeManagedTask(workspaceRoot, 'worker', 'task-20260101000000-0001');
+    const gateway = {
+      pendingRemoteEvents: new Map([
+        ['event-0', { frame: { event: 'user-questions/request', agentId: 'worker' } }],
+      ]),
+      cancelRemoteEvent: vi.fn(),
+    };
+    const { base } = startRow({ services: { typertGateway: gateway } });
+    await vi.waitFor(() => expect(gateway.cancelRemoteEvent).toHaveBeenCalledOnce());
 
     const injected = await runPreStep(
       base,
@@ -335,144 +417,49 @@ describe('lark-super-agent 全局行', () => {
       | { source: { kind: string }; content: Array<{ text: string }> }
       | undefined;
     expect(rules?.source.kind).toBe(TASK_RULES_SOURCE_KIND);
-    expect(rules?.content[0]?.text).toContain('- Q1: 选哪个？');
-    expect(rules?.content[0]?.text).toContain('  - B');
-
-    const again = await runPreStep(
-      base,
-      { agent: { session: { id: 'worker' } } },
-      enterWith([sourcedMessage('user')]),
-    );
-    expect(again.messages).toHaveLength(1);
+    expect(rules?.content[0]?.text).toBe(TASK_RULES_TEXT);
   });
 
-  it('会话自行上报提问后，轮次结束不再补投', async () => {
-    const { base, service } = startManagedRow();
-    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
-      reportId: 'report-20260101000000-abcdef',
-      taskId: 'task-20260101000000-0001',
-      delivered: true,
-    });
-    emitTurn(base, 'turn/start');
-    await preExecute(base)(askExec(questions));
-    await callReport(base, { kind: 'question', text: '背景与提问' });
-    emitTurn(base, 'turn/end');
-    await settle();
-    expect(sendReport).toHaveBeenCalledExactlyOnceWith(
-      { kind: 'question', text: '背景与提问' },
-      'worker',
-    );
-  });
+  it.each([true, false])(
+    '模型的 question 上报沿用 send_report 链路（delivered=%s）',
+    async (delivered) => {
+      const { base, service } = startManagedRow();
+      const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({ delivered });
+      const updateTask = vi.spyOn(service, 'updateTask');
+      emitTurn(base, 'turn/start');
+      await executeAsk(base, askExec(questions));
+      base._emit(
+        'session/event',
+        { id: 'worker' },
+        { type: 'tool/call', data: { turn: 1, name: 'send_report' } },
+      );
+      await callReport(base, { kind: 'question', text: '背景与提问' });
+      emitTurn(base, 'turn/end');
+      await settle();
+      expect(sendReport).toHaveBeenCalledExactlyOnceWith(
+        { kind: 'question', text: '背景与提问' },
+        'worker',
+      );
+      expect(updateTask).not.toHaveBeenCalled();
+    },
+  );
 
-  it('progress 上报不清空待补投的提问', async () => {
-    const { base, service } = startManagedRow();
-    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
-      taskId: 'task-20260101000000-0001',
-      delivered: true,
-    });
-    vi.spyOn(service, 'updateTask').mockResolvedValue({
-      taskId: 'task-20260101000000-0001',
-      status: 'waiting_user',
-    });
-    emitTurn(base, 'turn/start');
-    await preExecute(base)(askExec(questions));
-    await callReport(base, { kind: 'progress', text: '进度' });
-    emitTurn(base, 'turn/end');
-    await vi.waitFor(() => expect(sendReport).toHaveBeenCalledTimes(2));
-    expect(sendReport.mock.calls[1]?.[2]).toBe('ask_intercept');
-  });
+  it.each(['completed', 'aborted'])(
+    '未调用 send_report 时结束轮次（%s）不补投提问',
+    async (reason) => {
+      const { base, service } = startManagedRow();
+      const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({ delivered: true });
+      const updateTask = vi.spyOn(service, 'updateTask');
+      emitTurn(base, 'turn/start');
+      await executeAsk(base, askExec(questions));
+      emitTurn(base, 'turn/end', reason);
+      await settle();
+      expect(sendReport).not.toHaveBeenCalled();
+      expect(updateTask).not.toHaveBeenCalled();
+    },
+  );
 
-  it('轮次结束仍未上报时补投 ask_intercept 提问并置等待用户，不补进度上报', async () => {
-    const { base, service } = startManagedRow();
-    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
-      reportId: 'report-20260101000000-abcdef',
-      taskId: 'task-20260101000000-0001',
-      delivered: true,
-    });
-    const updateTask = vi
-      .spyOn(service, 'updateTask')
-      .mockResolvedValue({ taskId: 'task-20260101000000-0001', status: 'waiting_user' });
-
-    emitTurn(base, 'turn/start');
-    await preExecute(base)(askExec(questions));
-    await preExecute(base)(askExec(questions, 'call-2'));
-    base._emit(
-      'session/event',
-      { id: 'worker' },
-      {
-        type: 'assistant/message',
-        data: { turn: 1, message: { content: [{ type: 'text', text: '我先停在这里' }] } },
-      },
-    );
-    emitTurn(base, 'turn/end');
-
-    await vi.waitFor(() => expect(updateTask).toHaveBeenCalledOnce());
-    expect(sendReport).toHaveBeenCalledExactlyOnceWith(
-      { kind: 'question', text: expect.stringContaining('选哪个？') },
-      'worker',
-      'ask_intercept',
-    );
-    const text = sendReport.mock.calls[0]?.[0].text ?? '';
-    expect(text.match(/选哪个？/g)).toHaveLength(1);
-    expect(updateTask).toHaveBeenCalledWith({
-      taskId: 'task-20260101000000-0001',
-      status: 'waiting_user',
-    });
-
-    emitTurn(base, 'turn/end');
-    await settle();
-    expect(sendReport).toHaveBeenCalledOnce();
-  });
-
-  it('轮次被停止时同样补投', async () => {
-    const { base, service } = startManagedRow();
-    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
-      taskId: 'task-20260101000000-0001',
-      delivered: true,
-    });
-    vi.spyOn(service, 'updateTask').mockResolvedValue({
-      taskId: 'task-20260101000000-0001',
-      status: 'waiting_user',
-    });
-    emitTurn(base, 'turn/start');
-    await preExecute(base)(askExec(questions));
-    emitTurn(base, 'turn/end', 'aborted');
-    await vi.waitFor(() => expect(sendReport).toHaveBeenCalledOnce());
-    expect(sendReport.mock.calls[0]?.[2]).toBe('ask_intercept');
-  });
-
-  it('补投未送达时不置等待用户', async () => {
-    const { base, service } = startManagedRow();
-    const sendReport = vi.spyOn(service, 'sendReport').mockResolvedValue({
-      taskId: 'task-20260101000000-0001',
-      delivered: false,
-      reason: 'delivery_failed: dispatch offline',
-    });
-    const updateTask = vi.spyOn(service, 'updateTask');
-    emitTurn(base, 'turn/start');
-    await preExecute(base)(askExec(questions));
-    emitTurn(base, 'turn/end');
-    await vi.waitFor(() => expect(sendReport).toHaveBeenCalledOnce());
-    await settle();
-    expect(updateTask).not.toHaveBeenCalled();
-  });
-
-  it('任务已结束时不补投', async () => {
-    const { base, service } = startManagedRow();
-    emitTurn(base, 'turn/start');
-    await preExecute(base)(askExec(questions));
-    const managedTask = vi.spyOn(service, 'managedTask').mockResolvedValue(undefined);
-    const sendReport = vi.spyOn(service, 'sendReport');
-    emitTurn(base, 'turn/end');
-    await vi.waitFor(() => expect(managedTask).toHaveBeenCalled());
-    await settle();
-    expect(sendReport).not.toHaveBeenCalled();
-  });
-
-  it('未被管理会话的提问保持原决策，不注入 S', async () => {
-    const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
-    mkdirSync(workspaceRoot, { recursive: true });
-    writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
+  it('未配置工作区时，提问保持原决策且不注入 S', async () => {
     const { base } = startRow();
     await expect(preExecute(base)(askExec(questions))).resolves.toEqual({ kind: 'allow' });
     const decision = await runPreStep(

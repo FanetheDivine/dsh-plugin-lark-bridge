@@ -266,8 +266,9 @@ export class SuperAgentService implements LarkSuperAgentService {
   /** 读取会话对应的未结束任务；会话未被管理时返回 undefined。 */
   async managedTask(sessionId: string): Promise<Task | undefined> {
     if (sessionId.trim() === '') return undefined;
-    const root = await this.storageRoot();
-    return findTaskBySession(await this.notes(root).listTasks(), sessionId);
+    const { workspaceRoot } = await this.bridgeState();
+    if (workspaceRoot === null) return undefined;
+    return findTaskBySession(await this.notes(workspaceRoot).listTasks(), sessionId);
   }
 
   /** 校验工作区可派发：已在宿主注册且已有工作区笔记。 */

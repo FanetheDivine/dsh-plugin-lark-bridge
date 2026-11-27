@@ -5,7 +5,7 @@
  */
 import { defineTool } from '@deepseek-ai/dsh-tools';
 
-import type { LarkSuperAgentService, ReportKind } from '../api.ts';
+import type { LarkSuperAgentService } from '../api.ts';
 import { REPORT_KINDS } from '../api.ts';
 
 /** 工具名。 */
@@ -29,16 +29,8 @@ desc summarizes this task for the dispatch session, which knows only the task's 
 export const SEND_REPORT_DESC_PARAM =
   'One-line summary of this task, for the dispatch session. Omit when the task is unchanged.';
 
-/** 上报成功后的通知：调用方据此清理待补投的提问。 */
-export interface SendReportToolOptions {
-  readonly onReport?: (kind: ReportKind, sessionId: string) => void;
-}
-
 /** 构造 `send_report`；参数校验、存档与投递由共享服务执行。 */
-export function buildSendReportTool(
-  service: LarkSuperAgentService,
-  options: SendReportToolOptions = {},
-) {
+export function buildSendReportTool(service: LarkSuperAgentService) {
   return defineTool({
     name: SEND_REPORT_TOOL,
     description: SEND_REPORT_DESCRIPTION,
@@ -100,7 +92,7 @@ export function buildSendReportTool(
       if (callerSessionId === undefined || callerSessionId === '') {
         throw new Error('send_report requires an agent session');
       }
-      const result = await service.sendReport(
+      return service.sendReport(
         {
           kind: args.kind,
           ...(args.text === undefined ? {} : { text: args.text }),
@@ -109,8 +101,6 @@ export function buildSendReportTool(
         },
         callerSessionId,
       );
-      if (result.delivered) options.onReport?.(args.kind, callerSessionId);
-      return result;
     },
   });
 }

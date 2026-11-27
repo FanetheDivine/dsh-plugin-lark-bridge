@@ -1,4 +1,4 @@
-// 提问拦截测试：被管理会话的提问被拒绝、问题记入 S 与补投；等待中的提问可被结束。
+// 提问拦截测试：被管理会话的提问以 S 作答；等待中的提问可被结束。
 import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -7,8 +7,8 @@ import {
   ASK_TOOL,
   AskGuard,
   type GatewayLike,
-  questionReportText,
 } from '../src/lark-super-agent/managed/ask-guard.ts';
+import { TASK_RULES_TEXT } from '../src/lark-super-agent/managed/task-rules.ts';
 
 /** 构造一个提问拦截器；默认只有 worker 被管理。 */
 function makeGuard(
@@ -57,28 +57,24 @@ function makeGateway(
   return { pendingRemoteEvents, cancelRemoteEvent };
 }
 
-describe('AskGuard 拒绝新提问', () => {
-  it('被管理会话的提问一律拒绝并记下需要 S', async () => {
+describe('AskGuard 放行被管理会话的提问', () => {
+  it('被管理会话的提问放行给环绕钩子，不排队 S', async () => {
     const { guard } = makeGuard();
     await expect(guard.beforeExecute(makeExec('worker'), allow)).resolves.toEqual({
-      kind: 'deny',
-      reason: ASK_BLOCKED_ERROR,
+      kind: 'allow',
     });
-    expect(guard.takeRules('worker')).toBeDefined();
+    expect(guard.takeRules('worker')).toBe(false);
 
     await expect(
       guard.beforeExecute(makeExec('worker', ASK_TOOL, 'call-2'), allow),
-    ).resolves.toEqual({ kind: 'deny', reason: ASK_BLOCKED_ERROR });
-    expect(guard.takeRules('worker')).toBeDefined();
-    expect(guard.takeRules('worker')).toBeUndefined();
+    ).resolves.toEqual({ kind: 'allow' });
   });
 
-  it('待审批的提问改为拒绝，不再进入审批等待', async () => {
+  it('待审批的提问改为放行，不再进入审批等待', async () => {
     const { guard } = makeGuard();
     const ask = async () => ({ kind: 'ask', reason: 'approval needed' }) as const;
     await expect(guard.beforeExecute(makeExec('worker'), ask)).resolves.toEqual({
-      kind: 'deny',
-      reason: ASK_BLOCKED_ERROR,
+      kind: 'allow',
     });
     const cancelled = { kind: 'cancel' } as const;
     await expect(guard.beforeExecute(makeExec('worker'), async () => cancelled)).resolves.toBe(
@@ -97,13 +93,44 @@ describe('AskGuard 拒绝新提问', () => {
     });
     const denied = { kind: 'deny', reason: 'host denied' } as const;
     await expect(guard.beforeExecute(makeExec('worker'), async () => denied)).resolves.toBe(denied);
-    expect(guard.takeRules('worker')).toBeUndefined();
+    expect(guard.takeRules('worker')).toBe(false);
+  });
+});
+
+describe('AskGuard 以 S 作答', () => {
+  it('并发调用只改写各自的结果，不依赖 callId 是否相同', async () => {
+    const { guard } = makeGuard({ managed: ['worker', 'second'] });
+    const worker = makeExec('worker');
+    const second = makeExec('second');
+    const other = makeExec('other');
+    const next = vi.fn(async () => answered);
+    await Promise.all([worker, other, second].map((exec) => guard.aroundExecute(exec, next)));
+    expect(next).toHaveBeenCalledOnce();
+
+    const accept = { kind: 'accept' } as const;
+    for (const exec of [other, second, worker]) {
+      const result = await guard.afterExecute(exec, answered, async () => accept);
+      expect(result).toEqual(
+        exec === other ? accept : { ...accept, content: [{ type: 'text', text: TASK_RULES_TEXT }] },
+      );
+    }
+    expect(guard.takeRules('worker')).toBe(false);
+    expect(guard.takeRules('second')).toBe(false);
+  });
+
+  it('保留宿主对以 S 作答的调用产生的错误结果', async () => {
+    const { guard } = makeGuard();
+    const exec = makeExec('worker');
+    await guard.aroundExecute(exec, async () => answered);
+    const accept = { kind: 'accept' } as const;
+    const error = { isError: true, error: { message: 'aborted' }, content: [] } as const;
+    await expect(guard.afterExecute(exec, error, async () => accept)).resolves.toBe(accept);
   });
 });
 
 describe('AskGuard 中止等待中的提问', () => {
   it('tools/execute 装上可中止信号，cancel 后中止并改写结果', async () => {
-    const { guard } = makeGuard();
+    const { guard } = makeGuard({ managed: [] });
     const exec = makeExec('worker');
     const original = exec.signal;
     let seen: AbortSignal | undefined;
@@ -127,7 +154,7 @@ describe('AskGuard 中止等待中的提问', () => {
     expect(seen?.aborted).toBe(true);
     expect(original.aborted).toBe(false);
     expect(exec.signal).toBe(original);
-    expect(guard.takeRules('worker')).toBeDefined();
+    expect(guard.takeRules('worker')).toBe(true);
 
     await expect(
       guard.afterExecute(exec, answered, async () => ({ kind: 'continue' }) as never),
@@ -139,7 +166,7 @@ describe('AskGuard 中止等待中的提问', () => {
   });
 
   it('正常回答的提问不改写结果，信号恢复原值', async () => {
-    const { guard } = makeGuard();
+    const { guard } = makeGuard({ managed: [] });
     const exec = makeExec('worker');
     const original = exec.signal;
     await expect(guard.aroundExecute(exec, async () => answered)).resolves.toBe(answered);
@@ -163,7 +190,7 @@ describe('AskGuard 中止等待中的提问', () => {
   });
 
   it('cancel 只中止目标会话的等待', async () => {
-    const { guard } = makeGuard({ managed: ['worker', 'second'] });
+    const { guard } = makeGuard({ managed: [] });
     const worker = makeExec('worker');
     const second = makeExec('second', ASK_TOOL, 'call-2');
     const signals: AbortSignal[] = [];
@@ -180,8 +207,8 @@ describe('AskGuard 中止等待中的提问', () => {
     await first;
     expect(signals[0]?.aborted).toBe(true);
     expect(signals[1]?.aborted).toBe(false);
-    expect(guard.takeRules('worker')).toBeDefined();
-    expect(guard.takeRules('second')).toBeUndefined();
+    expect(guard.takeRules('worker')).toBe(true);
+    expect(guard.takeRules('second')).toBe(false);
 
     guard.cancel('second');
     await other;
@@ -203,8 +230,8 @@ describe('AskGuard 网关取消', () => {
     expect(reason).toBeInstanceOf(Error);
     expect((reason as Error).message).toBe(ASK_BLOCKED_ERROR);
     expect(gateway.cancelRemoteEvent.mock.contexts[0]).toBe(gateway);
-    expect(guard.takeRules('worker')).toBeDefined();
-    expect(guard.takeRules('other')).toBeUndefined();
+    expect(guard.takeRules('worker')).toBe(true);
+    expect(guard.takeRules('other')).toBe(false);
   });
 
   it('没有等待中的请求时不排队 S', () => {
@@ -212,7 +239,7 @@ describe('AskGuard 网关取消', () => {
     const { guard } = makeGuard({ gateway });
     guard.cancel('worker');
     expect(gateway.cancelRemoteEvent).not.toHaveBeenCalled();
-    expect(guard.takeRules('worker')).toBeUndefined();
+    expect(guard.takeRules('worker')).toBe(false);
   });
 
   it('网关缺失或结构不符时 cancel 不抛错也不记日志', () => {
@@ -224,7 +251,7 @@ describe('AskGuard 网关取消', () => {
       const { guard, warnings } = makeGuard({ gateway });
       expect(() => guard.cancel('worker')).not.toThrow();
       expect(warnings).toHaveLength(0);
-      expect(guard.takeRules('worker')).toBeUndefined();
+      expect(guard.takeRules('worker')).toBe(false);
     }
   });
 
@@ -235,7 +262,7 @@ describe('AskGuard 网关取消', () => {
     const { guard, warnings } = makeGuard({ gateway });
     expect(() => guard.cancel('worker')).not.toThrow();
     expect(String(warnings[0]?.[0])).toContain('gateway cancel failed');
-    expect(guard.takeRules('worker')).toBeUndefined();
+    expect(guard.takeRules('worker')).toBe(false);
   });
 
   it('sweep 只为被管理会话取消加载前已在等待的提问', async () => {
@@ -246,8 +273,8 @@ describe('AskGuard 网关取消', () => {
     const { guard } = makeGuard({ gateway });
     await guard.sweep();
     expect(gateway.cancelRemoteEvent).toHaveBeenCalledOnce();
-    expect(guard.takeRules('worker')).toBeDefined();
-    expect(guard.takeRules('other')).toBeUndefined();
+    expect(guard.takeRules('worker')).toBe(true);
+    expect(guard.takeRules('other')).toBe(false);
   });
 
   it('sweep 跳过非提问事件与没有会话标识的请求', async () => {
@@ -258,7 +285,7 @@ describe('AskGuard 网关取消', () => {
     const { guard } = makeGuard({ gateway, managed: ['worker', ''] });
     await guard.sweep();
     expect(gateway.cancelRemoteEvent).not.toHaveBeenCalled();
-    expect(guard.takeRules('worker')).toBeUndefined();
+    expect(guard.takeRules('worker')).toBe(false);
   });
 
   it('网关不可用时 sweep 只记一条日志', async () => {
@@ -271,119 +298,11 @@ describe('AskGuard 网关取消', () => {
 
 describe('AskGuard.takeRules', () => {
   it('需要 S 的标记只生效一次', async () => {
-    const { guard } = makeGuard({ managed: ['worker', 'second'] });
-    expect(guard.takeRules('worker')).toBeUndefined();
-    await guard.beforeExecute(makeExec('worker'), allow);
-    await guard.beforeExecute(makeExec('worker', ASK_TOOL, 'call-2'), allow);
-    expect(guard.takeRules('second')).toBeUndefined();
-    expect(guard.takeRules('worker')).toBeDefined();
-    expect(guard.takeRules('worker')).toBeUndefined();
-  });
-});
-
-describe('AskGuard 记下被拦截的问题', () => {
-  const pick = [{ id: 'q1', question: '选哪个？', options: [{ label: 'A' }, { label: 'B' }] }];
-
-  it('拒绝时工具体不运行，问题进入 S 与补投', async () => {
-    const { guard } = makeGuard();
-    const exec = makeExec('worker', ASK_TOOL, 'call-1', pick);
-    await expect(guard.beforeExecute(exec, allow)).resolves.toEqual({
-      kind: 'deny',
-      reason: ASK_BLOCKED_ERROR,
-    });
-    expect(guard.takeRules('worker')).toEqual(pick);
-    expect(guard.takeRules('worker')).toBeUndefined();
-    expect(guard.takeFallback('worker')).toEqual(pick);
-    expect(guard.takeFallback('worker')).toBeUndefined();
-  });
-
-  it('重复提问合并到同一条 S，相同问题只保留一份', async () => {
-    const { guard } = makeGuard();
-    const other = [{ id: 'q2', question: '还要别的吗？' }];
-    await guard.beforeExecute(makeExec('worker', ASK_TOOL, 'call-1', pick), allow);
-    await guard.beforeExecute(makeExec('worker', ASK_TOOL, 'call-2', pick), allow);
-    await guard.beforeExecute(makeExec('worker', ASK_TOOL, 'call-3', other), allow);
-    expect(guard.takeRules('worker')).toEqual([...pick, ...other]);
-    expect(guard.takeRules('worker')).toBeUndefined();
-  });
-
-  it('S 已注入后再次提问会再排一次 S，补投包含全部问题', async () => {
-    const { guard } = makeGuard();
-    const other = [{ id: 'q2', question: '还要别的吗？' }];
-    await guard.beforeExecute(makeExec('worker', ASK_TOOL, 'call-1', pick), allow);
-    expect(guard.takeRules('worker')).toEqual(pick);
-    await guard.beforeExecute(makeExec('worker', ASK_TOOL, 'call-2', other), allow);
-    expect(guard.takeRules('worker')).toEqual([...pick, ...other]);
-    expect(guard.takeFallback('worker')).toEqual([...pick, ...other]);
-  });
-
-  it('不同会话的待处理问题互不影响', async () => {
-    const { guard } = makeGuard({ managed: ['worker', 'second'] });
-    const other = [{ id: 'q2', question: 'x' }];
-    await guard.beforeExecute(makeExec('worker', ASK_TOOL, 'call-1', pick), allow);
-    await guard.beforeExecute(makeExec('second', ASK_TOOL, 'call-2', other), allow);
-    expect(guard.takeRules('second')).toEqual(other);
-    expect(guard.takeRules('worker')).toEqual(pick);
-    expect(guard.takeFallback('second')).toEqual(other);
-    expect(guard.takeFallback('worker')).toEqual(pick);
-  });
-
-  it('noteReported 清空待注入的 S 与待补投的问题', async () => {
-    const { guard } = makeGuard();
-    await guard.beforeExecute(makeExec('worker', ASK_TOOL, 'call-1', pick), allow);
-    guard.noteReported('worker');
-    expect(guard.takeRules('worker')).toBeUndefined();
-    expect(guard.takeFallback('worker')).toBeUndefined();
-  });
-
-  it('参数缺失时仍排 S 并补投空问题列表', async () => {
-    const { guard } = makeGuard();
-    await guard.beforeExecute(makeExec('worker'), allow);
-    expect(guard.takeRules('worker')).toEqual([]);
-    expect(guard.takeFallback('worker')).toEqual([]);
-  });
-
-  it('只结束等待、没有被拦截调用时不补投', () => {
-    const gateway = makeGateway([{ event: 'user-questions/request', agentId: 'worker' }]);
+    const gateway = makeGateway([{ event: 'user-questions/request', agentId: 'second' }]);
     const { guard } = makeGuard({ gateway });
-    guard.cancel('worker');
-    expect(guard.takeFallback('worker')).toBeUndefined();
-    expect(guard.takeRules('worker')).toBeUndefined();
-  });
-
-  it('未被管理会话照常执行，不记问题也不排队 S', async () => {
-    const { guard } = makeGuard({ managed: [] });
-    const exec = makeExec('other', ASK_TOOL, 'call-1', pick);
-    await expect(guard.beforeExecute(exec, allow)).resolves.toEqual({ kind: 'allow' });
-    await expect(guard.aroundExecute(exec, async () => answered)).resolves.toBe(answered);
-    expect(guard.takeRules('other')).toBeUndefined();
-    expect(guard.takeFallback('other')).toBeUndefined();
-  });
-});
-
-describe('questionReportText 正文', () => {
-  it('列出题面、表头、选项与多选标注', () => {
-    const text = questionReportText([
-      {
-        id: 'a',
-        question: '选 A 还是 B',
-        header: '方案',
-        options: [{ label: 'A（推荐）', description: 'x' }, { label: 'B' }],
-      },
-      { id: 'b', question: '还有什么要补充？', options: [], multi_select: true },
-    ]);
-    expect(text).toContain('- Q1 [方案]: 选 A 还是 B');
-    expect(text).toContain('options: A（推荐） / B');
-    expect(text).toContain('- Q2: 还有什么要补充？');
-    expect(text).toContain('(multi-select)');
-    expect(text).toContain('Reply in the dispatch session or in Lark');
-  });
-
-  it('异常输入回退为固定说明句', () => {
-    for (const input of [undefined, [], 'x']) {
-      expect(questionReportText(input)).toContain('needs your input');
-    }
-    const sparse = questionReportText([{}]);
-    expect(sparse).toContain('(no question text)');
+    guard.cancel('second');
+    expect(guard.takeRules('worker')).toBe(false);
+    expect(guard.takeRules('second')).toBe(true);
+    expect(guard.takeRules('second')).toBe(false);
   });
 });
