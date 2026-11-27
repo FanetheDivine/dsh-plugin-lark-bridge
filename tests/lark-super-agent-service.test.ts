@@ -216,7 +216,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     const home = await bridgeHome(root);
     const steer = vi.fn();
     const dispatch: AgentLike = { steer };
-    const caller: AgentLike = { session: { id: 'worker', cwd: callerDirectory } };
+    const caller: AgentLike = { session: { id: 'worker', header: { cwd: callerDirectory } } };
     const agents = new Map([
       ['worker', caller],
       ['dispatch', dispatch],
@@ -247,7 +247,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     const home = await bridgeHome(root);
     const steer = vi.fn();
     const dispatch: AgentLike = { steer };
-    const caller: AgentLike = { session: { id: 'worker', cwd: callerDirectory } };
+    const caller: AgentLike = { session: { id: 'worker', header: { cwd: callerDirectory } } };
     const agents = new Map([
       ['worker', caller],
       ['dispatch', dispatch],
@@ -498,7 +498,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     );
     await expect(service.manageSession('ghost')).rejects.toThrow('session ghost does not exist');
 
-    agents.set('worker', { session: { title: 'Fix widget', cwd: '/project' } });
+    agents.set('worker', { session: { title: 'Fix widget', header: { cwd: '/project' } } });
     await expect(service.manageSession('worker')).resolves.toMatchObject({
       sessionId: 'worker',
       title: 'Fix widget',

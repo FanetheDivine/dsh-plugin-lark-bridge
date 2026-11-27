@@ -100,6 +100,8 @@ export function buildSendReportTool(service: LarkSuperAgentService) {
           ...(args.desc === undefined ? {} : { desc: args.desc }),
         },
         callerSessionId,
+        'send_report',
+        exec.agent?.session,
       );
     },
   });
