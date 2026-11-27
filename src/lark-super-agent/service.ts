@@ -11,6 +11,7 @@ import type { Context } from '../types.ts';
 import { toHostWorkspacePath } from '../workspace-path.ts';
 import type {
   BridgeState,
+  CallerSessionLike,
   CreateTaskInput,
   EndReason,
   LarkSuperAgentService,
@@ -56,8 +57,14 @@ declare module '@deepseek-ai/dsh-llm' {
 interface SessionLike {
   id?: string;
   title?: string;
-  cwd?: string;
+  /** 会话创建目录；会话当前目录由宿主的 workingDirectory 投影记录。 */
+  header?: { cwd?: string };
   running?: boolean;
+}
+
+/** 宿主工作目录服务的最小接口：读取会话当前工作目录。 */
+interface WorkingDirectoryLike {
+  get(session: SessionLike): string;
 }
 
 export interface AgentLike {
@@ -306,7 +313,7 @@ export class SuperAgentService implements LarkSuperAgentService {
     if ('error' in resolved && resolved.error !== undefined) throw resolved.error;
     const agent = 'agent' in resolved ? resolved.agent : resolved;
     const title = agent?.session?.title?.replace(/\s*[\r\n]+\s*/g, ' ').trim() || id;
-    const cwd = agent?.session?.cwd ?? process.cwd();
+    const cwd = this.sessionDirectory(agent?.session) ?? this.fallbackDirectory(id);
     const first = firstUserText(agent);
     const { taskId } = await this.createTask({
       title,
@@ -691,9 +698,10 @@ export class SuperAgentService implements LarkSuperAgentService {
     input: SendReportInput,
     callerSessionId: string,
     origin: ReportOrigin = 'send_report',
+    callerSession?: CallerSessionLike,
   ): Promise<SendReportResult> {
-    const caller = this.agent(callerSessionId);
-    const cwd = caller?.session?.cwd ?? process.cwd();
+    const session = callerSession ?? this.agent(callerSessionId)?.session;
+    const cwd = await this.callerDirectory(session, callerSessionId);
     await validateReportInput(input, cwd);
     const state = await this.bridgeState();
     if (state.workspaceRoot === null) return { delivered: false, reason: 'no_workspace' };
@@ -797,6 +805,42 @@ export class SuperAgentService implements LarkSuperAgentService {
         { sessionId },
       );
     }
+  }
+
+  /** 读取宿主工作目录服务；宿主未提供时返回 undefined。 */
+  private workingDirectory(): WorkingDirectoryLike | undefined {
+    const host = this.ctx as unknown as { get(name: string): unknown };
+    return host.get('workingDirectory') as WorkingDirectoryLike | undefined;
+  }
+
+  /** 读取会话自身记录的工作目录：当前目录投影优先，其次创建目录。 */
+  private sessionDirectory(session: CallerSessionLike | undefined): string | undefined {
+    if (session === undefined) return undefined;
+    const projected = this.workingDirectory()?.get(session) ?? '';
+    if (projected !== '') return projected;
+    const created = session.header?.cwd ?? '';
+    return created === '' ? undefined : created;
+  }
+
+  /** 进程启动目录兜底；会话没有可用工作目录时告警一次。 */
+  private fallbackDirectory(callerSessionId: string): string {
+    const directory = process.cwd();
+    this.ctx.logger?.warn?.(
+      `lark-super-agent: session ${callerSessionId} has no recorded working directory; using ${directory}`,
+    );
+    return directory;
+  }
+
+  /** 读取调用会话的工作目录：会话记录、任务记录、进程目录依次回退。 */
+  private async callerDirectory(
+    session: CallerSessionLike | undefined,
+    callerSessionId: string,
+  ): Promise<string> {
+    const recorded = this.sessionDirectory(session);
+    if (recorded !== undefined) return recorded;
+    const task = await this.managedTask(callerSessionId).catch(() => undefined);
+    if (task !== undefined && task.cwd !== '') return task.cwd;
+    return this.fallbackDirectory(callerSessionId);
   }
 
   /** 读取已挂载的 agent。 */

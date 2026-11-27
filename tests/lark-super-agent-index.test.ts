@@ -439,6 +439,8 @@ describe('lark-super-agent 全局行', () => {
       expect(sendReport).toHaveBeenCalledExactlyOnceWith(
         { kind: 'question', text: '背景与提问' },
         'worker',
+        'send_report',
+        { id: 'worker' },
       );
       expect(updateTask).not.toHaveBeenCalled();
     },

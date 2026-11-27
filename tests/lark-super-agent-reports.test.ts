@@ -182,9 +182,24 @@ describe('lark-super-agent reports', { timeout: 30000 }, () => {
         'task-20260102030405-aaaa',
         'send_report',
       ),
-    ).rejects.toThrow(/not-markdown\.txt, missing\.md/);
+    ).rejects.toThrow(/not-markdown\.txt -> .*; missing\.md -> .* \(base .+\)/);
     expect(await exists(join(root, 'reports'))).toBe(false);
     expect(await exists(join(root, '.git'))).toBe(false);
+  });
+
+  it('附件无效时给出原始值、绝对路径与基准目录', async () => {
+    const caller = await temporaryDirectory();
+    await writeFile(join(caller, 'notes.txt'), 'text', 'utf8');
+
+    const error = await validateReportInput(
+      { kind: 'progress', files: ['notes.txt', 'missing.md'] },
+      caller,
+    ).catch((thrown: unknown) => String(thrown));
+
+    expect(error).toContain('notes.txt -> ' + join(caller, 'notes.txt'));
+    expect(error).toContain('missing.md -> ' + join(caller, 'missing.md'));
+    expect(error).toContain('; ');
+    expect(error).toContain('(base ' + caller + ')');
   });
 
   it('校验结果裁剪说明并保留正文原文', async () => {
