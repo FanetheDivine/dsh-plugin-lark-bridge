@@ -1,28 +1,33 @@
-/* send_report 成功上报卡片。外框、底色、字号取自宿主工具详情卡片的令牌，明暗主题共用。 */
+/* send_report 成功上报卡片。外框、底色、字号取自宿主工具详情卡片的令牌，明暗主题共用。
+   容器无内边距：热区铺满分隔线上方，展开区块各自承担内边距；悬停整卡变色。 */
 
 .dsh-lark-report {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   margin: 4px 0 8px;
-  padding: 10px 14px 12px;
   border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-markdown-code-block);
   color: var(--dsw-alias-label-primary);
   font: var(--dsw-font-xs-13);
   min-width: 0;
+  transition: background-color 0.1s;
+}
+
+@media (hover: hover) {
+  .dsh-lark-report:hover {
+    background: var(--dsw-alias-turn-trigger-bg-hover, var(--dsw-alias-interactive-bg-hover));
+  }
 }
 
 .dsh-lark-report-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
+  width: 100%;
   min-width: 0;
-  padding: 2px 0;
+  padding: 10px 14px;
   border: none;
-  border-radius: var(--dsw-radius-sm);
   background: none;
   color: inherit;
   font: inherit;
@@ -30,16 +35,18 @@
   cursor: pointer;
 }
 
-@media (hover: hover) {
-  .dsh-lark-report-head:hover {
-    background: var(--dsw-alias-interactive-bg-hover);
-  }
+.dsh-lark-report-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .dsh-lark-report-head:focus-visible {
   outline: var(--dsw-focus-ring-width, 2px) solid
     var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 
 .dsh-lark-report-icon {
@@ -88,6 +95,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dsh-lark-report,
   .dsh-lark-report-toggle-icon {
     transition: none;
   }
@@ -127,7 +135,7 @@
 
 .dsh-lark-report-body {
   min-width: 0;
-  padding-top: 8px;
+  padding: 8px 14px 12px;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
   color: var(--dsw-alias-label-primary);
   overflow-wrap: anywhere;
@@ -142,7 +150,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-top: 8px;
+  padding: 8px 14px 12px;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 

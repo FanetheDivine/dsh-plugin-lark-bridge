@@ -1,5 +1,6 @@
 /**
- * `send_report` 成功上报的卡片：类型、任务简介、Markdown 正文、可打开的文件与报告编号；头部整行切换折叠。
+ * `send_report` 成功上报的卡片：类型、任务简介、Markdown 正文、可打开的文件与报告编号。
+ * 分隔线上方整块（标题行与展开态任务简介）是折叠热区，悬停整卡变色。
  * 注册到 `conversation.chat.node` 的 `lark-report` 键，节点由 `report-node.ts` 产出。
  */
 import {
@@ -86,32 +87,34 @@ export function ReportCard({ node, openFile, t }: ReportCardProps) {
         aria-label={toggleLabel}
         onClick={() => setExpanded((previous) => !previous)}
       >
-        <span className="dsh-lark-report-icon" aria-hidden>
-          <IconPaperPlaneOutlineRegular size={14} />
-        </span>
-        <span className="dsh-lark-report-title">{translate(t, 'report.title')}</span>
-        {kind === '' ? null : (
-          <Tag tone={known?.tone ?? 'neutral'}>
-            {known === undefined ? kind : translate(t, known.key)}
-          </Tag>
-        )}
-        {!expanded && desc !== '' ? (
-          <span className="dsh-lark-report-head-desc" title={desc}>
-            {desc}
+        <span className="dsh-lark-report-head-row">
+          <span className="dsh-lark-report-icon" aria-hidden>
+            <IconPaperPlaneOutlineRegular size={14} />
           </span>
-        ) : null}
-        <span className="dsh-lark-report-receipt">
-          {translate(t, 'report.delivered')}
-          {reportId === '' ? null : <span className="dsh-lark-report-id">{reportId}</span>}
+          <span className="dsh-lark-report-title">{translate(t, 'report.title')}</span>
+          {kind === '' ? null : (
+            <Tag tone={known?.tone ?? 'neutral'}>
+              {known === undefined ? kind : translate(t, known.key)}
+            </Tag>
+          )}
+          {!expanded && desc !== '' ? (
+            <span className="dsh-lark-report-head-desc" title={desc}>
+              {desc}
+            </span>
+          ) : null}
+          <span className="dsh-lark-report-receipt">
+            {translate(t, 'report.delivered')}
+            {reportId === '' ? null : <span className="dsh-lark-report-id">{reportId}</span>}
+          </span>
+          <IconChevronDownOutlineRegular size={12} className="dsh-lark-report-toggle-icon" />
         </span>
-        <IconChevronDownOutlineRegular size={12} className="dsh-lark-report-toggle-icon" />
+        {!expanded || desc === '' ? null : (
+          <span className="dsh-lark-report-desc">
+            <span className="dsh-lark-report-label">{translate(t, 'report.desc')}</span>
+            <span className="dsh-lark-report-desc-text">{desc}</span>
+          </span>
+        )}
       </button>
-      {!expanded || desc === '' ? null : (
-        <div className="dsh-lark-report-desc">
-          <span className="dsh-lark-report-label">{translate(t, 'report.desc')}</span>
-          <span className="dsh-lark-report-desc-text">{desc}</span>
-        </div>
-      )}
       {!expanded || text === '' ? null : (
         <div className="dsh-lark-report-body">
           <MarkdownText text={text} labels={labels} variant="compact" />
