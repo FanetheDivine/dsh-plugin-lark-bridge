@@ -677,6 +677,26 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     expect((await runGit(['status', '--porcelain'], root)).stdout.trim()).toBe('');
   });
 
+  it('投递失败重试一次后成功', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const steer = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('steer failed');
+      })
+      .mockResolvedValue(undefined);
+    const service = new SuperAgentService(
+      makeContext({ sessionController: { resolveAgent: async () => ({ agent: { steer } }) } }),
+      { home },
+    );
+    await seedTask(service, 'worker');
+    const result = await service.sendReport({ kind: 'progress', text: '重试' }, 'worker');
+    expect(result.delivered).toBe(true);
+    expect(steer).toHaveBeenCalledTimes(2);
+    expect((await readTaskState(root)).tasks[0]?.deliveredReportIds).toEqual([result.reportId]);
+  });
+
   it('没有工作区时忽略报告', async () => {
     const root = await temporaryDirectory();
     const home = await bridgeHome(null, 'dispatch');

@@ -119,11 +119,17 @@ export class TurnReporter {
     try {
       if (this.options.hasRunningSubagent(info.sessionId)) return;
       if ((await this.options.service.managedTask(info.sessionId)) === undefined) return;
-      await this.options.service.sendReport(
+      const result = await this.options.service.sendReport(
         { kind: 'progress', text: info.text },
         info.sessionId,
         'turn_end',
       );
+      if (!result.delivered) {
+        this.options.logger.warn?.(
+          'lark-super-agent: turn-end report was not delivered',
+          result.reason,
+        );
+      }
     } catch (error) {
       this.options.logger.warn?.('lark-super-agent: turn-end report was not delivered', error);
     }

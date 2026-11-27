@@ -362,4 +362,35 @@ describe('lark-super-agent 全局行', () => {
     const rules = injected.messages?.[0] as { source: { kind: string } } | undefined;
     expect(rules?.source.kind).toBe(TASK_RULES_SOURCE_KIND);
   });
+
+  it('拦截上报未送达时退回拒绝反馈且不置等待状态', async () => {
+    const workspaceRoot = join(process.env['DSH_HOME'] ?? '', 'dispatch');
+    mkdirSync(workspaceRoot, { recursive: true });
+    writeBridgeState({ workspaceRoot, sessionId: 'dispatch' });
+    writeManagedTask(workspaceRoot, 'worker', 'task-20260101000000-0001');
+    const { base, service } = startRow();
+    vi.spyOn(service, 'sendReport').mockResolvedValue({
+      reportId: 'report-20260101000000-abcdef',
+      taskId: 'task-20260101000000-0001',
+      delivered: false,
+      reason: 'delivery_failed: dispatch offline',
+    });
+    const updateTask = vi.spyOn(service, 'updateTask');
+    const aroundExecute = base._onCallbacks.get('tools/execute')?.[0];
+    if (aroundExecute === undefined) throw new Error('missing tools/execute listener');
+    const exec = {
+      name: ASK_TOOL,
+      callId: 'call-1',
+      agent: { session: { id: 'worker' } },
+      signal: new AbortController().signal,
+      concludeTurn: vi.fn(),
+      arguments: { questions: [{ id: 'q1', question: 'x' }] },
+    };
+    const result = await aroundExecute(exec, async () => {
+      throw new Error('tool body must not run');
+    });
+    expect(updateTask).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(exec.concludeTurn).not.toHaveBeenCalled();
+  });
 });
