@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { readArchiveNotices } from '../src/lark-super-agent/archive-notices.ts';
 import { runGit } from '../src/lark-super-agent/git.ts';
 import { apply } from '../src/lark-super-agent/index.ts';
 import {
@@ -410,5 +411,136 @@ describe('任务日志注入', () => {
       `<unread_report taskid="${taskId}" reportid="report-20260101100000-def456">reports/${taskId}/report-20260101100000-def456.md</unread_report>`,
     );
     expect(text).toContain('before you reply');
+  });
+});
+
+describe('归档通知注入', () => {
+  it('归档通知并入任务日志消息、排在日志条目之后，重复 pre-step 与压缩后不再出现', async () => {
+    const { base, service } = startRow({ workspaceRegistry: { archivedSessionIds: ['worker'] } });
+    const taskId = await seedTask(service, 'worker');
+    const keeper = await seedTask(service, 'keeper');
+    await appendTaskLogEntry(root, keeper, {
+      sessionId: 'keeper',
+      seq: 1,
+      type: 'user_message',
+      text: '直接回答',
+    });
+    await service.notifyArchived('worker');
+
+    const { events, session } = dispatchSession();
+    const payload = { agent: { session }, step: 1 };
+    const first = await runPreStep(base, payload, { kind: 'enter', messages: [larkMessage()] });
+    const injected = first.messages.find((m) => m.source.kind === TASK_LOG_SOURCE_KIND);
+    expect(injected).toBeDefined();
+    const text = textOf(injected as Decision['messages'][number]);
+    expect(text).toContain('<task_log_entry id="keeper:1"');
+    expect(text.indexOf('<task_log_entry')).toBeLessThan(text.indexOf('<task_session_archived'));
+    expect(text).toContain(`sessionid="worker" taskid="${taskId}"`);
+    expect(text).toMatch(/<task_session_archived id="[^"]+"/);
+    expect(await readArchiveNotices(root)).toHaveLength(1);
+
+    events.push({ type: 'user/message', seq: 0, data: injected });
+    const second = await runPreStep(base, payload, { kind: 'enter', messages: [larkMessage()] });
+    expect(second.messages.map((m) => m.source.kind)).toEqual(['lark-bridge']);
+    expect(await readArchiveNotices(root)).toEqual([]);
+
+    // 压缩只改模型可见表层，事件日志仍在，因此不再注入。
+    const compressed = await runPreStep(base, payload, {
+      kind: 'enter',
+      messages: [larkMessage('压缩摘要')],
+    });
+    expect(compressed.messages.map((m) => m.source.kind)).toEqual(['lark-bridge']);
+  });
+
+  it('注入请求失败未写入事件日志时，下一次 pre-step 继续注入', async () => {
+    const { base, service } = startRow();
+    await seedTask(service, 'worker');
+    await service.notifyArchived('worker');
+
+    const { events, session } = dispatchSession();
+    const payload = { agent: { session }, step: 1 };
+    const first = await runPreStep(base, payload, { kind: 'enter', messages: [larkMessage()] });
+    const firstNotice = first.messages.find((m) => m.source.kind === TASK_LOG_SOURCE_KIND);
+    expect(textOf(firstNotice as Decision['messages'][number])).toContain('<task_session_archived');
+
+    const second = await runPreStep(base, payload, { kind: 'enter', messages: [larkMessage()] });
+    const secondNotice = second.messages.find((m) => m.source.kind === TASK_LOG_SOURCE_KIND);
+    expect(textOf(secondNotice as Decision['messages'][number])).toContain('<task_session_archived');
+    expect(await readArchiveNotices(root)).toHaveLength(1);
+  });
+
+  it('插件重启后未注入的通知仍然出现，已注入的不重复', async () => {
+    const pending = startRow();
+    const pendingTask = await seedTask(pending.service, 'worker-a');
+    await pending.service.notifyArchived('worker-a');
+    const pendingSession = dispatchSession();
+    const pendingPayload = { agent: { session: pendingSession.session }, step: 1 };
+    await runPreStep(pending.base, pendingPayload, { kind: 'enter', messages: [larkMessage()] });
+
+    const restartedPending = startRow();
+    const pendingAgain = await runPreStep(restartedPending.base, pendingPayload, {
+      kind: 'enter',
+      messages: [larkMessage()],
+    });
+    const repeated = pendingAgain.messages.find((m) => m.source.kind === TASK_LOG_SOURCE_KIND);
+    expect(textOf(repeated as Decision['messages'][number])).toContain(
+      '<task_session_archived id="',
+    );
+    expect(textOf(repeated as Decision['messages'][number])).toContain(
+      `taskid="${pendingTask}"`,
+    );
+
+    const injected = pendingAgain.messages.find((m) => m.source.kind === TASK_LOG_SOURCE_KIND);
+    pendingSession.events.push({ type: 'user/message', seq: 0, data: injected });
+    const restartedAfter = startRow();
+    const after = await runPreStep(restartedAfter.base, pendingPayload, {
+      kind: 'enter',
+      messages: [larkMessage()],
+    });
+    expect(after.messages.map((m) => m.source.kind)).toEqual(['lark-bridge']);
+    expect(await readArchiveNotices(root)).toEqual([]);
+  });
+
+  it('恢复归档会话时删除待注入记录', async () => {
+    const { base, service } = startRow({
+      workspaceRegistry: {
+        archivedSessionIds: ['worker'],
+        unarchiveSession: async () => undefined,
+      },
+    });
+    await seedTask(service, 'worker');
+    await service.notifyArchived('worker');
+    expect(await readArchiveNotices(root)).toHaveLength(1);
+
+    await expect(service.restoreSession('worker', { pin: false })).resolves.toMatchObject({
+      taskRestored: true,
+    });
+    expect(await readArchiveNotices(root)).toEqual([]);
+
+    const { session } = dispatchSession();
+    const injected = await runPreStep(
+      base,
+      { agent: { session }, step: 1 },
+      { kind: 'enter', messages: [larkMessage()] },
+    );
+    const text = textOf(
+      injected.messages.find((m) => m.source.kind === TASK_LOG_SOURCE_KIND) as Decision['messages'][number],
+    );
+    expect(text).not.toContain('<task_session_archived');
+  });
+
+  it('没有工作区或没有对应任务时不写记录', async () => {
+    const { service } = startRow();
+    await seedTask(service, 'worker');
+    await service.notifyArchived('unknown');
+    expect(await readArchiveNotices(root)).toEqual([]);
+
+    writeFileSync(
+      join(home, 'lark-bridge', 'state.json'),
+      JSON.stringify({ workspaceRoot: null, sessionId: 'dispatch' }),
+      'utf8',
+    );
+    await expect(service.notifyArchived('worker')).resolves.toBeUndefined();
+    expect(await readArchiveNotices(root)).toEqual([]);
   });
 });

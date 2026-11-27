@@ -25,10 +25,10 @@
 
 **Independent Test**: 归档后触发两次 pre-step，第一次消息末尾出现归档块，第二次不出现；压缩与插件重启后不重复。
 
-- [ ] T007 [US2] 修改 `src/lark-super-agent/managed/task-log-injector.ts`：`ScanState` 记住已出现的 `<task_session_archived id="…"`；`build` 追加未注入的通知块（无日志也有通知时仍返回消息）；扫描后删除已出现的记录；新增可选 `logger` 记录删除失败
-- [ ] T008 [US2] 修改 `src/lark-super-agent/managed/index.ts`：构造 `TaskLogInjector` 时传 `logger`
-- [ ] T009 [US2] 在 `tests/managed-task-log.test.ts` 增加注入用例：归档后注入在日志条目之后、第二次不重复、未写入事件日志时下次重注、重启后不重复
-- [ ] T010 [P] [US3] 在 `tests/managed-task-log.test.ts` 增加恢复用例：归档后恢复不注入；无工作区、无任务不写记录
+- [x] T007 [US2] 修改 `src/lark-super-agent/managed/task-log-injector.ts`：`ScanState` 记住已出现的 `<task_session_archived id="…"`；`build` 追加未注入的通知块（无日志也有通知时仍返回消息）；扫描后删除已出现的记录；新增可选 `logger` 记录删除失败
+- [x] T008 [US2] 修改 `src/lark-super-agent/managed/index.ts`：构造 `TaskLogInjector` 时传 `logger`
+- [x] T009 [US2] 在 `tests/managed-task-log.test.ts` 增加注入用例：归档后注入在日志条目之后、第二次不重复、未写入事件日志时下次重注、重启后不重复
+- [x] T010 [P] [US3] 在 `tests/managed-task-log.test.ts` 增加恢复用例：归档后恢复不注入；无工作区、无任务不写记录
 
 ## Phase 3: 提示词与文档 (US4)
 
