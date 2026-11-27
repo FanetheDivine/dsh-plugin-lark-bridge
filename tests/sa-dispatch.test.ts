@@ -442,6 +442,14 @@ describe('SA-调度会话子行', () => {
     const start = section('Start a task');
     expect(start).toContain("The prompt holds only this task's request");
     expect(SA_DISPATCH_PROMPT).not.toContain('its target workspace');
+    const add = section('Add messages to a task');
+    expect(add).toContain('Leave session metadata out');
+    expect(add).toContain('task_update add_message alike');
+    expect(add).toContain("user's own words pass through as they are");
+    expect(add).toContain('model route');
+    expect(add).toContain('working directory');
+    expect(add).toContain('session id');
+    expect(add).toContain('[model changed: ...]');
   });
 
   it('提示词要求下发后立刻用 lark_notify 回应，并按任务分开通知', () => {

@@ -48,7 +48,7 @@ description: "任务列表：任务会话消息不含会话元信息"
 
 **Independent Test**: 用例断言 Add messages to a task 的总约束文字。
 
-- [ ] T003 [US2] 扩展用例：断言 `section('Add messages to a task')` 含 `Leave session metadata out`、`task_update add_message alike`、`user's own words pass through as they are`、`model route`、`working directory`、`session id`、`[model changed: ...]` tests/sa-dispatch.test.ts
+- [X] T003 [US2] 扩展用例：断言 `section('Add messages to a task')` 含 `Leave session metadata out`、`task_update add_message alike`、`user's own words pass through as they are`、`model route`、`working directory`、`session id`、`[model changed: ...]` tests/sa-dispatch.test.ts
 
 ---
 
