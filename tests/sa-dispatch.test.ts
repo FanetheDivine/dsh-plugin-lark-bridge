@@ -361,6 +361,7 @@ describe('SA-调度会话子行', () => {
       'Answer questions about DSH yourself',
       'Start a task',
       'Manage existing sessions',
+      "Change a session's model",
       'Add messages to a task',
       'Handle reports',
       'Read the task log',
@@ -442,7 +443,7 @@ describe('SA-调度会话子行', () => {
     expect(respond).toContain('The user reads only what lark_notify sends');
     expect(respond).toContain('Reply to every message the user sends');
     expect(respond).toContain(
-      'After session_create, session_send, session_manage, session_unmanage, or task_end succeeds, call lark_notify in the next step',
+      'After session_create, session_send, session_manage, session_unmanage, session_restore, session_model, or task_end succeeds, call lark_notify in the next step',
     );
     expect(respond).toContain('one lark_notify per task');
     expect(respond).toContain('pass its task_id');
@@ -453,6 +454,18 @@ describe('SA-调度会话子行', () => {
     expect(respond).toContain('mode "card"');
     expect(respond).toContain('Send only the rest');
     expect(respond).toContain('are not user messages');
+  });
+
+  it('提示词说明模型切换与恢复归档会话', () => {
+    const model = section("Change a session's model");
+    expect(model).toContain('session_model');
+    expect(model).toContain('Omit session_id to change your own model');
+    expect(model).toContain('applies from the next step');
+    expect(model).toContain('after session_restore');
+    const list = section('Keep the session list current');
+    expect(list).toContain('session_restore');
+    expect(list).toContain('pin: false');
+    expect(list).toContain('session_manage');
   });
 
   it('提示词说明任务日志块的处理', () => {
