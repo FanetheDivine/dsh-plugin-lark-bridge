@@ -15,11 +15,11 @@
 
 ## Phase 1: Foundational（阻塞全部用户故事）
 
-- [ ] T001 [P] 在 `src/lark-super-agent/api.ts` 增加 `CallerSessionLike`（`header?: { cwd?: string }`），并给 `LarkSuperAgentService.sendReport` 增加可选第 4 参数 `callerSession?: CallerSessionLike`
-- [ ] T002 [P] 在 `src/lark-super-agent/service.ts` 把 `SessionLike` 的 `cwd` 换成 `header?: { cwd?: string }`，新增 `WorkingDirectoryLike`（`get(session): string`）与一次显式断言的读取入口
-- [ ] T003 在 `src/lark-super-agent/service.ts` 实现解析链 `sessionDirectory` 与 `callerDirectory`：投影 → `header.cwd` → 任务 cwd → `process.cwd()`（最后一级记 `logger.warn`），并让 `sendReport` 与 `manageSession` 使用它
-- [ ] T004 [P] 在 `src/lark-super-agent/managed/report-tool.ts` 把 `exec.agent?.session` 作为第 4 参数传给 `service.sendReport`
-- [ ] T005 更新 `tests/lark-super-agent-service.test.ts` 的会话夹具为 `{ session: { id, header: { cwd } } }`，既有上调用例保持通过
+- [X] T001 [P] 在 `src/lark-super-agent/api.ts` 增加 `CallerSessionLike`（`header?: { cwd?: string }`），并给 `LarkSuperAgentService.sendReport` 增加可选第 4 参数 `callerSession?: CallerSessionLike`
+- [X] T002 [P] 在 `src/lark-super-agent/service.ts` 把 `SessionLike` 的 `cwd` 换成 `header?: { cwd?: string }`，新增 `WorkingDirectoryLike`（`get(session): string`）与一次显式断言的读取入口
+- [X] T003 在 `src/lark-super-agent/service.ts` 实现解析链 `sessionDirectory` 与 `callerDirectory`：投影 → `header.cwd` → 任务 cwd → `process.cwd()`（最后一级记 `logger.warn`），并让 `sendReport` 与 `manageSession` 使用它
+- [X] T004 [P] 在 `src/lark-super-agent/managed/report-tool.ts` 把 `exec.agent?.session` 作为第 4 参数传给 `service.sendReport`
+- [X] T005 更新 `tests/lark-super-agent-service.test.ts` 的会话夹具为 `{ session: { id, header: { cwd } } }`，既有上调用例保持通过
 
 ## Phase 2: US1 - 相对路径附件可用 (P1)
 
@@ -27,10 +27,10 @@
 
 **Independent Test**: 投影返回 B、`header.cwd` 为 A，B 下的 Markdown 通过校验并复制进存档目录。
 
-- [ ] T006 [US1] 在 `tests/lark-super-agent-service.test.ts` 新增用例：注入 `workingDirectory.get` 返回 B，B 下 `specs/demo/spec.md`，相对路径上报成功且存档目录存在副本
-- [ ] T007 [US1] 在同一测试文件新增用例：未注入 `workingDirectory` 时按 `header.cwd` 解析
-- [ ] T008 [US1] 在同一测试文件新增用例：会话句柄缺失时按任务记录的 cwd 解析
-- [ ] T009 [US1] 在同一测试文件新增用例：三级都不可用时使用 `process.cwd()`，且 `logger.warn` 被调用一次
+- [X] T006 [US1] 在 `tests/lark-super-agent-service.test.ts` 新增用例：注入 `workingDirectory.get` 返回 B，B 下 `specs/demo/spec.md`，相对路径上报成功且存档目录存在副本
+- [X] T007 [US1] 在同一测试文件新增用例：未注入 `workingDirectory` 时按 `header.cwd` 解析
+- [X] T008 [US1] 在同一测试文件新增用例：会话句柄缺失时按任务记录的 cwd 解析
+- [X] T009 [US1] 在同一测试文件新增用例：三级都不可用时使用 `process.cwd()`，且 `logger.warn` 被调用一次
 
 ## Phase 3: US2 - 切换工作目录后仍能上报附件 (P2)
 
