@@ -68,21 +68,25 @@ export async function validateReportInput(
   const desc = input.desc?.trim();
   const invalid: string[] = [];
   const resolvedFiles: string[] = [];
+  /** 无效项的描述：原始值与解析后的绝对路径，便于定位基准目录。 */
+  const describe = (file: string, path: string): string => `${file} -> ${path}`;
   for (const file of files) {
     const path = isAbsolute(file) ? resolve(file) : resolve(cwd, file);
     resolvedFiles.push(path);
     if (file.trim() === '' || extname(path).toLowerCase() !== '.md') {
-      invalid.push(file);
+      invalid.push(describe(file, path));
       continue;
     }
     try {
-      if (!(await stat(path)).isFile()) invalid.push(file);
+      if (!(await stat(path)).isFile()) invalid.push(describe(file, path));
     } catch {
-      invalid.push(file);
+      invalid.push(describe(file, path));
     }
   }
   if (invalid.length > 0) {
-    throw new Error(`send_report files must be existing .md files: ${invalid.join(', ')}`);
+    throw new Error(
+      `send_report files must be existing .md files: ${invalid.join('; ')} (base ${cwd})`,
+    );
   }
   return {
     kind: kind.data,

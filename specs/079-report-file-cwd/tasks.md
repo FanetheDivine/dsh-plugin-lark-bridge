@@ -38,7 +38,7 @@
 
 **Independent Test**: 投影先返回 B 再返回 A，两次上报分别解析到 B 与 A 下的同名文件。
 
-- [ ] T010 [US2] 在 `tests/lark-super-agent-service.test.ts` 新增用例：`workingDirectory.get` 依次返回 B、A，两次相对路径上报分别命中两处的文件
+- [X] T010 [US2] 在 `tests/lark-super-agent-service.test.ts` 新增用例：`workingDirectory.get` 依次返回 B、A，两次相对路径上报分别命中两处的文件
 
 ## Phase 4: US3 - 失败原因可定位 (P3)
 
@@ -46,8 +46,8 @@
 
 **Independent Test**: 上报不存在的相对路径，错误文本包含 `原始值 -> 绝对路径` 与 `(base <基准目录>)`。
 
-- [ ] T011 [US3] 在 `src/lark-super-agent/reports.ts` 把无效项改为 `<原始值> -> <绝对路径>`，多无效项用 `;` 拼接，消息末尾附 `(base <cwd>)`
-- [ ] T012 [US3] 在 `tests/lark-super-agent-reports.test.ts` 新增用例：断言错误文本含原始值、绝对路径与基准目录，并覆盖两个无效项的拼接
+- [X] T011 [US3] 在 `src/lark-super-agent/reports.ts` 把无效项改为 `<原始值> -> <绝对路径>`，多无效项用 `;` 拼接，消息末尾附 `(base <cwd>)`
+- [X] T012 [US3] 在 `tests/lark-super-agent-reports.test.ts` 新增用例：断言错误文本含原始值、绝对路径与基准目录，并覆盖两个无效项的拼接
 
 ## Phase 5: Polish & 交付
 
