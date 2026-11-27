@@ -20,6 +20,26 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  padding: 2px 0;
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .dsh-lark-report-head:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+}
+
+.dsh-lark-report-head:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid
+    var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 1px;
 }
 
 .dsh-lark-report-icon {
@@ -57,42 +77,13 @@
   white-space: nowrap;
 }
 
-.dsh-lark-report-toggle {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 4px;
-  margin: 0;
-  padding: 2px 6px;
-  border: none;
-  border-radius: var(--dsw-radius-sm);
-  background: none;
-  color: var(--dsw-alias-label-secondary);
-  font: inherit;
-  font-size: 12px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-@media (hover: hover) {
-  .dsh-lark-report-toggle:hover {
-    background: var(--dsw-alias-interactive-bg-hover);
-    color: var(--dsw-alias-label-primary);
-  }
-}
-
-.dsh-lark-report-toggle:focus-visible {
-  outline: var(--dsw-focus-ring-width, 2px) solid
-    var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
-  outline-offset: 1px;
-}
-
 .dsh-lark-report-toggle-icon {
   flex: none;
+  color: var(--dsw-alias-label-secondary);
   transition: transform 150ms ease;
 }
 
-.dsh-lark-report-toggle[aria-expanded="true"] .dsh-lark-report-toggle-icon {
+.dsh-lark-report-head[aria-expanded="true"] .dsh-lark-report-toggle-icon {
   transform: rotate(180deg);
 }
 

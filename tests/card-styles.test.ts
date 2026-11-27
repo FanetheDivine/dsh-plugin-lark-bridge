@@ -40,14 +40,17 @@ describe('卡片正文颜色', () => {
     expectPrimaryColor(css, '.dsh-lark-report-body > [data-markdown-variant="compact"]');
   });
 
-  it('上报折叠开关与折叠态摘要行遵循设计令牌与键盘焦点样式', () => {
+  it('上报头部整行按钮与折叠态摘要行遵循设计令牌与键盘焦点样式', () => {
     const css = cssOf('report-card.css');
-    expect(ruleOf(css, '.dsh-lark-report-toggle')).toContain(
-      'color: var(--dsw-alias-label-secondary)',
+    expect(ruleOf(css, '.dsh-lark-report')).toContain('padding: 10px 14px 12px');
+    expect(ruleOf(css, '.dsh-lark-report-head')).toContain('padding: 2px 0');
+    expect(ruleOf(css, '.dsh-lark-report-head')).toContain('cursor: pointer');
+    expect(ruleOf(css, '.dsh-lark-report-head:hover')).toContain(
+      'background: var(--dsw-alias-interactive-bg-hover)',
     );
-    expect(ruleOf(css, '.dsh-lark-report-toggle:focus-visible')).toContain('--dsw-focus-ring');
+    expect(ruleOf(css, '.dsh-lark-report-head:focus-visible')).toContain('--dsw-focus-ring');
     expect(
-      ruleOf(css, '.dsh-lark-report-toggle[aria-expanded="true"] .dsh-lark-report-toggle-icon'),
+      ruleOf(css, '.dsh-lark-report-head[aria-expanded="true"] .dsh-lark-report-toggle-icon'),
     ).toContain('transform: rotate(180deg)');
     expect(ruleOf(css, '.dsh-lark-report-head-desc')).toContain(
       'color: var(--dsw-alias-label-secondary)',
