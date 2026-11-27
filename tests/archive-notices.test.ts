@@ -74,7 +74,12 @@ describe('归档通知记录', () => {
       JSON.stringify({
         version: 1,
         notices: [
-          { id: 'ok', taskId: 'task-a', sessionId: 'worker', time: '2026-11-27T09:00:00.000+08:00' },
+          {
+            id: 'ok',
+            taskId: 'task-a',
+            sessionId: 'worker',
+            time: '2026-11-27T09:00:00.000+08:00',
+          },
           { id: 'missing-session', taskId: 'task-b', time: '2026-11-27T10:00:00.000+08:00' },
           { id: 'bad-time', taskId: 'task-c', sessionId: 'worker', time: 'not-a-time' },
         ],

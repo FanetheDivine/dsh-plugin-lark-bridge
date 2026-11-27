@@ -46,9 +46,9 @@
 
 ## Phase 4: 质量门禁
 
-- [ ] T018 运行 `pnpm format && pnpm check`，修复告警
-- [ ] T019 运行 `pnpm test:code`，全量通过
-- [ ] T020 运行 `pnpm build`，`test:dist` 通过
+- [x] T018 运行 `pnpm format && pnpm check`，修复告警
+- [x] T019 运行 `pnpm test:code`，全量通过
+- [x] T020 运行 `pnpm build`，`test:dist` 通过
 
 ## Dependencies
 

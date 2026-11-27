@@ -465,7 +465,9 @@ describe('归档通知注入', () => {
 
     const second = await runPreStep(base, payload, { kind: 'enter', messages: [larkMessage()] });
     const secondNotice = second.messages.find((m) => m.source.kind === TASK_LOG_SOURCE_KIND);
-    expect(textOf(secondNotice as Decision['messages'][number])).toContain('<task_session_archived');
+    expect(textOf(secondNotice as Decision['messages'][number])).toContain(
+      '<task_session_archived',
+    );
     expect(await readArchiveNotices(root)).toHaveLength(1);
   });
 
@@ -486,9 +488,7 @@ describe('归档通知注入', () => {
     expect(textOf(repeated as Decision['messages'][number])).toContain(
       '<task_session_archived id="',
     );
-    expect(textOf(repeated as Decision['messages'][number])).toContain(
-      `taskid="${pendingTask}"`,
-    );
+    expect(textOf(repeated as Decision['messages'][number])).toContain(`taskid="${pendingTask}"`);
 
     const injected = pendingAgain.messages.find((m) => m.source.kind === TASK_LOG_SOURCE_KIND);
     pendingSession.events.push({ type: 'user/message', seq: 0, data: injected });
@@ -524,7 +524,9 @@ describe('归档通知注入', () => {
       { kind: 'enter', messages: [larkMessage()] },
     );
     const text = textOf(
-      injected.messages.find((m) => m.source.kind === TASK_LOG_SOURCE_KIND) as Decision['messages'][number],
+      injected.messages.find(
+        (m) => m.source.kind === TASK_LOG_SOURCE_KIND,
+      ) as Decision['messages'][number],
     );
     expect(text).not.toContain('<task_session_archived');
   });

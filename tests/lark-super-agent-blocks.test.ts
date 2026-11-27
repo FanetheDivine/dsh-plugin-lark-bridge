@@ -155,9 +155,7 @@ describe('lark-super-agent blocks', () => {
   });
 
   it('归档通知带去重 id、自闭合且转义属性', () => {
-    expect(
-      taskSessionArchived({ id: 'task&1:t', sessionId: 'session"&', taskId: 'task<' }),
-    ).toBe(
+    expect(taskSessionArchived({ id: 'task&1:t', sessionId: 'session"&', taskId: 'task<' })).toBe(
       '<task_session_archived id="task&amp;1:t" sessionid="session&quot;&amp;" taskid="task&lt;"/>',
     );
   });

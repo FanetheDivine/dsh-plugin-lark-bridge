@@ -25,13 +25,13 @@ import type {
   UpdateTaskInput,
   WorkspaceRegistryLike,
 } from './api.ts';
+import { appendArchiveNotice, removeArchiveNotices } from './archive-notices.ts';
 import {
   type TaskSnapshotRef,
   taskSessionFailure,
   taskSessionMessage,
   type UnreadReportRef,
 } from './blocks.ts';
-import { appendArchiveNotice, removeArchiveNotices } from './archive-notices.ts';
 import { readBridgeState } from './bridge.ts';
 import { findTaskBySession, isoTime, NotesStore } from './notes.ts';
 import { workspaceRelative } from './paths.ts';
@@ -409,7 +409,10 @@ export class SuperAgentService implements LarkSuperAgentService {
         taskId = restoredId;
         taskRestored = true;
         try {
-          await removeArchiveNotices(await this.storageRoot(), (notice) => notice.taskId === restoredId);
+          await removeArchiveNotices(
+            await this.storageRoot(),
+            (notice) => notice.taskId === restoredId,
+          );
         } catch (error) {
           warnings.push(`removing its archive notice failed: ${errorMessage(error)}`);
         }
