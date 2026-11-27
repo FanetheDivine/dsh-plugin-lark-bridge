@@ -215,7 +215,7 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 
 | 预设 | 组成 |
 | --- | --- |
-| `SA-调度会话` | 标准预设中的 11 个基础工具、meta-tools 十项能力与本插件覆写的 `session_create`、`list_models`、`task_update`、`task_end`、`session_manage`、`session_unmanage`、`workspace_note_set`、`workspace_note_remove` 与调度提示词段 |
+| `SA-调度会话` | 标准预设中的 11 个基础工具、meta-tools 十项能力与本插件覆写的 `session_create`、`list_models`、`session_model`、`session_restore`、`task_update`、`task_end`、`session_manage`、`session_unmanage`、`workspace_note_set`、`workspace_note_remove` 与调度提示词段 |
 
 - 「被管理」是会话状态，与预设无关：`message-task-status.json` 中某个未结束任务记录的 `sessionId` 即为被管理会话，一个会话最多对应一个任务。
 - 被管理会话的能力全部注册在全局行，见[被管理会话能力](#被管理会话能力)。
@@ -228,6 +228,8 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 只有 `workspaces.json` 已登记的工作区可以接收任务。没有匹配或多个都匹配时，调度会话不猜测、不执行，告知「我不知道在哪个工作区」并询问目标。
 - 每条用户消息默认是新任务。只有引用了未结束任务的消息，或点名未结束任务的标题或 id，才归入该任务；无法判断时询问用户。
 - 用户要接管已有会话时调用 `session_manage`，要停止管理时调用 `session_unmanage`。用户归档会话时任务随之归档。
+- 用户要求切换某个会话的模型时调用 `session_model`：省略 `session_id` 即切换调度会话自己；先 `llm.resolveCallConfig` 校验，再 `agent.model.select`，只写该会话的选择事件，从下一步生效，当前请求保持原模型。目标会话已归档时仍记录，结果 `archived: true`。宿主在下一步按新路由的上下文容量做压缩检查，容量不足时该步报错并保留原模型。
+- 用户要求恢复已归档会话时调用 `session_restore`：解除归档，恢复结束原因为 `session_archived` 的最近归档任务及其报告与任务日志，再按 `pin`（默认 `true`）置顶。任务恢复失败或跳过时返回 `taskRestored: false` 与 `warning`，会话仍已解除归档。
 - 派发与接管任务时，调度会话用 `session_pin` 置顶任务会话；再次置顶与取消置顶只在用户要求时进行。取消管理不归档，会话与其置顶保留。
 - 调度会话先判断点名任务的消息是否是给任务会话的指令：指令追加到任务后用 `session_send` 投递；给调度会话自己的说明只用 `task_update` 的 `add_message` 记录并回应用户，不投递；无法判断时询问用户。
 - 发往任务会话的消息只有两类：用户本人的指令、补充或回答，以及请求重发报告的消息。调度会话不向任务会话发送对报告的确认或转述。
@@ -298,6 +300,7 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - `task_end` 把任务移入归档并记录结束原因，同时移动上报目录与任务日志，再从 `message-task-status.json` 移除该任务。会话保持未归档。
 - 日志迁移的 git 提交含 `archive/<taskId>/task-log.jsonl`；日志平时不提交，源文件通常未被跟踪，只有已被跟踪时才同时提交其删除。
 - 结束原因取 `completed`、`cancelled`、`unmanaged`、`session_archived` 或 `session_missing`。
+- `session_restore` 取某会话 `archivedAt` 最新的 `archive/<taskId>/task.json`：结束原因为 `session_archived` 时把报告目录与任务日志迁回原位、任务写回台账、删除归档目录并提交；其他结束原因不恢复任务。
 
 ## 上报投递与失败监听
 

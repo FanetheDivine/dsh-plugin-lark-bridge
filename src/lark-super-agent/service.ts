@@ -16,6 +16,8 @@ import type {
   LarkSuperAgentService,
   ReportKind,
   ReportOrigin,
+  RestoreSessionOptions,
+  RestoreSessionResult,
   SendReportInput,
   SendReportResult,
   Task,
@@ -370,6 +372,65 @@ export class SuperAgentService implements LarkSuperAgentService {
       return { ended: 0 };
     }
     return this.notes(root).pruneTasks(present, archived);
+  }
+
+  /** 解除归档，恢复因归档结束的任务，并按需重新置顶。 */
+  async restoreSession(
+    sessionId: string,
+    options: RestoreSessionOptions,
+  ): Promise<RestoreSessionResult> {
+    const id = sessionId.trim();
+    if (id === '') throw new Error('session_restore needs a session id');
+    const registry = this.ctx.get('workspaceRegistry') as WorkspaceRegistryLike | undefined;
+    if (registry === undefined) throw new Error('workspaceRegistry is unavailable');
+    if (typeof registry.unarchiveSession !== 'function') {
+      throw new Error('workspaceRegistry cannot unarchive sessions');
+    }
+    const archived = new Set<string>(registry.archivedSessionIds ?? []);
+    if (!archived.has(id)) throw new Error(`session ${id} is not archived`);
+    await registry.unarchiveSession(id);
+
+    const warnings: string[] = [];
+    let taskId: string | undefined;
+    let taskRestored = false;
+    try {
+      const notes = this.notes(await this.storageRoot());
+      const latest = await notes.latestArchivedTask(id);
+      if (latest === undefined) {
+        warnings.push('no archived task was found for the session');
+      } else if (latest.endReason !== 'session_archived') {
+        warnings.push(`its archived task ended with ${latest.endReason}, so it was not restored`);
+      } else if (findTaskBySession(await notes.listTasks(), id) !== undefined) {
+        warnings.push(
+          'the session already has an unfinished task; the archived task was not restored',
+        );
+      } else {
+        taskId = (await notes.restoreTask(latest)).taskId;
+        taskRestored = true;
+      }
+    } catch (error) {
+      warnings.push(`restoring its task failed: ${errorMessage(error)}`);
+    }
+
+    let pinned = false;
+    if (options.pin) {
+      try {
+        if (typeof registry.pinSession !== 'function') {
+          throw new Error('workspaceRegistry cannot pin sessions');
+        }
+        await registry.pinSession(id);
+        pinned = true;
+      } catch (error) {
+        warnings.push(`pinning the session failed: ${errorMessage(error)}`);
+      }
+    }
+    return {
+      sessionId: id,
+      ...(taskId === undefined ? {} : { taskId }),
+      taskRestored,
+      pinned,
+      ...(warnings.length === 0 ? {} : { warning: warnings.join('; ') }),
+    };
   }
 
   /** 校验工作区在宿主注册表中存在。 */

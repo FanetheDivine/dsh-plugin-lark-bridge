@@ -26,6 +26,7 @@ function makeService() {
     updateTask: vi.fn(),
     endTask: vi.fn(),
     pruneTasks: vi.fn(),
+    restoreSession: vi.fn(),
     setWorkspaceNote: vi.fn(),
     removeWorkspaceNote: vi.fn(),
     sendReport: vi.fn(),
@@ -34,8 +35,8 @@ function makeService() {
   } satisfies LarkSuperAgentService;
 }
 
-function mount() {
-  const base = makeCtx();
+function mount(options: { services?: Record<string, unknown> } = {}) {
+  const base = makeCtx(options);
   const service = makeService();
   const sections: PromptSectionLike[] = [];
   const groups: string[][] = [];
@@ -93,6 +94,7 @@ describe('SA-调度会话子行', () => {
       'task_end',
       'session_manage',
       'session_unmanage',
+      'session_restore',
       'workspace_note_set',
       'workspace_note_remove',
     ]);
@@ -100,6 +102,75 @@ describe('SA-调度会话子行', () => {
       expect(definition.description).toMatch(/^[A-Za-z]/);
       expect(definition.parameters.type).toBe('object');
     }
+  });
+
+  it('宿主提供会话控制与模型服务时注册 session_create、list_models 与 session_model', () => {
+    const host = mount({
+      services: {
+        sessionController: { create: vi.fn(), rename: vi.fn(), resolveAgent: vi.fn() },
+        llm: {},
+        workspaceRegistry: { archivedSessionIds: [] },
+      },
+    });
+
+    expect(host.tools.map((entry) => entry.name)).toEqual([
+      'task_update',
+      'task_end',
+      'session_manage',
+      'session_unmanage',
+      'session_restore',
+      'workspace_note_set',
+      'workspace_note_remove',
+      'session_create',
+      'list_models',
+      'session_model',
+    ]);
+  });
+
+  it('session_restore 默认重新置顶并透出恢复结果', async () => {
+    const host = mount();
+    host.service.restoreSession.mockResolvedValue({
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      taskRestored: true,
+      pinned: true,
+    });
+
+    const result = await tool(host.tools, 'session_restore').execute(
+      { session_id: 'session-1' },
+      {} as never,
+    );
+
+    expect(host.service.restoreSession).toHaveBeenCalledWith('session-1', { pin: true });
+    expect(result).toEqual({
+      sessionId: 'session-1',
+      taskId: 'task-1',
+      taskRestored: true,
+      pinned: true,
+    });
+  });
+
+  it('session_restore 传 pin: false 时跳过置顶，并保留警告', async () => {
+    const host = mount();
+    host.service.restoreSession.mockResolvedValue({
+      sessionId: 'session-1',
+      taskRestored: false,
+      pinned: false,
+      warning: 'no archived task was found for the session',
+    });
+
+    const result = await tool(host.tools, 'session_restore').execute(
+      { session_id: 'session-1', pin: false },
+      {} as never,
+    );
+
+    expect(host.service.restoreSession).toHaveBeenCalledWith('session-1', { pin: false });
+    expect(result).toEqual({
+      sessionId: 'session-1',
+      taskRestored: false,
+      pinned: false,
+      warning: 'no archived task was found for the session',
+    });
   });
 
   it('task_update 转换全部字段并返回任务标识与状态', async () => {
@@ -290,6 +361,7 @@ describe('SA-调度会话子行', () => {
       'Answer questions about DSH yourself',
       'Start a task',
       'Manage existing sessions',
+      "Change a session's model",
       'Add messages to a task',
       'Handle reports',
       'Read the task log',
@@ -371,7 +443,7 @@ describe('SA-调度会话子行', () => {
     expect(respond).toContain('The user reads only what lark_notify sends');
     expect(respond).toContain('Reply to every message the user sends');
     expect(respond).toContain(
-      'After session_create, session_send, session_manage, session_unmanage, or task_end succeeds, call lark_notify in the next step',
+      'After session_create, session_send, session_manage, session_unmanage, session_restore, session_model, or task_end succeeds, call lark_notify in the next step',
     );
     expect(respond).toContain('one lark_notify per task');
     expect(respond).toContain('pass its task_id');
@@ -382,6 +454,18 @@ describe('SA-调度会话子行', () => {
     expect(respond).toContain('mode "card"');
     expect(respond).toContain('Send only the rest');
     expect(respond).toContain('are not user messages');
+  });
+
+  it('提示词说明模型切换与恢复归档会话', () => {
+    const model = section("Change a session's model");
+    expect(model).toContain('session_model');
+    expect(model).toContain('Omit session_id to change your own model');
+    expect(model).toContain('applies from the next step');
+    expect(model).toContain('after session_restore');
+    const list = section('Keep the session list current');
+    expect(list).toContain('session_restore');
+    expect(list).toContain('pin: false');
+    expect(list).toContain('session_manage');
   });
 
   it('提示词说明任务日志块的处理', () => {

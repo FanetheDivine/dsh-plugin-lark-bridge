@@ -1,0 +1,62 @@
+[
+  {
+    "label": "A1 插件装载且与仓库 dist 一致",
+    "status": "PASS",
+    "detail": {
+      "sha": "05ee9f73ddf8"
+    }
+  },
+  {
+    "label": "A2 调度会话工具表含 session_model 与 session_restore",
+    "status": "PASS",
+    "detail": {
+      "preset": "sa-dispatch",
+      "tools": 30
+    }
+  },
+  {
+    "label": "B1 session_model 切换任务会话并从下一步生效",
+    "status": "PASS",
+    "detail": {
+      "requestModel": "mock-model-b",
+      "defaultModel": "mock-model"
+    }
+  },
+  {
+    "label": "B2 不支持的 effort 被拒绝且不改动选择",
+    "status": "PASS",
+    "detail": {
+      "error": "Error: Invalid model selection: provider \"mock\" model \"mock-model-b\" does not support reasoning effort \"max\""
+    }
+  },
+  {
+    "label": "B3 session_restore 恢复归档会话、任务与置顶",
+    "status": "PASS",
+    "detail": {
+      "taskId": "task-20261127095315-8828",
+      "toolResult": "{\"sessionId\":\"session-b83d8300-a274-40fb-b8bd-6284912e48d1\",\"taskId\":\"task-20261127095315-8828\",\"taskRestored\":true,\"pinned\":true}"
+    }
+  },
+  {
+    "label": "B4 恢复后的会话可以再次上报",
+    "status": "PASS",
+    "detail": {
+      "reportId": "report-20261127095317-4f2b8e",
+      "delivered": true
+    }
+  },
+  {
+    "label": "B5 未归档会话调用 session_restore 报错",
+    "status": "PASS",
+    "detail": {
+      "error": "Error: session session-b83d8300-a274-40fb-b8bd-6284912e48d1 is not archived"
+    }
+  },
+  {
+    "label": "B6 省略 session_id 时切换调度会话自身",
+    "status": "PASS",
+    "detail": {
+      "requestModel": "mock-model-b"
+    }
+  }
+]

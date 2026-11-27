@@ -14,12 +14,16 @@ export type TaskType = (typeof TASK_TYPES)[number];
 export type TaskStatus = 'in_progress' | 'waiting_user' | 'failed';
 
 /** 任务归档的原因。 */
-export type EndReason =
-  | 'completed'
-  | 'cancelled'
-  | 'unmanaged'
-  | 'session_archived'
-  | 'session_missing';
+export const END_REASONS = [
+  'completed',
+  'cancelled',
+  'unmanaged',
+  'session_archived',
+  'session_missing',
+] as const;
+
+/** 任务归档的原因。 */
+export type EndReason = (typeof END_REASONS)[number];
 
 /** 任务关联的一条用户消息。 */
 export interface TaskMessage {
@@ -109,6 +113,25 @@ export interface BridgeState {
   workspaceRoot: string | null;
 }
 
+/** 恢复会话的参数。 */
+export interface RestoreSessionOptions {
+  /** 恢复后是否重新置顶。 */
+  pin: boolean;
+}
+
+/** 恢复会话的结果。 */
+export interface RestoreSessionResult {
+  readonly sessionId: string;
+  /** 恢复的任务；没有恢复时省略。 */
+  taskId?: string;
+  /** 是否恢复了归档任务。 */
+  taskRestored: boolean;
+  /** 是否已重新置顶。 */
+  pinned: boolean;
+  /** 部分成功的说明。 */
+  warning?: string;
+}
+
 /** 笔记与上报服务。 */
 export interface LarkSuperAgentService {
   /** 按任务类型（省略时取默认任务类型）读取新建任务会话时使用的模型；未配置时返回 undefined。 */
@@ -134,6 +157,8 @@ export interface LarkSuperAgentService {
   endTask(taskId: string, endReason: EndReason): Promise<{ taskId: string }>;
   /** 结束会话已归档或不存在的任务。 */
   pruneTasks(): Promise<{ ended: number }>;
+  /** 解除归档，恢复因归档结束的任务，并按需重新置顶。 */
+  restoreSession(sessionId: string, options: RestoreSessionOptions): Promise<RestoreSessionResult>;
   setWorkspaceNote(input: {
     workspaceId: string;
     summary: string;
@@ -173,4 +198,5 @@ export interface WorkspaceRegistryLike {
   archivedSessionIds?: readonly string[];
   archiveSession?(id: string, options?: { stopActivity?: boolean }): Promise<unknown> | unknown;
   unarchiveSession?(id: string): Promise<unknown> | unknown;
+  pinSession?(id: string): Promise<unknown> | unknown;
 }

@@ -3,18 +3,19 @@
  * 校验不通过的台账按空处理，下次写入直接覆盖。
  */
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { replaceFile } from '../atomic.ts';
-import type {
-  CreateTaskInput,
-  EndReason,
-  Task,
-  TaskMessage,
-  TaskStatus,
-  UpdateTaskInput,
-  WorkspaceNote,
+import {
+  type CreateTaskInput,
+  END_REASONS,
+  type EndReason,
+  type Task,
+  type TaskMessage,
+  type TaskStatus,
+  type UpdateTaskInput,
+  type WorkspaceNote,
 } from './api.ts';
 import { commitFilesInQueue, runGit, runSerial } from './git.ts';
 import { createTaskId } from './ids.ts';
@@ -98,6 +99,11 @@ const taskStateSchema = z.object({
   tasks: z.array(taskSchema),
 });
 
+const archivedTaskSchema = taskSchema.extend({
+  archivedAt: time,
+  endReason: z.enum(END_REASONS),
+});
+
 const workspaceSchema = z.object({
   workspaceId: line,
   summary: line,
@@ -162,6 +168,15 @@ function normalizeTask(task: z.infer<typeof taskSchema>): Task {
         ? { text: message.text, time: message.time }
         : { messageId: message.messageId, text: message.text, time: message.time },
     ),
+  };
+}
+
+/** 归档任务的校验结果转成任务记录；结束原因与归档时间单独保留。 */
+function archivedTaskOf(input: z.infer<typeof archivedTaskSchema>): ArchivedTask {
+  return {
+    ...normalizeTask(input),
+    archivedAt: input.archivedAt,
+    endReason: input.endReason,
   };
 }
 
@@ -396,6 +411,94 @@ export class NotesStore {
         if (tracked) paths.push(source);
       }
       await commitFilesInQueue(this.root, paths, `lark-super-agent: archive ${task.id}`);
+      return { taskId: task.id };
+    });
+  }
+
+  /** 读取该会话最近归档的任务；没有可读归档记录时返回 undefined。 */
+  async latestArchivedTask(sessionId: string): Promise<ArchivedTask | undefined> {
+    const directory = join(this.root, 'archive');
+    let names: string[];
+    try {
+      names = await readdir(directory);
+    } catch (error) {
+      if (isMissing(error)) return undefined;
+      throw error;
+    }
+    let latest: ArchivedTask | undefined;
+    for (const name of names) {
+      const parsed = await readJson(join(directory, name, 'task.json'));
+      if (parsed === undefined || 'invalid' in parsed) continue;
+      const result = archivedTaskSchema.safeParse(parsed.value);
+      if (!result.success) continue;
+      const task = archivedTaskOf(result.data);
+      if (task.sessionId !== sessionId) continue;
+      if (latest === undefined || Date.parse(task.archivedAt) > Date.parse(latest.archivedAt)) {
+        latest = task;
+      }
+    }
+    return latest;
+  }
+
+  /** 把归档任务恢复为未结束任务：迁回报告目录与任务日志，写回台账，删除归档目录。 */
+  async restoreTask(task: ArchivedTask): Promise<{ taskId: string }> {
+    return runSerial(this.root, async () => {
+      const state = await readTaskState(this.root);
+      assertLedgerValid(state);
+      if (findTaskBySession(state.tasks, task.sessionId) !== undefined) {
+        throw new Error(`session ${task.sessionId} is already managed by another task`);
+      }
+      if (state.tasks.some((item) => item.id === task.id)) {
+        throw new Error(`task ${task.id} already exists`);
+      }
+      const archiveDirectory = join(this.root, 'archive', task.id);
+      const reportDirectory = join(this.root, 'reports', task.id);
+      const archivedReports = join(archiveDirectory, 'reports');
+      const logFile = join(this.root, TASK_LOG_DIR, `${task.id}.jsonl`);
+      const archivedLog = join(archiveDirectory, ARCHIVED_TASK_LOG);
+      const hasReports = await exists(archivedReports);
+      const hasLog = await exists(archivedLog);
+      if (hasReports && (await exists(reportDirectory))) {
+        throw new Error(`${task.id} already has report files; refusing to overwrite them`);
+      }
+      if (hasLog && (await exists(logFile))) {
+        throw new Error(`${task.id} already has a task log; refusing to overwrite it`);
+      }
+      const logTracked =
+        hasLog &&
+        (await runGit(['ls-files', '--', `./archive/${task.id}/${ARCHIVED_TASK_LOG}`], this.root)
+          .then((result) => result.stdout.trim() !== '')
+          .catch(() => false));
+      if (hasReports) {
+        await mkdir(join(this.root, 'reports'), { recursive: true });
+        await rename(archivedReports, reportDirectory);
+      }
+      if (hasLog) {
+        await mkdir(join(this.root, TASK_LOG_DIR), { recursive: true });
+        await rename(archivedLog, logFile);
+      }
+      state.tasks.push({
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        sessionId: task.sessionId,
+        workspaceId: task.workspaceId,
+        cwd: task.cwd,
+        reportIds: [...task.reportIds],
+        deliveredReportIds: [...task.deliveredReportIds],
+        messages: task.messages.map((message) => ({ ...message })),
+        createdAt: task.createdAt,
+        updatedAt: isoTime(this.now()),
+      });
+      await atomicWriteJson(join(this.root, TASKS_FILE), { version: 2, tasks: state.tasks });
+      await rm(archiveDirectory, { recursive: true, force: true });
+      const paths = [
+        TASKS_FILE,
+        join('archive', task.id),
+        ...(hasReports ? [join('reports', task.id)] : []),
+        ...(logTracked ? [logFile] : []),
+      ];
+      await commitFilesInQueue(this.root, paths, `lark-super-agent: restore ${task.id}`);
       return { taskId: task.id };
     });
   }

@@ -7,6 +7,7 @@ import {
   type LlmLike,
   type SessionControllerLike,
 } from './session-create.ts';
+import { buildSessionModelTool } from './session-model.ts';
 import { type DispatchContext, registerDispatchTools } from './tools.ts';
 
 /** 子行标识，与预设补丁一致。 */
@@ -44,6 +45,19 @@ export function apply(ctx: Context): void {
         );
         scoped.tools.register(
           buildListModelsTool({ llm: scoped.get('llm') as LlmCatalogLike | undefined }),
+        );
+        // 模型切换按调用时的归档集合判断会话可见性，注册时不缓存。
+        scoped.tools.register(
+          buildSessionModelTool({
+            sessionController,
+            llm: scoped.get('llm') as LlmLike | undefined,
+            archivedSessionIds: () =>
+              (
+                scoped.get('workspaceRegistry') as
+                  | { archivedSessionIds?: readonly string[] }
+                  | undefined
+              )?.archivedSessionIds ?? [],
+          }),
         );
       } catch (error) {
         dispatchCtx.logger.warn(
