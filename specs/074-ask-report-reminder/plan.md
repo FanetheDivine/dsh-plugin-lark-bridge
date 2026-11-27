@@ -16,7 +16,7 @@
 
 ## Review Record
 
-- 2026-11-27：按用户最新要求直接实施。当前计划仍为 Draft，未获正式批准或豁免。PR 暂缓。
+- 2026-11-27：按用户最新要求直接实施。当前计划仍为 Draft，未获正式批准或豁免。用户要求提交 PR。
 
 ## Summary
 
@@ -40,7 +40,7 @@
 
 ## Complexity Tracking
 
-- 用户要求：按澄清后的需求继续实现和验证，本次保留 spec 与 plan 的 Draft 状态；完整评审待后续确认，暂不开 PR。
+- 用户要求：按澄清后的需求继续实现和验证，本次保留 spec 与 plan 的 Draft 状态；完整评审待后续确认。
 
 ## Phase 0: Research
 
@@ -57,4 +57,4 @@
 
 ## Phase 2: Tasks
 
-见 [tasks.md](./tasks.md) 与 [验证步骤](./quickstart.md)。本阶段不发版、不开 PR。
+见 [tasks.md](./tasks.md) 与 [验证步骤](./quickstart.md)。本阶段提交 PR，不发版。

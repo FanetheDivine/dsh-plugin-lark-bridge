@@ -17,7 +17,7 @@ pnpm build
 
 ## 验证记录
 
-- `pnpm check` 通过：704 项源码测试。
+- 同步 `origin/main` 后，`pnpm check` 通过：717 项源码测试。
 - `pnpm build` 通过：8 项产物测试。
 - 已用宿主工具管线验证成功结果校验和文本渲染。本次未加载到真实 DSH profile，也未走飞书端到端场景。
 

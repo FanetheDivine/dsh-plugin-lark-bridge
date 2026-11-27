@@ -17,4 +17,4 @@
 - [x] T006 同步 `README.md`、`docs/how-it-works.md`、`docs/known-risks.md`、`docs/development.md` 和 `CHANGELOG.md`。
 - [x] T007 执行 `pnpm format`、`pnpm check` 与 `pnpm build`。在 [quickstart.md](./quickstart.md) 记录结果与宿主手工验收状态。
 
-本阶段不发版，PR 暂缓。
+本阶段提交 PR，不发版。
