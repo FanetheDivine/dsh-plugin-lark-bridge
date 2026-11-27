@@ -451,6 +451,8 @@ describe('SA-调度会话子行', () => {
     expect(add).toContain('session id');
     expect(add).toContain('[model changed: ...]');
     expect(add).toContain("the previous turn's failure and its cause");
+    const model = section("Change a session's model");
+    expect(model).toContain('Send the task session nothing about the switch');
   });
 
   it('提示词要求下发后立刻用 lark_notify 回应，并按任务分开通知', () => {

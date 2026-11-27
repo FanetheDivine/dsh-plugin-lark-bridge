@@ -68,7 +68,7 @@ description: "任务列表：任务会话消息不含会话元信息"
 
 **Independent Test**: 用例断言模型小节补句。
 
-- [ ] T005 [US4] 扩展用例：断言 `section("Change a session's model")` 含 `Send the task session nothing about the switch` tests/sa-dispatch.test.ts
+- [X] T005 [US4] 扩展用例：断言 `section("Change a session's model")` 含 `Send the task session nothing about the switch` tests/sa-dispatch.test.ts
 
 ---
 
