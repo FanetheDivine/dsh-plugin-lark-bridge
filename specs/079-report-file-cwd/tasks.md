@@ -51,8 +51,8 @@
 
 ## Phase 5: Polish & 交付
 
-- [ ] T013 [P] 更新 `docs/how-it-works.md` 的上报段落：`files` 相对路径基准、回退链与错误文本
-- [ ] T014 [P] 在 `CHANGELOG.md` 增加本分支条目
+- [X] T013 [P] 更新 `docs/how-it-works.md` 的上报段落：`files` 相对路径基准、回退链与错误文本
+- [X] T014 [P] 在 `CHANGELOG.md` 增加本分支条目
 - [ ] T015 运行 `pnpm format && pnpm check && pnpm test:code`，全部通过
 - [ ] T016 用 `real-device-test` 在真实宿主验证：被管理会话在 worktree 中用相对路径附件上报成功，错误场景文本含绝对路径与基准目录
 

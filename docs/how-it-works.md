@@ -309,6 +309,8 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 服务每次调用从 `$DSH_HOME/lark-bridge/state.json` 读取桥接会话 `sessionId` 与调度工作区 `workspaceRoot`；缺省 `$DSH_HOME` 为 `~/.dsh`。`workspaceRoot` 经 `toHostWorkspacePath` 转为当前平台的原生路径后再访问文件与 git。
 - `send_report` 的 `kind` 必填，取值为 `progress` 与 `question`。取值之外报参数错误，不存档也不投递。
 - `send_report` 的 `text` 与 `files` 至少提供一项，`files` 为 Markdown 文件路径；`desc` 可选，只记录在 front matter 中。
+- `send_report` 的 `files` 相对路径按调用会话的当前工作目录解析。基准目录取自宿主的 `workingDirectory` 投影；投影不可用时依次回退到 `session.header.cwd`、任务记录的 `cwd`、进程当前目录，最后一级记 `warn`。绝对路径直接使用。工具层把调用会话句柄传给服务，服务统一解析，自动上报等入口遵循同一条链。
+- 附件无效时错误为 `send_report files must be existing .md files: <原始值> -> <绝对路径>; ... (base <基准目录>)`，多个无效项以 `;` 分隔。
 - 未被管理的会话调用 `send_report` 直接报错，不存档也不投递。
 - 上报存档的 front matter 记录 `kind`、`origin`、可选 `desc` 与任务标识。服务不按 `kind` 修改任务状态。
 - `send_report` 校验文本与 Markdown 附件，生成 `reportId`，复制附件并写入上报记录，更新台账 `reportIds`，提交 git，然后解析或新建调度会话并投递。投递失败保留存档，工具结果 `delivered` 为 `false` 并带 `reason`。
