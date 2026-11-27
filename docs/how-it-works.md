@@ -227,7 +227,7 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 提示词把用户指令默认理解为交给新建任务会话在工作区执行的独立任务。调度会话自身只在调度工作区读写笔记、任务归档与报告。
 - 只有 `workspaces.json` 已登记的工作区可以接收任务。没有匹配或多个都匹配时，调度会话不猜测、不执行，告知「我不知道在哪个工作区」并询问目标。
 - 每条用户消息默认是新任务。只有引用了未结束任务的消息，或点名未结束任务的标题或 id，才归入该任务；无法判断时询问用户。
-- 用户要接管已有会话时调用 `session_manage`，要停止管理时调用 `session_unmanage`。用户归档会话时任务随之归档。
+- 用户要接管已有会话时调用 `session_manage`，要停止管理时调用 `session_unmanage`。接管时插件把会话最后轮次的文本作为 `turn_end` 上报补发给调度会话。用户归档会话时任务随之归档。
 - 用户要求切换某个会话的模型时调用 `session_model`：省略 `session_id` 即切换调度会话自己；先 `llm.resolveCallConfig` 校验，再 `agent.model.select`，只写该会话的选择事件，从下一步生效，当前请求保持原模型。目标会话已归档时仍记录，结果 `archived: true`。宿主在下一步按新路由的上下文容量做压缩检查，容量不足时该步报错并保留原模型。
 - 用户要求恢复已归档会话时调用 `session_restore`：解除归档，恢复结束原因为 `session_archived` 的最近归档任务及其报告与任务日志，再按 `pin`（默认 `true`）置顶。任务恢复失败或跳过时返回 `taskRestored: false` 与 `warning`，会话仍已解除归档。
 - 派发与接管任务时，调度会话用 `session_pin` 置顶任务会话；再次置顶与取消置顶只在用户要求时进行。取消管理不归档，会话与其置顶保留。
@@ -253,6 +253,7 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 | 提问拦截 | 被管理会话的 `ask_user_question` 跳过工具体，每次调用直接返回固定指令 S，当前轮次继续 |
 | 等待取消提醒 | 插件结束已在等待的提问时，在下一次模型请求前插入一次 S |
 | 轮次自动上报 | 正常结束、本轮未上报、无运行中子代理时把最后一段文本作为 `progress` 上报 |
+| 接管补发 | `session_manage` 建立任务后用轮次自动上报的同一判定补发最后轮次文本；轮次仍在运行或仍有子代理时不补发 |
 | 失败通知 | 轮次以错误结束时投递 `<task_session_failure>` |
 | 归档通知 | 被管理会话被归档时归档任务并写待注入记录；调度会话下次 pre-step 与任务日志一起注入 `<task_session_archived>` |
 
@@ -322,6 +323,8 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 未读报告按台账记录汇总：任务台账新增 `deliveredReportIds`，未读为 `reportIds` 减去它。每次投递列出全部任务的未读报告并要求先读任务与报告；新建调度会话额外带 `<task_snapshot>`。投递成功后把列出的报告写进 `deliveredReportIds` 并提交；标记失败只记 `warning`，下次可能重复列出。旧台账按全部已投递初始化。
 - git 提交失败只记 `warning`，投递照常执行。
 - 自动上报在轮次正常结束、本轮没有调用 `send_report`、会话没有运行中的子代理时触发，来源记为 `turn_end`；未送达只写日志。
+- 接管补发在 `session_manage` 建立任务后执行，判定与轮次自动上报相同：最后轮次已正常结束、未调用 `send_report`、文本非空、无运行中子代理。轮次结束后状态保留到下一次 `turn/start`，补发读取该状态。
+- 两种自动上报按会话串行判定；轮次状态记录已投递的任务标识，同一轮文本在接管那一刻最多投递一次。再次管理建立新任务后重新补发。
 - 全局行监听 `reason.kind === 'error'` 的 `turn/end`，每轮失败向调度会话投递一次 `<task_session_failure>`；取消不触发通知。
 - 失败通知包含会话、任务标识与截断后的错误原因，不进入上报存档，也不提交 git。
 - 成功的 `send_report` 在对话中显示为上报卡片，内容为类型、`desc`、Markdown 正文、附件与 `reportId`：

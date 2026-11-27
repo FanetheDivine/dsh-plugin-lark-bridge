@@ -1024,3 +1024,72 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     await expect(rootFor('linux')).resolves.toBe('/z/dispatch-root');
   });
 });
+
+describe('SuperAgentService 接管补发', () => {
+  it('manageSession 建立任务后把会话与任务标识交给补发入口', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const ctx = makeContext({
+      sessionController: {
+        resolveAgent: async () => ({
+          agent: { session: { title: 'Worker', header: { cwd: '/project' } } },
+        }),
+      },
+    });
+    const service = new SuperAgentService(ctx, { home });
+    const catchUp = vi.fn(async () => undefined);
+    service.setTakeoverReporter({ catchUp });
+
+    const result = await service.manageSession('worker');
+
+    expect(catchUp).toHaveBeenCalledExactlyOnceWith('worker', result.taskId);
+    await expect(service.managedTask('worker')).resolves.toMatchObject({ sessionId: 'worker' });
+  });
+
+  it('补发失败时接管照常成功并写日志', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const warnings: unknown[][] = [];
+    const ctx = makeContext(
+      {
+        sessionController: {
+          resolveAgent: async () => ({
+            agent: { session: { title: 'Worker', header: { cwd: '/project' } } },
+          }),
+        },
+      },
+      warnings,
+    );
+    const service = new SuperAgentService(ctx, { home });
+    service.setTakeoverReporter({
+      catchUp: async () => {
+        throw new Error('dispatch offline');
+      },
+    });
+
+    await expect(service.manageSession('worker')).resolves.toMatchObject({
+      sessionId: 'worker',
+      title: 'Worker',
+    });
+    const warning = warnings.find((args) => String(args[0]).includes('takeover report failed'));
+    expect(warning?.[1]).toEqual(new Error('dispatch offline'));
+  });
+
+  it('直接建任务不触发补发', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const service = new SuperAgentService(makeContext({}), { home });
+    const catchUp = vi.fn(async () => undefined);
+    service.setTakeoverReporter({ catchUp });
+
+    await service.createTask({
+      title: 'Created',
+      sessionId: 'created',
+      workspaceId: null,
+      cwd: '/project',
+      message: { text: 'do it' },
+    });
+
+    expect(catchUp).not.toHaveBeenCalled();
+  });
+});

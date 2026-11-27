@@ -25,6 +25,7 @@ function makeService(): LarkSuperAgentService {
     managedTask: vi.fn(),
     createTask: vi.fn(),
     setManagedSessionListener: vi.fn(),
+    setTakeoverReporter: vi.fn(),
     assertDispatchable: vi.fn(),
     manageSession: vi.fn(),
     updateTask: vi.fn(),
