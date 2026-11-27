@@ -9,6 +9,7 @@
 
 - [README.md](./README.md)：插件简介、使用与预设。
 - [how-it-works.md](./docs/how-it-works.md)：插件构造、鉴权、消息与会话流程。
+- [dispatch-signals.md](./docs/dispatch-signals.md)：调度信号的紧急、重要、日志三类与投递方式。
 - [known-risks.md](./docs/known-risks.md)：已知风险与宿主限制。
 - [development.md](./docs/development.md)：本地开发、命令、测试、Spec Kit 命令与文件地图。
 - [i18n.md](./docs/i18n.md)：插件元数据与前端字典的国际化规范。

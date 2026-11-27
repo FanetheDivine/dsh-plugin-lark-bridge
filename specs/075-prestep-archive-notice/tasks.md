@@ -36,13 +36,13 @@
 
 **Independent Test**: 提示词不含「告知用户」的归档要求；`docs/dispatch-signals.md` 的成员表与代码一致。
 
-- [ ] T011 [US4] 修改 `src/sa-dispatch/prompt.ts`：归档段改为随下一次注入到达、不要因它通知用户
-- [ ] T012 [P] [US4] 更新 `tests/sa-dispatch.test.ts`：提示词断言同步
-- [ ] T013 [P] [US4] 新增 `docs/dispatch-signals.md`：紧急、重要、日志三类的定义、成员与投递方式
-- [ ] T014 [P] [US4] 更新 `docs/how-it-works.md`：归档通知行、任务日志注入段、调度工作区存储段，并链接新文档
-- [ ] T015 [P] [US4] 更新 `docs/known-risks.md`：归档通知延迟可见与工作区切换丢失的取舍
-- [ ] T016 [P] [US4] 更新 `README.md`：用户可见的归档通知时机
-- [ ] T017 [US4] 更新 `AGENTS.md` 文档索引：加入 `docs/dispatch-signals.md`
+- [x] T011 [US4] 修改 `src/sa-dispatch/prompt.ts`：归档段改为随下一次注入到达、不要因它通知用户
+- [x] T012 [P] [US4] 更新 `tests/sa-dispatch.test.ts`：提示词断言同步
+- [x] T013 [P] [US4] 新增 `docs/dispatch-signals.md`：紧急、重要、日志三类的定义、成员与投递方式
+- [x] T014 [P] [US4] 更新 `docs/how-it-works.md`：归档通知行、任务日志注入段、调度工作区存储段，并链接新文档
+- [x] T015 [P] [US4] 更新 `docs/known-risks.md`：归档通知延迟可见与工作区切换丢失的取舍
+- [x] T016 [P] [US4] 更新 `README.md`：用户可见的归档通知时机
+- [x] T017 [US4] 更新 `AGENTS.md` 文档索引：加入 `docs/dispatch-signals.md`
 
 ## Phase 4: 质量门禁
 
