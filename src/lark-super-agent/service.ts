@@ -25,15 +25,15 @@ import type {
   UpdateTaskInput,
   WorkspaceRegistryLike,
 } from './api.ts';
+import { appendArchiveNotice, removeArchiveNotices } from './archive-notices.ts';
 import {
   type TaskSnapshotRef,
-  taskSessionArchived,
   taskSessionFailure,
   taskSessionMessage,
   type UnreadReportRef,
 } from './blocks.ts';
 import { readBridgeState } from './bridge.ts';
-import { findTaskBySession, NotesStore } from './notes.ts';
+import { findTaskBySession, isoTime, NotesStore } from './notes.ts';
 import { workspaceRelative } from './paths.ts';
 import {
   type ArchivedReport,
@@ -405,8 +405,17 @@ export class SuperAgentService implements LarkSuperAgentService {
           'the session already has an unfinished task; the archived task was not restored',
         );
       } else {
-        taskId = (await notes.restoreTask(latest)).taskId;
+        const restoredId = (await notes.restoreTask(latest)).taskId;
+        taskId = restoredId;
         taskRestored = true;
+        try {
+          await removeArchiveNotices(
+            await this.storageRoot(),
+            (notice) => notice.taskId === restoredId,
+          );
+        } catch (error) {
+          warnings.push(`removing its archive notice failed: ${errorMessage(error)}`);
+        }
       }
     } catch (error) {
       warnings.push(`restoring its task failed: ${errorMessage(error)}`);
@@ -765,7 +774,7 @@ export class SuperAgentService implements LarkSuperAgentService {
     }
   }
 
-  /** 通知调度会话某个被管理会话已被归档。 */
+  /** 结束被归档会话的任务，并记下待注入的归档通知。 */
   async notifyArchived(sessionId: string): Promise<void> {
     try {
       const state = await this.bridgeState();
@@ -773,12 +782,17 @@ export class SuperAgentService implements LarkSuperAgentService {
       const tasks = await this.notes(state.workspaceRoot).listTasks();
       const task = findTaskBySession(tasks, sessionId);
       if (task === undefined) return;
-      const agent = await this.resolveDispatchAgent(state);
       await this.notes(state.workspaceRoot).endTask(task.id, 'session_archived');
-      await this.deliver(agent, taskSessionArchived({ sessionId, taskId: task.id }));
+      const time = isoTime((this.options.now ?? (() => new Date()))());
+      await appendArchiveNotice(state.workspaceRoot, {
+        id: `${task.id}:${time}`,
+        taskId: task.id,
+        sessionId,
+        time,
+      });
     } catch (notificationError) {
       this.ctx.logger?.warn?.(
-        `lark-super-agent: archive notification was not delivered: ${errorMessage(notificationError)}`,
+        `lark-super-agent: archive notice was not recorded: ${errorMessage(notificationError)}`,
         { sessionId },
       );
     }

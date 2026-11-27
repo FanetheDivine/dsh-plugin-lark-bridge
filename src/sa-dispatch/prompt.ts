@@ -103,7 +103,7 @@ A task_log_entry block records something the user did in a task session directly
 ## Other messages from the service
 
 - task_session_failure reports a failed turn. Set the task to failed, notify the user once about that failure, and ask for a decision when one is needed. Retry only when the user asks.
-- task_session_archived means the user archived a session, so its task is archived too. Tell the user.
+- task_session_archived means the user archived a session, so its task is archived too. It arrives with your next step, not at the moment of archiving, together with the task log. Do not notify the user about it: it is the user's own action.
 
 ## Choose tasks
 
