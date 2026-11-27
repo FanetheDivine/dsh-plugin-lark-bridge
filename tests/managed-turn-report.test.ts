@@ -226,3 +226,122 @@ describe('assistantText', () => {
     expect(assistantText('text')).toBe('');
   });
 });
+
+describe('TurnReporter 接管补发', () => {
+  /** 接管后建立的任务标识。 */
+  const TAKEOVER_TASK = 'task-20260101000000-0009';
+
+  it('未管理会话结束后接管，把最后轮次文本作为 turn_end 上报', async () => {
+    const { reporter, service } = makeReporter({ managed: [] });
+    await play(reporter, 'worker', [start(1), say(1, 'final', 'answer'), end(1)]);
+    await reporter.catchUp('worker', TAKEOVER_TASK);
+    expect(service.sendReport).toHaveBeenCalledExactlyOnceWith(
+      { kind: 'progress', text: 'final\nanswer' },
+      'worker',
+      'turn_end',
+    );
+  });
+
+  it.each([
+    ['没有任何助手消息', [start(1), end(1)]],
+    ['最后文本为空白', [start(1), say(1, '  \n '), end(1)]],
+  ])('最后轮次%s时不补发', async (_label, events) => {
+    const { reporter, service } = makeReporter({ managed: [] });
+    await play(reporter, 'worker', events);
+    await reporter.catchUp('worker', TAKEOVER_TASK);
+    expect(service.sendReport).not.toHaveBeenCalled();
+  });
+
+  it.each(['error', 'cancelled', ''])('最后轮次以「%s」结束时不补发', async (kind) => {
+    const { reporter, service } = makeReporter({ managed: [] });
+    await play(reporter, 'worker', [start(1), say(1, 'partial'), end(1, kind)]);
+    await reporter.catchUp('worker', TAKEOVER_TASK);
+    expect(service.sendReport).not.toHaveBeenCalled();
+  });
+
+  it('最后轮次调用过 send_report 时不补发', async () => {
+    const { reporter, service } = makeReporter({ managed: [] });
+    await play(reporter, 'worker', [start(1), toolCall(1, 'send_report'), say(1, 'done'), end(1)]);
+    await reporter.catchUp('worker', TAKEOVER_TASK);
+    expect(service.sendReport).not.toHaveBeenCalled();
+  });
+
+  it('仍有运行中的子代理时不补发', async () => {
+    const { reporter, service } = makeReporter({ managed: [], subagent: true });
+    await play(reporter, 'worker', [start(1), say(1, 'waiting'), end(1)]);
+    await reporter.catchUp('worker', TAKEOVER_TASK);
+    expect(service.sendReport).not.toHaveBeenCalled();
+  });
+
+  it('最后轮次仍在运行时接管不补发，轮次结束后照常上报一次', async () => {
+    const { reporter, service } = makeReporter();
+    await play(reporter, 'worker', [start(1), say(1, 'running')]);
+    await reporter.catchUp('worker', TAKEOVER_TASK);
+    expect(service.sendReport).not.toHaveBeenCalled();
+    await play(reporter, 'worker', [end(1)]);
+    expect(service.sendReport).toHaveBeenCalledExactlyOnceWith(
+      { kind: 'progress', text: 'running' },
+      'worker',
+      'turn_end',
+    );
+  });
+
+  it('轮次结束已排队时接管不重复上报同一轮文本', async () => {
+    const { reporter, service } = makeReporter();
+    reporter.observe('worker', start(1));
+    reporter.observe('worker', say(1, 'text'));
+    reporter.observe('worker', end(1));
+    const catchUp = reporter.catchUp('worker', TASK.id);
+    await Promise.all([settle(), catchUp]);
+    expect(service.sendReport).toHaveBeenCalledExactlyOnceWith(
+      { kind: 'progress', text: 'text' },
+      'worker',
+      'turn_end',
+    );
+  });
+
+  it('再次管理把同一最后文本上报给新任务', async () => {
+    const { reporter, service } = makeReporter();
+    await play(reporter, 'worker', [start(1), say(1, 'same text'), end(1)]);
+    await reporter.catchUp('worker', TAKEOVER_TASK);
+    expect(service.sendReport).toHaveBeenCalledTimes(2);
+    expect(service.sendReport).toHaveBeenLastCalledWith(
+      { kind: 'progress', text: 'same text' },
+      'worker',
+      'turn_end',
+    );
+  });
+
+  it('同一次接管重复补发只投递一次', async () => {
+    const { reporter, service } = makeReporter({ managed: [] });
+    await play(reporter, 'worker', [start(1), say(1, 'once'), end(1)]);
+    await reporter.catchUp('worker', TAKEOVER_TASK);
+    await reporter.catchUp('worker', TAKEOVER_TASK);
+    expect(service.sendReport).toHaveBeenCalledOnce();
+  });
+
+  it('上报未送达时也记下任务，接管补发不重试同一任务', async () => {
+    const { reporter, service } = makeReporter({ undelivered: true });
+    await play(reporter, 'worker', [start(1), say(1, 'done'), end(1)]);
+    await reporter.catchUp('worker', TASK.id);
+    expect(service.sendReport).toHaveBeenCalledOnce();
+  });
+
+  it('没有观察过轮次的会话接管不补发', async () => {
+    const { reporter, service } = makeReporter();
+    await reporter.catchUp('stranger', TAKEOVER_TASK);
+    expect(service.sendReport).not.toHaveBeenCalled();
+  });
+
+  it('不同会话的保留轮次互不影响', async () => {
+    const { reporter, service } = makeReporter({ managed: [] });
+    await play(reporter, 'first', [start(1), say(1, 'first text'), end(1)]);
+    await play(reporter, 'second', [start(1), say(1, 'second text'), end(1)]);
+    await reporter.catchUp('second', TAKEOVER_TASK);
+    expect(service.sendReport).toHaveBeenCalledExactlyOnceWith(
+      { kind: 'progress', text: 'second text' },
+      'second',
+      'turn_end',
+    );
+  });
+});
