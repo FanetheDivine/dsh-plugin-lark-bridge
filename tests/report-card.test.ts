@@ -156,7 +156,6 @@ describe('ReportCard 交互', () => {
     expect(card?.getAttribute('data-expanded')).toBe('false');
     expect(toggle?.getAttribute('aria-expanded')).toBe('false');
     expect(toggle?.getAttribute('aria-label')).toBe('展开');
-    expect(container.querySelector('.dsh-lark-report-toggle-text')?.textContent).toBe('展开');
     expect(container.querySelector('.dsh-lark-report-desc')).toBeNull();
     expect(container.querySelector('.dsh-lark-report-body')).toBeNull();
     expect(container.querySelector('.dsh-lark-report-files')).toBeNull();
@@ -249,6 +248,36 @@ describe('ReportCard 交互', () => {
   });
 });
 
+describe('ReportCard 头部只留箭头', () => {
+  it('头部没有可见的收起与展开文字，也没有 title 提示', async () => {
+    const html = render();
+    expect(html).not.toContain('dsh-lark-report-toggle-text');
+    expect(html).toContain('aria-label="收起"');
+    expect(html).not.toContain('title="收起"');
+
+    const { createRoot } = await import('react-dom/client');
+    const { act } = await import('react');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(createElement(ReportCard, { t, node: { data: DATA } }));
+    });
+    const head = container.querySelector<HTMLElement>('[data-dsh-lark-report-toggle]');
+    expect(head?.textContent).not.toContain('收起');
+    expect(head?.textContent).not.toContain('展开');
+    expect(head?.hasAttribute('title')).toBe(false);
+    expect(head?.querySelector('.dsh-lark-report-toggle-icon')).not.toBeNull();
+    await act(async () => {
+      head?.click();
+    });
+    expect(head?.getAttribute('aria-label')).toBe('展开');
+    expect(head?.textContent).not.toContain('展开');
+    await act(async () => root.unmount());
+    container.remove();
+  });
+});
+
 describe('ReportCard 文案', () => {
   it('缺少翻译函数时使用英文回退', async () => {
     const html = renderToStaticMarkup(createElement(ReportCard, { node: { data: DATA } }));
@@ -272,6 +301,8 @@ describe('ReportCard 文案', () => {
       toggle?.click();
     });
     expect(toggle?.getAttribute('aria-label')).toBe('Expand');
+    expect(toggle?.textContent).not.toContain('Expand');
+    expect(toggle?.textContent).not.toContain('Collapse');
     await act(async () => root.unmount());
     container.remove();
   });

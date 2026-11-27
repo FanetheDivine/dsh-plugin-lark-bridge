@@ -49,11 +49,11 @@ description: "上报卡片头部折叠热区的任务清单"
 
 **Independent Test**: 头部 `textContent` 不含两种文案（中英文），`aria-label` 随状态变化，箭头随 `aria-expanded` 旋转
 
-- [ ] T007 [P] [US2] 在 `tests/report-card.test.ts` 断言头部文本不含「收起」「展开」，英文回退不含 `Collapse` / `Expand`，`title` 缺失，`aria-label` 随状态切换
-- [ ] T008 [US2] 在 `src/client/report-card.tsx` 删除 `.dsh-lark-report-toggle-text` 节点与 `title`，只渲染 `IconChevronDownOutlineRegular`
-- [ ] T009 [US2] 在 `src/client/report-card.css` 把箭头选中器改为 `.dsh-lark-report-head[aria-expanded="true"] .dsh-lark-report-toggle-icon`，保留 150ms 旋转与 `prefers-reduced-motion` 分支
-- [ ] T010 [P] [US2] 在 `tests/card-styles.test.ts` 断言头部按钮悬停与焦点环、箭头旋转规则，卡片内边距仍为 `10px 14px 12px`，正文主前景色规则保留
-- [ ] T011 [US2] 运行 `pnpm test:code --report-card` 与 `pnpm test:code --card-styles`
+- [x] T007 [P] [US2] 在 `tests/report-card.test.ts` 断言头部文本不含「收起」「展开」，英文回退不含 `Collapse` / `Expand`，`title` 缺失，`aria-label` 随状态切换
+- [x] T008 [US2] 在 `src/client/report-card.tsx` 删除 `.dsh-lark-report-toggle-text` 节点与 `title`，只渲染 `IconChevronDownOutlineRegular`
+- [x] T009 [US2] 在 `src/client/report-card.css` 把箭头选中器改为 `.dsh-lark-report-head[aria-expanded="true"] .dsh-lark-report-toggle-icon`，保留 150ms 旋转与 `prefers-reduced-motion` 分支
+- [x] T010 [P] [US2] 在 `tests/card-styles.test.ts` 断言头部按钮悬停与焦点环、箭头旋转规则，卡片内边距仍为 `10px 14px 12px`，正文主前景色规则保留
+- [x] T011 [US2] 运行 `pnpm test:code --report-card` 与 `pnpm test:code --card-styles`
 
 **Checkpoint**: 头部只有箭头，两态方向相反
 

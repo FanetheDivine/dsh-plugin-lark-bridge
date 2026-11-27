@@ -78,15 +78,9 @@
   white-space: nowrap;
 }
 
-.dsh-lark-report-toggle-text {
-  flex: none;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 .dsh-lark-report-toggle-icon {
   flex: none;
+  color: var(--dsw-alias-label-secondary);
   transition: transform 150ms ease;
 }
 

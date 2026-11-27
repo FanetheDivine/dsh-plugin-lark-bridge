@@ -84,7 +84,6 @@ export function ReportCard({ node, openFile, t }: ReportCardProps) {
         data-dsh-lark-report-toggle=""
         aria-expanded={expanded}
         aria-label={toggleLabel}
-        title={toggleLabel}
         onClick={() => setExpanded((previous) => !previous)}
       >
         <span className="dsh-lark-report-icon" aria-hidden>
@@ -105,7 +104,6 @@ export function ReportCard({ node, openFile, t }: ReportCardProps) {
           {translate(t, 'report.delivered')}
           {reportId === '' ? null : <span className="dsh-lark-report-id">{reportId}</span>}
         </span>
-        <span className="dsh-lark-report-toggle-text">{toggleLabel}</span>
         <IconChevronDownOutlineRegular size={12} className="dsh-lark-report-toggle-icon" />
       </button>
       {!expanded || desc === '' ? null : (
