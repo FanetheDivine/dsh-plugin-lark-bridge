@@ -29,6 +29,8 @@ export interface ArchivedReport {
 export interface DeliveryOutcome {
   delivered: boolean;
   reason?: string;
+  /** 送达后的非致命问题，例如标记已读失败。 */
+  warning?: string;
 }
 
 export interface ReportStoreOptions {

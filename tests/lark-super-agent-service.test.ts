@@ -260,6 +260,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     expect(result).toEqual({
       reportId: 'report-20260102030405-abc123',
       taskId,
+      reportPath: `reports/${taskId}/report-20260102030405-abc123.md`,
       delivered: true,
     });
     expect(steer).toHaveBeenCalledOnce();
@@ -275,6 +276,10 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     );
     expect(block).toContain(`reports/${taskId}/report-20260102030405-abc123-1-answer.md`);
     expect(block).not.toContain(root);
+    expect(block).toContain(
+      `<unread_report taskid="${taskId}" reportid="report-20260102030405-abc123">reports/${taskId}/report-20260102030405-abc123.md</unread_report>`,
+    );
+    expect(block).toContain('before you reply');
     const reportPath = join(root, 'reports', taskId, 'report-20260102030405-abc123.md');
     const archived = await readFile(reportPath, 'utf8');
     expect(archived).toContain('origin: "send_report"');
@@ -316,7 +321,7 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     expect(await exists(join(root, 'reports'))).toBe(false);
   });
 
-  it('调度会话不可用时上报失败且不写文件', async () => {
+  it('调度会话不可用时报未送达并保留存档', async () => {
     const root = await temporaryDirectory();
     const home = await bridgeHome(root);
     const service = new SuperAgentService(
@@ -326,10 +331,17 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
       { home },
     );
     await seedTask(service, 'worker');
-    await expect(service.sendReport({ kind: 'progress', text: 'hello' }, 'worker')).rejects.toThrow(
-      'offline',
-    );
-    expect(await exists(join(root, 'reports'))).toBe(false);
+    const result = await service.sendReport({ kind: 'progress', text: 'hello' }, 'worker');
+    expect(result).toMatchObject({
+      delivered: false,
+      reason: 'delivery_failed: dispatch session is unavailable: offline',
+    });
+    expect(result.reportPath).toMatch(/^reports\/task-.*\/report-.*\.md$/);
+    expect(await exists(join(root, 'reports'))).toBe(true);
+    const [task] = (await readTaskState(root)).tasks;
+    expect(task?.reportIds).toEqual([result.reportId]);
+    expect(task?.deliveredReportIds).toEqual([]);
+    expect((await runGit(['status', '--porcelain'], root)).stdout.trim()).toBe('');
   });
 
   it('为被管理会话投递失败块，未被管理的会话不投递', async () => {
