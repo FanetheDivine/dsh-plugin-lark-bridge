@@ -27,7 +27,7 @@
 | 字段 | 类型 | 出现条件 |
 | --- | --- | --- |
 | `reportId` | string | 报告已存档 |
-| `taskId` | string | 总是 |
+| `taskId` | string | 已管理会话 |
 | `reportPath` | string | 报告已存档，相对调度工作区根 |
 | `delivered` | boolean | 总是 |
 | `reason` | `no_workspace` / `create_failed` / `delivery_failed` | 未送达 |

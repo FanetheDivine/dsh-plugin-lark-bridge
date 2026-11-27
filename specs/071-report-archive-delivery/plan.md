@@ -15,7 +15,7 @@ None.
 ### Session 2026-11-27
 
 - 实机验证方案：在隔离 profile 中扩展 `real-device-test` 的 mock provider 与驱动，直接调用 `larkSuperAgent.sendReport` 与 `send_report` 工具，断言会话事件、工作区文件与 git 提交。
-- `SendReportResult` 的 `reportId` 与 `reportPath` 在已存档结果中出现；无工作区结果只有 `taskId`、`delivered` 与 `reason`。`send_report` 输出 schema 把这两个字段标为可选。
+- `SendReportResult` 的 `reportId` 与 `reportPath` 在已存档结果中出现；无工作区结果只有 `delivered` 与 `reason`。`send_report` 输出 schema 把这两个字段标为可选。
 - 投递队列与创建单飞都在进程内实现，宿主只有单一插件实例。
 
 ## Review Record
