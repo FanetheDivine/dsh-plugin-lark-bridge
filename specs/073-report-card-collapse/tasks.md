@@ -29,8 +29,8 @@ description: "Task list for 073-report-card-collapse"
 
 ## Phase 3: 文档同步与质量门禁
 
-- [ ] T008 更新 `README.md`、`docs/how-it-works.md` 与 `CHANGELOG.md` 的 Unreleased 条目，说明上报卡片默认展开并支持折叠/展开
-- [ ] T009 运行 `pnpm format && pnpm check && pnpm build`，确认类型检查、lint、源码测试与产物测试全部通过
+- [x] T008 更新 `README.md`、`docs/how-it-works.md` 与 `CHANGELOG.md` 的 Unreleased 条目，说明上报卡片默认展开并支持折叠/展开
+- [x] T009 运行 `pnpm format && pnpm check && pnpm build`，确认类型检查、lint、源码测试与产物测试全部通过
 
 ## Dependencies
 

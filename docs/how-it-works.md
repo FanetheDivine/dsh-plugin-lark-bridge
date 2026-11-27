@@ -324,7 +324,7 @@ lark-cli im +messages-send --as bot --user-id <open_id> --msg-type interactive -
 - 成功的 `send_report` 在对话中显示为上报卡片，内容为类型、`desc`、Markdown 正文、附件与 `reportId`：
   - 前端注册 Conversation Definition `lark-report-result`，匹配 `send_report` 的 `tool/call` 与投递成功的 `tool/result`，参数取自 `tool/call` 的 `arguments`。
   - Definition 产出 `lark-report` Chat 节点，`groupTree` 为 `turn`，位于结果之后。节点不进入过程分组，轮次折叠后仍然可见。
-  - 卡片注册在 `conversation.chat.node` 的 `lark-report` 键，附件按钮调用宿主 `openFile` 在右侧栏打开。
+  - 卡片注册在 `conversation.chat.node` 的 `lark-report` 键，默认展开并在头部右侧提供「收起」/「展开」按钮（`aria-expanded`）；收起后保留标题、类型标签、单行任务简介预览、回执与开关，展开后恢复完整任务简介、Markdown 正文与附件列表。附件按钮调用宿主 `openFile` 在右侧栏打开。
   - 卡片容器、Markdown 正文、任务简介与附件名使用 `--dsw-alias-label-primary`，与宿主对话正文同色；回执、标签与完整路径保留辅助色。
   - `send_report` 的工具行由宿主默认工具行显示，进行中、失败与中断都沿用它。
 
