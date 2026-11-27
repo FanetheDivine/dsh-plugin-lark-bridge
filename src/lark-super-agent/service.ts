@@ -401,8 +401,8 @@ export class SuperAgentService implements LarkSuperAgentService {
       callerSessionId,
       task.id,
       origin,
-      (report) =>
-        this.deliver(
+      async (report) => {
+        await this.deliver(
           agent,
           taskSessionMessage({
             sessionId: callerSessionId,
@@ -415,7 +415,9 @@ export class SuperAgentService implements LarkSuperAgentService {
               workspaceRelative(state.workspaceRoot as string, file),
             ),
           }),
-        ),
+        );
+        return { delivered: true };
+      },
     );
     return {
       reportId: archived.reportId,

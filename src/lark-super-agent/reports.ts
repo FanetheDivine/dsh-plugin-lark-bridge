@@ -21,6 +21,14 @@ export interface ArchivedReport {
   reportPath: string;
   files: string[];
   warning?: string;
+  /** 提交后开始的投递；调用方等待它得到送达结果。 */
+  delivery?: Promise<DeliveryOutcome>;
+}
+
+/** 一次投递的结果；未送达时给出原因。 */
+export interface DeliveryOutcome {
+  delivered: boolean;
+  reason?: string;
 }
 
 export interface ReportStoreOptions {
@@ -29,9 +37,14 @@ export interface ReportStoreOptions {
   cwd?: string;
 }
 
-export type ReportDelivery = (report: ArchivedReport) => Promise<void> | void;
+export type ReportDelivery = (report: ArchivedReport) => Promise<DeliveryOutcome>;
 
 const kindSchema = z.enum(REPORT_KINDS);
+
+/** 取错误文本，用于投递结果。 */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 /** 校验空参数与全部附件，返回解析后的绝对附件路径。 */
 export async function validateReportInput(
@@ -124,8 +137,8 @@ export class ReportStore {
   }
 
   /**
-   * 保存一份上报。delivery 在写入后、提交前执行；提交失败转为 warning。
-   * 参数校验、台账读取或投递失败均不会被 warning 吞掉。
+   * 保存一份上报：写入、台账与提交完成后开始投递。
+   * 提交失败转为 warning；投递结果由 `delivery` 返回，投递抛错转为未送达。
    */
   async archiveReport(
     input: SendReportInput,
@@ -184,11 +197,18 @@ export class ReportStore {
       commitPaths.push(join(this.root, TASKS_FILE));
 
       const result: ArchivedReport = { reportId, taskId, reportPath, files: copiedPaths };
-      await delivery?.(result);
       try {
         await commitFilesInQueue(this.root, commitPaths, `lark-super-agent: report ${reportId}`);
       } catch (error) {
-        result.warning = `report ${reportId} was delivered but git commit failed: ${gitErrorMessage(error)}`;
+        result.warning = `report ${reportId} was archived but git commit failed: ${gitErrorMessage(error)}`;
+      }
+      if (delivery !== undefined) {
+        result.delivery = Promise.resolve()
+          .then(() => delivery(result))
+          .catch((error: unknown) => ({
+            delivered: false,
+            reason: `delivery failed: ${errorMessage(error)}`,
+          }));
       }
       return result;
     });

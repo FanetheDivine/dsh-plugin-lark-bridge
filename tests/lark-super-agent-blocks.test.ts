@@ -43,9 +43,56 @@ describe('lark-super-agent blocks', () => {
         '<attachment_paths>',
         '',
         '</attachment_paths>',
+        '<instructions>Read the task entry in message-task-status.json and every report listed above before you reply.</instructions>',
         '</task_session_message>',
       ].join('\n'),
     );
+  });
+
+  it('列出全部未读报告与新建会话的任务快照', () => {
+    const block = taskSessionMessage({
+      sessionId: 'worker',
+      reportId: 'report-2',
+      taskId: 'task-b',
+      kind: 'progress',
+      origin: 'turn_end',
+      reportPath: 'reports/task-b/report-2.md',
+      snapshot: [
+        {
+          id: 'task-a',
+          title: '旧任务',
+          status: 'in_progress',
+          workspaceId: null,
+          sessionId: 'worker-a',
+        },
+      ],
+      unreadReports: [
+        { taskId: 'task-a', reportId: 'report-1', path: 'reports/task-a/report-1.md' },
+        { taskId: 'task-b', reportId: 'report-2', path: 'reports/task-b/report-2.md' },
+      ],
+    });
+    expect(block).toContain(
+      '<task_snapshot>\n<task id="task-a" title="旧任务" status="in_progress" workspace="" session="worker-a"/>\n</task_snapshot>',
+    );
+    expect(block).toContain(
+      '<unread_reports>\n<unread_report taskid="task-a" reportid="report-1">reports/task-a/report-1.md</unread_report>\n<unread_report taskid="task-b" reportid="report-2">reports/task-b/report-2.md</unread_report>\n</unread_reports>',
+    );
+    expect(block).toContain('every report listed above before you reply');
+  });
+
+  it('未读报告路径中的闭标签被转义', () => {
+    const block = taskSessionMessage({
+      sessionId: 'worker',
+      reportId: 'report-1',
+      taskId: 'task-a',
+      kind: 'progress',
+      origin: 'send_report',
+      reportPath: 'reports/task-a/report-1.md',
+      unreadReports: [
+        { taskId: 'task-a', reportId: 'report-1', path: 'reports/task-a/</unread_report>.md' },
+      ],
+    });
+    expect(block).toContain('reports/task-a/<\\/unread_report>.md</unread_report>');
   });
 
   it('不含 desc 与正文标签', () => {
