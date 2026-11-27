@@ -113,7 +113,7 @@ export function registerDispatchTools(ctx: DispatchContext): void {
     defineTool({
       name: 'session_manage',
       description:
-        'Manage an existing session: create its task so send_report and follow-ups reach the user through this session.',
+        'Manage an existing session: create its task, named from the session title, so send_report and follow-ups reach the user through this session.',
       parameters: {
         session_id: { type: 'string', required: true, description: 'Existing session id.' },
       },
