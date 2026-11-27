@@ -1,32 +1,30 @@
-# Quickstart: 验证提问拦截改为注入 S 要求上报
+# Quickstart: 验证提问工具直接返回 S
 
-前置：worktree 已完成 `pnpm i`。
+## 自动验证
 
-## 单元/集成验证
+在依赖已安装的 feature worktree 中执行：
 
 ```sh
 pnpm check
+pnpm build
 ```
 
-断言入口：
+`pnpm check` 覆盖类型、代码检查和源代码测试。`pnpm build` 构建产物并运行 `test:dist`。
 
-- `tests/managed-ask-guard.test.ts`：拦截返回 deny、不投递上报、待注入内容合并与去重、`takeFallback` 取走并清空、`noteReported` 清空。
-- `tests/managed-task-rules.test.ts`：S 正文含被拦截提问与选项；无提问时只有固定指令。
-- `tests/lark-super-agent-index.test.ts`：行接线——拒绝后下一步注入 S；模型上报后不补投；轮次结束补投一次 `origin=ask_intercept` 并置 `waiting_user`。
-- `tests/managed-turn-report.test.ts`：`markIntercepted` 后轮次结束不再补 `progress`。
+- 守卫：验证审批绕过、已有拒绝或取消的保留、工具体跳过、固定成功结果，以及重复与并发调用独立处理。
+- 全局行：验证工具结果无题面和选项，`agent/pre-step` 只为已等待的提问被取消而插入一次 S；新拦截不产生上报。
+- 轮次报告：验证正常结束和用户停止均不补发提问，常规进度与失败通知仍按既有规则运行。
 
-## 产物验证
+## 验证记录
 
-```sh
-pnpm build && pnpm test:dist
-```
+- `pnpm check` 通过：704 项源码测试。
+- `pnpm build` 通过：8 项产物测试。
+- 已用宿主工具管线验证成功结果校验和文本渲染。本次未加载到真实 DSH profile，也未走飞书端到端场景。
 
-## 手工场景（真实桌面）
+## 宿主手工验收
 
-1. 用 `SA-调度会话` 派发一个任务，任务会话进入工作。
-2. 让任务会话调用 `Ask user question`。
-3. 预期：
-   - 工具调用立刻返回错误，正文说明提问没有送达用户，并要求用 `send_report` 上报。
-   - 下一步模型调用 `send_report`，飞书收到一条带任务背景的提问。
-   - 任务状态变为「等待用户」。
-4. 异常对照：让模型忽略 S 直接结束轮次，飞书仍收到一条只含题面与选项的提问。
+1. 在测试 profile 加载本地构建，派发一个被管理的任务。让任务模型使用 `ask_user_question` 提一个带选项的问题。
+2. 确认工具调用成功返回 S；正文没有原题面和选项，未打开提问面板，当前轮次继续。
+3. 确认模型调用 `send_report(kind=question)`，报告写清任务目的、当前进展、问题与选项；调度会话转达并置 `waiting_user`。
+4. 对照模型未上报或用户在上报前停止的情况：插件不自动补发提问，也不重新启动任务会话。
+5. 确认未被管理会话仍按宿主默认方式提问。将已有等待的会话纳管时，确认等待结束并在下一次模型请求收到一次 S。

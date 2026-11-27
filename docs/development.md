@@ -136,8 +136,8 @@ npm 包为 `dsh-plugin-lark-bridge`，之后由 CI 用 Trusted Publishing 发布
 | `tests/sa-dispatch.test.ts` | 任务与会话管理工具契约与提示词注册 |
 | `tests/session-create.test.ts` | 覆写的 `session_create`：任务会话预设、模型优先级、建任务与注册 |
 | `tests/task-model.test.ts` | 任务会话模型与预设的配置读取 |
-| `tests/managed-ask-guard.test.ts` | 拒绝与中止提问、被拦截问题的累积与清空、网关取消与 S 标记 |
-| `tests/managed-task-rules.test.ts` | S 的固定指令与被拦截问题段 |
+| `tests/managed-ask-guard.test.ts` | 被管理提问的固定 S 结果、未管理调用透传、等待中止与网关取消 |
+| `tests/managed-task-rules.test.ts` | S 的固定上报指令及等待取消提醒 |
 | `tests/managed-turn-report.test.ts` | 轮次结束自动上报的触发与抑制 |
 | `tests/report-card.test.ts` | 上报卡片的内容、文件按钮与文案回退 |
 | `tests/report-node.test.ts` | 上报卡片 Definition 的事件匹配、参数解析与节点产出 |
