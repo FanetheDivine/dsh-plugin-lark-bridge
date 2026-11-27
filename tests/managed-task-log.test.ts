@@ -382,4 +382,33 @@ describe('任务日志注入', () => {
     );
     expect(unavailable.messages.map((m) => m.source.kind)).toEqual(['lark-bridge']);
   });
+
+  it('全新会话快照列出全部未读报告并要求先读', async () => {
+    const { base, service } = startRow();
+    const taskId = await seedTask(service, 'worker');
+    const ledgerPath = join(root, 'message-task-status.json');
+    const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8')) as {
+      tasks: Array<{ reportIds: string[]; deliveredReportIds?: string[] }>;
+    };
+    ledger.tasks[0]?.reportIds.push('report-20260101090000-abc123', 'report-20260101100000-def456');
+    if (ledger.tasks[0] !== undefined) ledger.tasks[0].deliveredReportIds = [];
+    writeFileSync(ledgerPath, JSON.stringify(ledger), 'utf8');
+
+    const { session } = dispatchSession();
+    const first = await runPreStep(
+      base,
+      { agent: { session }, step: 1 },
+      { kind: 'enter', messages: [larkMessage()] },
+    );
+    const injected = first.messages.find((m) => m.source.kind === TASK_LOG_SOURCE_KIND);
+    const text = textOf(injected as Decision['messages'][number]);
+    expect(text).toContain('<unread_reports>');
+    expect(text).toContain(
+      `<unread_report taskid="${taskId}" reportid="report-20260101090000-abc123">reports/${taskId}/report-20260101090000-abc123.md</unread_report>`,
+    );
+    expect(text).toContain(
+      `<unread_report taskid="${taskId}" reportid="report-20260101100000-def456">reports/${taskId}/report-20260101100000-def456.md</unread_report>`,
+    );
+    expect(text).toContain('before you reply');
+  });
 });

@@ -641,6 +641,42 @@ describe('lark-super-agent 服务', { timeout: 30000 }, () => {
     expect(await exists(join(root, 'reports'))).toBe(true);
   });
 
+  it('投递块列出全部未读报告并在送达后标记', async () => {
+    const root = await temporaryDirectory();
+    const home = await bridgeHome(root, 'dispatch');
+    const steer = vi.fn();
+    const service = new SuperAgentService(
+      makeContext({ sessionController: { resolveAgent: async () => ({ agent: { steer } }) } }),
+      { home, reportId: () => 'report-20260102030405-abc123' },
+    );
+    const { taskId } = await seedTask(service, 'worker');
+    const ledgerPath = join(root, 'message-task-status.json');
+    const ledger = JSON.parse(await readFile(ledgerPath, 'utf8')) as {
+      tasks: Array<{ id: string; reportIds: string[]; deliveredReportIds?: string[] }>;
+    };
+    const task = ledger.tasks[0];
+    if (task !== undefined) {
+      task.reportIds.push('report-20260101090000-old001');
+      task.deliveredReportIds = [];
+    }
+    await writeFile(ledgerPath, JSON.stringify(ledger), 'utf8');
+
+    const result = await service.sendReport({ kind: 'progress', text: '新的' }, 'worker');
+    expect(result.delivered).toBe(true);
+    const block = messageText(steer.mock.calls[0]?.[0]);
+    expect(block).toContain(
+      `<unread_report taskid="${taskId}" reportid="report-20260101090000-old001">reports/${taskId}/report-20260101090000-old001.md</unread_report>`,
+    );
+    expect(block).toContain(
+      `<unread_report taskid="${taskId}" reportid="report-20260102030405-abc123">reports/${taskId}/report-20260102030405-abc123.md</unread_report>`,
+    );
+    expect((await readTaskState(root)).tasks[0]?.deliveredReportIds).toEqual([
+      'report-20260101090000-old001',
+      'report-20260102030405-abc123',
+    ]);
+    expect((await runGit(['status', '--porcelain'], root)).stdout.trim()).toBe('');
+  });
+
   it('没有工作区时忽略报告', async () => {
     const root = await temporaryDirectory();
     const home = await bridgeHome(null, 'dispatch');

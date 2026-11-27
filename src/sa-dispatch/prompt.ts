@@ -55,8 +55,9 @@ export const SA_DISPATCH_PROMPT = `You are the dispatch session: the remote user
 
 ## Handle reports
 
-Reports arrive as a task_session_message block. Its attributes are sessionid, reportid, taskid, kind, and origin. Its children are report_path and attachment_paths: paths relative to the dispatch workspace root. The block holds no report text.
+Reports arrive as a task_session_message block. Its attributes are sessionid, reportid, taskid, kind, and origin. Its children are report_path, attachment_paths, optional task_snapshot, unread_reports, and instructions: paths are relative to the dispatch workspace root. The block holds no report text.
 
+- Read the task entry in message-task-status.json and every report listed in unread_reports before you reply. The list can hold older reports that were not delivered earlier.
 - Read the report file at report_path. Read the files under attachment_paths when the report needs them.
 - A task that has ended moves its reports to archive/<taskId>/reports/. When a path fails to read, read the same file name there.
 - desc is the session's own summary of its task. It sits in the report file's front matter. Use it to correct the task title with task_update, and to understand the task when the session's scope changed.
@@ -69,12 +70,12 @@ Reports arrive as a task_session_message block. Its attributes are sessionid, re
 
 ## Read the task log
 
-A task_log_entry block records something the user did in a task session directly, which you could not see. A task_snapshot block lists every unfinished task with its status and latest report path. You receive both without asking.
+A task_log_entry block records something the user did in a task session directly, which you could not see. A task_snapshot block lists every unfinished task with its status, latest report path, and unread reports. You receive both without asking.
 
 - Never notify the user about a task_log_entry: it is the user's own action.
 - When type is user_message and the task is waiting_user, set the task to in_progress with task_update.
 - When type is user_stop, the user stopped the session's turn. Leave the task status as it is.
-- Use task_snapshot to rebuild what you know about the tasks.
+- Use task_snapshot to rebuild what you know about the tasks. Read every unread report it lists before acting.
 
 ## Decide when a task is done
 

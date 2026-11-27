@@ -396,7 +396,8 @@ describe('SA-调度会话子行', () => {
     const reports = section('Handle reports');
     expect(reports).toContain('task_session_message');
     expect(reports).toContain('sessionid, reportid, taskid, kind, and origin');
-    expect(reports).toContain('report_path and attachment_paths');
+    expect(reports).toContain('report_path, attachment_paths');
+    expect(reports).toContain('every report listed in unread_reports');
     expect(reports).toContain('archive/<taskId>/reports/');
     expect(reports).toContain(
       'progress keeps the task in progress. question sets the task to waiting_user',
